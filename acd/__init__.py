@@ -101,9 +101,6 @@ from .make_library import get_manual_series
 from .make_library import make_library
 from .cgm2clearcgm import cgm2svgclear
 from .cgm2svg import cgm2svg
-from .automonkey_solution import process_file
-from .automonkey_solution import calculate_version
-from .automonkey_solution import calculate_image_similarity2
 from .brex_checker import BrexNotFound
 from .brex_checker import NoBrexDefined
 from .brex_checker import clean_xpath
@@ -370,6 +367,7 @@ __all__ = [
     'zipdir',
 ]
 
+
 def __getattr__(name):
     modules = {
         'AtaNumbering': 'ataispec2200',
@@ -411,9 +409,7 @@ def __getattr__(name):
         'batch_check_text_format': 'svg_checks',
         'blueprint': 'graphics',
         'calculate_image_similarity': 'compare_raster',
-        'calculate_image_similarity2': 'automonkey_solution',
         'calculate_points': 'clearcgm2svg',
-        'calculate_version': 'automonkey_solution',
         'cgm2svg': 'cgm2svg',
         'cgm2svgclear': 'cgm2clearcgm',
         'check_brackets': 'python_func',
@@ -510,7 +506,6 @@ def __getattr__(name):
         'prepare_estimation': 'estimation',
         'preprocess_svg': 'clearcgm2svg',
         'prettyPrint': 'clearcgm2svg',
-        'process_file': 'automonkey_solution',
         'raster2pdf': 'raster2pdf',
         'rbg2hex': 'clearcgm2svg',
         'read_description': 's1000d',
