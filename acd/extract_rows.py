@@ -45,8 +45,6 @@ from clipboard import copy as clipboardcopy
 
 from pytesseract import image_to_string
 
-# from althomcodebase import list_files
-
 DELAY_DICT = {
     (0, 16): 0.5,
     (16, 27): 0.55,

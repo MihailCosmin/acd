@@ -1,6 +1,6 @@
 # Workflow
 # 1. Import Class
-# 		from althomcodebase import ConsumablesList
+# 		from acd import ConsumablesList
 # 2. Create Instance of class
 # 		instance = ConsumablesList()
 # 3. Call set_xml function and pass path to xml

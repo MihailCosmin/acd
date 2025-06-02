@@ -55,18 +55,9 @@ else:
 from typing import List
 from docx import Document
 
+from .archive import unarchive_file
+from .archive import zip_word_folder
 
-if __name__ == "__main__" or __name__ == basename(__file__).split(".")[0]:
-    sys.path.insert(1, join(dirname(dirname(dirname(dirname(sys.path[0])))), "files", "fileoperations"))  # for fileoperations
-    from archive import unarchive_file
-    from archive import zip_word_folder
-else:
-    try:
-        from files.fileoperations.archive import unarchive_file
-        from files.fileoperations.archive import zip_word_folder
-    except ImportError:
-        from althomcodebase.files.fileoperations.archive import unarchive_file
-        from althomcodebase.files.fileoperations.archive import zip_word_folder
 
 WORD_EXTENSIONS = [".docx", ".docm", ".doc", ".dotx", ".dotm", ".dot", ".docb"]
 WORD_NS = {

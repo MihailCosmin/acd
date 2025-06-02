@@ -64,6 +64,3 @@ def cgm2svgclear(
         progress.emit(100)
         console.emit("Finished!")
     return 0
-
-if __name__ == "__main__":
-    cgm2svg(r"D:\IT\althomcodebase\althomcodebase\automation\convertors\cgm2svg2")

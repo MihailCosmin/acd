@@ -26,29 +26,10 @@ else:
     from PySide2.QtCore import Signal
 
 
-if __name__ == "__main__" or __name__ == basename(__file__).split(".")[0]:
-    sys.path.insert(1, dirname(dirname(dirname(dirname(sys.path[0])))))  # for constants
-    sys.path.insert(1, join(dirname(dirname(sys.path[0])), "filetypes", "documents", "xml"))  # for xml
-    sys.path.insert(1, join(dirname(dirname(dirname(sys.path[0]))), "files", "fileoperations"))  # for fileoperations
-    from archive import unarchive_file
-    from archive import zip_folder
-    from ataispec2200 import ipl_to_dict
-else:
-    # sys.path.insert(1, dirname(dirname(dirname(dirname(sys.path[0])))))  # add parent directory to path
-    # sys.path.insert(1, dirname(dirname(dirname(sys.path[0]))))
-    sys.path.insert(1, join(dirname(dirname(dirname(sys.path[0]))), "files", "filetypes", "documents", "xml"))  # for xml
-    sys.path.insert(1, join(dirname(dirname(dirname(sys.path[0]))), "files", "fileoperations"))  # for fileoperations
-    try:
-        # from files.fileoperations.archive import unarchive_file
-        # from files.fileoperations.archive import zip_folder
-        # from files.filetypes.documents.xml.ataispec2200 import ipl_to_dict
-        from archive import unarchive_file
-        from archive import zip_folder
-        from ataispec2200 import ipl_to_dict
-    except ImportError:
-        from althomcodebase.files.fileoperations.archive import unarchive_file
-        from althomcodebase.files.fileoperations.archive import zip_folder
-        from althomcodebase.files.filetypes.documents.xml.ataispec2200 import ipl_to_dict
+from .archive import unarchive_file
+from .archive import zip_folder
+from .ataispec2200 import ipl_to_dict
+
 
 
 def add_iplnom_to_smg(
