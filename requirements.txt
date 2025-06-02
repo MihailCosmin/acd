@@ -1,4 +1,6 @@
 # Packages with known Python 3.12 compatibility
+yattag
+opencv-python
 tqdm>=4.62.3
 pillow>=10.2.0
 pikepdf>=8.11.2
