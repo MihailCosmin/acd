@@ -1,0 +1,53 @@
+# Packages with known Python 3.12 compatibility
+tqdm>=4.62.3
+pillow>=10.2.0
+pikepdf>=8.11.2
+pandas
+openpyxl
+saxonche>=12.4.2
+keyboard==0.13.5
+clipboard==0.0.4
+pytesseract==0.3.9
+inflect
+pdfreader==0.1.12
+selenium==4.15.2
+reportlab>=4.0.9
+pdf2image==1.16.3
+numpy==1.26.0; python_version >= "3.12"  # Updated for Python 3.12 compatibility
+numpy==1.24.4; python_version < "3.12"
+Levenshtein==0.22.0
+rapidfuzz>=3.8.1
+xlsxwriter
+svglib
+python-docx
+requests
+pypdf
+
+# Packages with conditional installation based on Python version
+imagecodecs; python_version >= "3.12"
+tifffile; python_version >= "3.12"
+# pyautogui; python_version >= "3.12"  # maybe not compatible with Python 3.12  # Not imported in the codebase for 3.12
+pymupdf; python_version >= "3.12"  # maybe not compatible with Python 3.12
+# PyEnchant; python_version >= "3.12"  # not compatible with Python 3.12
+elementpath; python_version >= "3.12"
+scikit-image>=0.22.0; python_version >= "3.12"
+scikit-learn>=1.6.0; python_version >= "3.12"
+regex==2024.11.6; python_version >= "3.12"
+pywin32>=303; sys_platform == "win32" and python_version >= "3.12"
+
+imagecodecs==2023.9.18; python_version < "3.12"
+tifffile==2022.2.9; python_version < "3.12"
+pyautogui==0.9.54; python_version < "3.12"
+PyPDF4==1.27.0; python_version < "3.12"
+pymupdf<=1.22.5; python_version < "3.12"
+PyEnchant==3.2.2; python_version < "3.12"
+elementpath==3.0.2; python_version < "3.12"
+scikit-image==0.19.3; python_version < "3.12"
+scikit-learn==1.0.2; python_version < "3.12"
+regex==2022.9.13; python_version < "3.12"
+pywin32==303; sys_platform == "win32" and python_version < "3.12"  # was 301
+
+# PySide packages based on Python version
+PySide6; python_version >= "3.12"
+PySide2; python_version < "3.12"
+

@@ -1,0 +1,290 @@
+<samples>
+    <version5.0>
+        <dmAddress>
+            <dmIdent>
+                <dmCode
+                        modelIdentCode="S1000DBIKE"
+                        systemDiffCode="AAA"
+                        systemCode="DA5"
+                        subSystemCode="0"
+                        subSubSystemCode="0"
+                        assyCode="00"
+                        disassyCode="00"
+                        disassyCodeVariant="AA"
+                        infoCode="041"
+                        infoCodeVariant="A"
+                        itemLocationCode="A" />
+                <language
+                        countryIsoCode="US"
+                        languageIsoCode="en" />
+                <issueInfo
+                        issueNumber="009"
+                        inWork="00" />
+            </dmIdent>
+            <dmAddressItems>
+                <issueDate
+                        year="2019"
+                        month="06"
+                        day="28" />
+                <dmTitle>
+                    <techName>
+						Gears
+                    </techName>
+                    <infoName>
+						Description of how it is made
+                    </infoName>
+                </dmTitle>
+            </dmAddressItems>
+        </dmAddress>
+        <dmRef>
+            <dmRefIdent>
+                <dmCode
+                        modelIdentCode="S1000DBIKE"
+                        systemDiffCode="AAA"
+                        systemCode="D00"
+                        subSystemCode="0"
+                        subSubSystemCode="0"
+                        assyCode="00"
+                        disassyCode="00"
+                        disassyCodeVariant="AA"
+                        infoCode="00W"
+                        infoCodeVariant="A"
+                        itemLocationCode="D" />
+            </dmRefIdent>
+        </dmRef>
+    </version5.0>
+    <version4.2>
+        <dmAddress>
+            <dmIdent>
+                <dmCode
+                        modelIdentCode="S1000DBIKE"
+                        systemDiffCode="AAA"
+                        systemCode="DA4"
+                        subSystemCode="1"
+                        subSubSystemCode="0"
+                        assyCode="00"
+                        disassyCode="00"
+                        disassyCodeVariant="AA"
+                        infoCode="251"
+                        infoCodeVariant="B"
+                        itemLocationCode="A" />
+                <language
+                        countryIsoCode="US"
+                        languageIsoCode="en" />
+                <issueInfo
+                        issueNumber="008"
+                        inWork="00" />
+            </dmIdent>
+            <dmAddressItems>
+                <issueDate
+                        day="31"
+                        month="12"
+                        year="2016" />
+                <dmTitle>
+                    <techName>
+						Chain
+                    </techName>
+                    <infoName>
+						Clean with chain cleaning fluid
+                    </infoName>
+                </dmTitle>
+            </dmAddressItems>
+        </dmAddress>
+        <dmRef>
+            <dmRefIdent>
+                <dmCode
+                        modelIdentCode="S1000DBIKE"
+                        systemDiffCode="AAA"
+                        systemCode="D00"
+                        subSystemCode="0"
+                        subSubSystemCode="0"
+                        assyCode="00"
+                        disassyCode="00"
+                        disassyCodeVariant="AA"
+                        infoCode="00W"
+                        infoCodeVariant="A"
+                        itemLocationCode="D" />
+            </dmRefIdent>
+        </dmRef>
+    </version4.2>
+    <version4.1>
+		<dmAddress>
+			<dmIdent>
+				<dmCode modelIdentCode="S1000DBIKE"
+				        systemDiffCode="AAA"
+				        systemCode="DA4"
+				        subSystemCode="1"
+				        subSubSystemCode="0"
+				        assyCode="00"
+				        disassyCode="00"
+				        disassyCodeVariant="AA"
+				        infoCode="251"
+				        infoCodeVariant="B"
+				        itemLocationCode="A"/>
+				<language countryIsoCode="US"
+				          languageIsoCode="en"/>
+				<issueInfo issueNumber="007"
+				           inWork="00"/>
+			</dmIdent>
+			<dmAddressItems>
+				<issueDate day="31"
+				           month="12"
+				           year="2012"/>
+				<dmTitle>
+					<techName>Chain</techName>
+					<infoName>Clean with chain cleaning fluid</infoName>
+				</dmTitle>
+			</dmAddressItems>
+		</dmAddress>
+        <dmRef xlink:type="simple"
+        xlink:actuate="onRequest"
+        xlink:show="replace"
+        xlink:href="URN:S1000D:DMC-S1000DBIKE-AAA-D00-00-00-00AA-00WA-D">
+            <dmRefIdent>
+                <dmCode modelIdentCode="S1000DBIKE"
+                        systemDiffCode="AAA"
+                        systemCode="D00"
+                        subSystemCode="0"
+                        subSubSystemCode="0"
+                        assyCode="00"
+                        disassyCode="00"
+                        disassyCodeVariant="AA"
+                        infoCode="00W"
+                        infoCodeVariant="A"
+                        itemLocationCode="D"/>
+            </dmRefIdent>
+        </dmRef>
+    </version4.1>
+    <version4.0>
+		<dmAddress>
+			<dmIdent>
+				<dmCode modelIdentCode="S1000DBIKE"
+				        systemDiffCode="AAA"
+				        systemCode="DA0"
+				        subSystemCode="0"
+				        subSubSystemCode="0"
+				        assyCode="00"
+				        disassyCode="00"
+				        disassyCodeVariant="AA"
+				        infoCode="041"
+				        infoCodeVariant="A"
+				        itemLocationCode="A"/>
+				<language countryIsoCode="US"
+				          languageIsoCode="en"/>
+				<issueInfo issueNumber="007"
+				           inWork="00"/>
+			</dmIdent>
+			<dmAddressItems>
+				<issueDate year="2008"
+				           month="08"
+				           day="01"/>
+				<dmTitle>
+					<techName>Wheel</techName>
+					<infoName>Description of how it is made</infoName>
+				</dmTitle>
+			</dmAddressItems>
+		</dmAddress>
+        <dmRef xlink:type="simple"
+        xlink:actuate="onRequest"
+        xlink:show="replace"
+        xlink:href="URN:S1000D:DMC-S1000DBIKE-AAA-D00-00-00-00AA-00WA-D">
+            <dmRefIdent>
+                <dmCode modelIdentCode="S1000DBIKE"
+                        systemDiffCode="AAA"
+                        systemCode="D00"
+                        subSystemCode="0"
+                        subSubSystemCode="0"
+                        assyCode="00"
+                        disassyCode="00"
+                        disassyCodeVariant="AA"
+                        infoCode="00W"
+                        infoCodeVariant="A"
+                        itemLocationCode="D"/>
+            </dmRefIdent>
+        </dmRef>
+    </version4.0>
+    <version3.0>
+		<dmaddres>
+			<dmc>
+				<avee>
+					<modelic>S1000DBIKE</modelic>
+					<sdc>AAA</sdc>
+					<chapnum>DA0</chapnum>
+					<section>2</section>
+					<subsect>0</subsect>
+					<subject>00</subject>
+					<discode>00</discode>
+					<discodev>AA</discodev>
+					<incode>412</incode>
+					<incodev>A</incodev>
+					<itemloc>A</itemloc>
+				</avee>
+			</dmc>
+			<dmtitle>
+				<techname>Rear wheel</techname>
+				<infoname>Detected fault</infoname>
+			</dmtitle>
+			<issno issno="004" inwork="00" type="status"/>
+			<issdate year="2007" month="07" day="31"/>
+		</dmaddres>
+        <refdm xlink:type="simple" xlink:actuate="onRequest" xlink:show="replace" xlink:href="URN:S1000D:DMC-S1000DBIKE-AAA-D00-00-0000-00AA-00WA-D">
+            <avee>
+                <modelic>S1000DBIKE</modelic>
+                <sdc>AAA</sdc>
+                <chapnum>D00</chapnum>
+                <section>0</section>
+                <subsect>0</subsect>
+                <subject>00</subject>
+                <discode>00</discode>
+                <discodev>AA</discodev>
+                <incode>00W</incode>
+                <incodev>A</incodev>
+                <itemloc>D</itemloc>
+            </avee>
+        </refdm>
+    </version3.0>
+    <version2.3>
+		<dmaddres>
+			<dmc>
+				<avee>
+					<modelic>S1000DBIKE</modelic>
+					<sdc>AAA</sdc>
+					<chapnum>DA1</chapnum>
+					<section>1</section>
+					<subsect>0</subsect>
+					<subject>00</subject>
+					<discode>00</discode>
+					<discodev>AA</discodev>
+					<incode>251</incode>
+					<incodev>A</incodev>
+					<itemloc>A</itemloc>
+				</avee>
+			</dmc>
+			<dmtitle>
+				<techname>Brake pads</techname>
+				<infoname>Clean with rubbing alcohol</infoname>
+			</dmtitle>
+			<issno issno="003"
+			       inwork="00"
+			       type="status"/>
+			<issdate year="2007"
+			         month="02"
+			         day="28"/>
+		</dmaddres>
+        <refdm>
+            <avee>
+                <modelic>S1000DBIKE</modelic>
+                <sdc>AAA</sdc>
+                <chapnum>D00</chapnum>
+                <section>0</section>
+                <subsect>0</subsect>
+                <subject>00</subject>
+                <discode>00</discode>
+                <discodev>AA</discodev>
+                <incode>121</incode>
+                <incodev>A</incodev>
+                <itemloc>A</itemloc>
+            </avee>
+        </refdm>
+    </version2.3>
+</samples>

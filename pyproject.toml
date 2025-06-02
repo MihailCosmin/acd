@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=65.5.1", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "acd"
+version = "0.0.0.1"
+description = "ALTHOM GmbH Python Codebase contains all general purpose python scripts that can be reused for any projects"
+authors = [
+    { name = "ALTHOM GmbH", email = "munteanu@althom.de" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "GNU General Public License v3 (GPLv3)" }
+keywords = ["acd"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13"
+]
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = "requirements.txt" }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*"]
+exclude = ["tests", "tests.*"]
+
+[tool.setuptools.package-data]
+acd = [
+    "3rd/inmedISOEntities.ent",
+    "3rd/cgm2svg.exe",
+    "3rd/bin/*",
+    "3rd/Tesseract-OCR/*",
+    "3rd/Tesseract-OCR/*/*",
+    "3rd/Tesseract-OCR/*/*/*"
+]
+
+[project.scripts]
+acd = "acd.cli:main"
+
+[tool.pytest.ini_options]
+minversion = "3"
+addopts = "--strict-markers"
