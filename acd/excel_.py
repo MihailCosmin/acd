@@ -22,6 +22,7 @@ else:
     from PySide2.QtWidgets import QMainWindow
     from PySide2.QtCore import Signal
 
+
 def download_excel(excel: str, path: str = None) -> None:
     """download_excel downloads an Excel file from a onedrive.live.com URL.
 

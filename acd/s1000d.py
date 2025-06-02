@@ -24,8 +24,7 @@ from json import dump
 
 from lxml import etree
 
-sys.path.insert(0, join(dirname(dirname(__file__)), 'txt'))
-from txt import add_leading
+from .txt import add_leading
 
 from .xml_processing import delete_first_line
 from .xml_processing import get_xml_attribute

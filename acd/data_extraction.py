@@ -7,7 +7,7 @@ from re import search
 from re import findall
 
 from fitz import open as pdf_open
-from txt import word_frequency
+from .txt import word_frequency
 
 from .estimation import PAGEBLOCKS
 
