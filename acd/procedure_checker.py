@@ -775,12 +775,3 @@ class IPLChecker():
 
         wb.save(filename)
 
-
-if __name__ == "__main__":
-    instance = IPLChecker()
-    # instance.set_xml(r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CMM-D9893-AB05-27-82-12_EN.xml")
-    instance.set_xml(
-        # r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CMM-D9893-AB06-27-82-23_EN.xml")
-        r"C:\Users\bakalarz\Downloads\CRM-D9893-CO91-32-11-31RM_000-01_EN.xml")
-    instance.set_export_path(r"C:\Users\bakalarz\Desktop\Export")
-    instance.check()

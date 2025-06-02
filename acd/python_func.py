@@ -147,5 +147,3 @@ def check_brackets(file_path: str, linearized=False):
 
     return mismatch_list
 
-if __name__ == "__main__":
-    print(check_brackets(r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CMM-D9893-GE01-32-51-25_009-01_EN.xml"))

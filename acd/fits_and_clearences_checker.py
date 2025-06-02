@@ -458,10 +458,3 @@ class FCChecker():
         return rows
 
 
-if __name__ == "__main__":
-    instance = FCChecker()
-    # instance.set_xml(r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CMM-D9893-AW39-32-13-01_005-01_EN.xml")
-    instance.set_xml(
-        r"C:\Users\bakalarz\Downloads\CMM-D9893-CO91-32-21-12_000-01_EN.xml")
-    instance.set_export_path(r"C:\Users\bakalarz\Desktop\Export")
-    instance.check_rows()

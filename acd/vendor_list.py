@@ -394,12 +394,3 @@ class VendorList():
             return 1
         return 0
 
-
-if __name__ == "__main__":
-    instance = VendorList()
-    instance.set_xml(
-        r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CMM-D9893-BD50-32-21-03_007-00_EN.xml")
-    # instance.set_xml(r"C:\Users\bakalarz\Desktop\322121DPLIST_UK-RM.XML")
-    instance.set_export_path(r"C:\Users\bakalarz\Desktop\Export")
-    # instance.check_vendor_codes()
-    instance.create_vendor_list()

@@ -537,17 +537,3 @@ class Punctuation():
         # TODO: Continue here
         self.check_hard_spaces()
 
-
-if __name__ == "__main__":
-    from os import listdir
-    for xml in listdir(r"C:\Users\munteanu\Downloads\Liebherr S1000D\CMP_27-20-10"):
-        if xml.lower().endswith(".xml"):
-            instance = XmlSchemaValidator()
-            instance.validate_xml(join(
-                r"C:\Users\munteanu\Downloads\Liebherr S1000D\CMP_27-20-10", xml), True, True)
-
-    # instance = Punctuation()
-    # # instance.set_text_file(r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CMM-D9893-GE01-32-51-25_009-01_EN.xml")
-    # instance.set_text_file(r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CRM-D9893-CO91-32-31-41RM_000-01_EN.xml")
-    # instance.set_export_path(r"C:\Users\bakalarz\Desktop\Export")
-    # instance.check_punctuation()

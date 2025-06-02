@@ -789,16 +789,3 @@ class UnitTable():
         workbook.save(filepath)
 
 
-if __name__ == "__main__":
-    # pass
-    instance = UnitTable()
-    # instance.set_xml(r"C:\Users\bakalarz\Desktop\CRM-D9893-CO91-32-32-32RM_000-01_EN.xml")
-    # instance.set_xml(r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CMM-D9893-AB05-27-82-12_EN.xml")
-    # instance.set_xml(r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CMM-D9893-AW39-32-13-01_005-01_EN.xml")
-    # instance.set_xml(r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CMM-D9893-BD50-32-21-03_007-00_EN.xml")
-    # instance.set_xml(r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CMM-D9893-GE01-32-51-25_009-01_EN.xml")
-    # instance.set_xml(r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CRM-D9893-BD50-32-21-03RM_004-01_EN.xml")
-    # instance.set_xml(r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CRM-D9893-BD50-32-21-03RM_004-01_EN_TestM.xml")
-    instance.set_xml(
-        r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CMM-D9893-AR21-32-10-03_EN.xml")
-    instance.create_excel(True)

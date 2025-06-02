@@ -344,11 +344,3 @@ class RepairSteps():
         xml_content = etree.tostring(xml_content, encoding="unicode")
         return xml_content
 
-
-if __name__ == "__main__":
-    instance = RepairSteps()
-    instance.set_xml(
-        r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CRM-D9893-AR21-32-10-02RM_EN - Kopie.xml")
-    # r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CRM-D9893-BD50-32-21-03RM_004-01_EN - Kopie.xml")
-    instance.set_export_path(r"C:\Users\bakalarz\Desktop\Export")
-    instance.create_table()

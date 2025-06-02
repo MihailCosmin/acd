@@ -447,11 +447,3 @@ class BrexChecker():
                     dump(result, _, indent=4)
         return result
 
-if __name__ == "__main__":
-    instance = BrexChecker(saxon=True)
-    xml = r"C:\Users\bakalarz\Desktop\CMP_21-77-06\PMC-CTTAE29N-AE29N-07706-00_002-00_SX-US.XML"
-    # instance.set_xml(xml)
-    instance.set_xml_dir(r"C:\Users\bakalarz\Desktop\Test")
-    with open(join(expanduser("~/Desktop"), f'Errors_{basename(xml)}.json'), 'w', encoding="utf-8") as _:
-        dump(instance.validate(debug = True, include_tqdm = False), _, indent=4)
-    

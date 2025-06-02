@@ -340,21 +340,4 @@ class GraphicRefChecker:
         workbook.save(join(
             self.export_path, f"graphic_ref_check_{basename(normpath(self.xml_path))}.xlsx"))
 
-if __name__ == "__main__":
-    # instance = RefChecker()
-    # instance.set_xml(
-    #     r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CMM-D9893-GE01-32-51-25_009-01_EN.xml")
-    # instance.set_export_path(r"C:\Users\bakalarz\Desktop\Export")
-    # instance.write_to_excel()
 
-    # instance = CsnChecker()
-    # instance.set_xml(
-    #     r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CMM-D9893-BD50-32-21-03_007-00_EN.xml")
-    # instance.set_export_path(r"C:\Users\bakalarz\Desktop\Export")
-    # instance.write_to_excel()
-
-    instance3 = GraphicRefChecker()
-    instance3.set_xml(
-        r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CMM-D9893-BD50-32-21-03_007-00_EN.xml")
-    instance3.set_export_path(r"C:\Users\bakalarz\Desktop\Export")
-    instance3.write_to_excel()

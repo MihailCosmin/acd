@@ -473,17 +473,3 @@ class baselineReportFilter():
             self.export_path, f"baseline_report_filter_{basename(normpath(base_report_excel))}.xlsx"))
 
 
-if __name__ == "__main__":
-    # instance = illustrationChecker()
-    # # instance.set_xml(r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CRM-D9893-CO91-32-31-41RM_000-01_EN.xml")
-    # # instance.set_list_of_illustrations(r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CRM-D9893-CO91-32-31-41- List of illustrations.xlsm")
-    # instance.set_xml(r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\32-51-21\CMM\CMM-D9893-GE01-32-51-21_EN.xml")
-    # instance.set_list_of_illustrations(r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\32-51-21\CMM\CMM-D9893-GE01-32-51-21_EN- List of illustrations.xlsm")
-    # instance.set_export_path(r"C:\Users\bakalarz\Desktop\Export")
-    # instance.validate_table()
-
-    instance = baselineReportFilter()
-    # instance.set_base_directory(r"C:\Users\bakalarz\Desktop\01_XML_Samples\WP_CO91_32-31-21\WP")
-    instance.set_base_directory(r"C:\Users\bakalarz\Downloads\WP")
-    instance.set_export_path(r"C:\Users\bakalarz\Desktop\Export")
-    instance.filter_report()

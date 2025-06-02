@@ -760,9 +760,3 @@ class ConsumablesList():
                 return 1
         return 0
 
-if __name__ == "__main__":
-    instance = ConsumablesList()
-    # instance.set_xml(r"C:\Users\bakalarz\Desktop\01_XML_Samples\ATA\CRM-D9893-BD50-32-21-03RM_004-01_EN_TestM.xml")
-    instance.set_xml(r"D:\CMM Automation\REWORK\CMM\2.1 rework\CMM-D9893-C091-32-11-21_000-01_EN.xml")
-    instance.set_excel(r"D:\CMM Automation\REWORK\CMM\2.1 rework\MASTER_LOM_Issue_45_DRAFT.xlsx")
-    instance.validate_cons_table()
