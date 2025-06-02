@@ -18,6 +18,11 @@ new_version_pyproject = '.'.join(
     ]
 )
 
+updated_pyproject_contents = pyproject_contents.replace(
+    old_version_pyproject,
+    new_version_pyproject
+)
+
 # write back to setup.py
 with open('pyproject.toml', 'w', encoding='utf-8') as f:
     f.write(updated_pyproject_contents)
