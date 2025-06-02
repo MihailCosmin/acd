@@ -38,22 +38,24 @@ def get_svg_data(svg: str) -> dict:
     result["character_count"] = len(svg_data)
     return result
 
-with open(r"C:\Users\munteanu\Downloads\Liebherr Way of Working\Creation\illus.json", "r", encoding="utf-8") as f:
-    illus = load(f)
 
-svg_dir = r"C:\Users\munteanu\Downloads\Liebherr Way of Working\Creation\SVG"
+if __name__ == "__main__":
+    with open(r"C:\Users\munteanu\Downloads\Liebherr Way of Working\Creation\illus.json", "r", encoding="utf-8") as f:
+        illus = load(f)
 
-df = DataFrame(columns=["name", "g", "a", "path", "circle", "polyline", "polygon", "text", "points", "style", "d", "character_count", "result"])
+    svg_dir = r"C:\Users\munteanu\Downloads\Liebherr Way of Working\Creation\SVG"
 
-for cgm, res in illus.items():
-    svg = cgm.replace(".cgm", ".svg")
-    if isfile(join(svg_dir, svg)):
-        svg_data = get_svg_data(join(svg_dir, svg))
-        svg_data["name"] = cgm
-        svg_data["result"] = 1 if res == "Simple" else 2 if res == "Middle" else 3
-        # df = df.append(svg_data, ignore_index=True)
-        # use pd.concat instead of df.append
-        df = pd.concat([df, pd.DataFrame(svg_data, index=[0])], ignore_index=True)
+    df = DataFrame(columns=["name", "g", "a", "path", "circle", "polyline", "polygon", "text", "points", "style", "d", "character_count", "result"])
 
-# save df to excel
-df.to_excel(r"C:\Users\munteanu\Downloads\Liebherr Way of Working\Creation\svg_data.xlsx", index=False)
+    for cgm, res in illus.items():
+        svg = cgm.replace(".cgm", ".svg")
+        if isfile(join(svg_dir, svg)):
+            svg_data = get_svg_data(join(svg_dir, svg))
+            svg_data["name"] = cgm
+            svg_data["result"] = 1 if res == "Simple" else 2 if res == "Middle" else 3
+            # df = df.append(svg_data, ignore_index=True)
+            # use pd.concat instead of df.append
+            df = pd.concat([df, pd.DataFrame(svg_data, index=[0])], ignore_index=True)
+
+    # save df to excel
+    df.to_excel(r"C:\Users\munteanu\Downloads\Liebherr Way of Working\Creation\svg_data.xlsx", index=False)

@@ -1,13 +1,13 @@
 from functools import partial
 import sys
 if sys.version_info >= (3, 12):
-    from PySide2.QtWidgets import QLineEdit
-    from PySide2.QtWidgets import QMainWindow
-    from PySide2.QtWidgets import QWidget
-else:
     from PySide6.QtWidgets import QWidget
     from PySide6.QtWidgets import QHBoxLayout
     from PySide6.QtWidgets import QLineEdit
+else:
+    from PySide2.QtWidgets import QLineEdit
+    from PySide2.QtWidgets import QMainWindow
+    from PySide2.QtWidgets import QWidget
 
 def include_search_bar(layout):
     """Creates the layout and widgets for the searchbar

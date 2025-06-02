@@ -1,186 +1,8 @@
-from .ocr_pdf import get_ocr_pdf_content
-from .ocr_pdf import ocr_pdf
-from .xml_validation import XmlSchemaValidator
-from .xml_validation import Punctuation
-from .stp import add_iplnom_to_stp
-from .smg import add_iplnom_to_smg
-from .estimation import is_fullpage_illu
-from .estimation import estimate_illustration
-from .estimation import prepare_estimation
-from .pdf import pdf_page_count
-from .pdf import get_pdf_content
-from .pdf import get_pdf_metadata
-from .pdf import merge_pdfs
-from .txt import get_textfile_content
-from .txt import validate_word
-from .txt import word_frequency
-from .txt import add_leading
-from .txt import find_characters
-from .txt import string_similarity
-from .extract_rows import copy_pdf_column
-from .extract_rows import extract_rows_from_page
-from .extract_rows import ste_dict_rows
-from .extract_rows import pdf_to_dictionary
-from .extract_rows import pdf_page_to_img
-from .filelist import list_files3
-from .filelist import list_files2
-from .filelist import list_files
-from .filelist import get_extensions
-from .docx_ import read_word_footers
-from .docx_ import get_regex_string
-from .docx_ import replace_copyright
-from .docx_ import get_template_version
-from .docx_ import docx_footer_replace
-from .docx_ import docx_header_replace
-from .docx_ import docx_content_replace
-from .docx_ import replace_media
-from .docx_ import word2pdf
-from .docx_ import get_table_column_widths
-from .docx_ import adjust_column_widths
-from .docx_ import get_footer_type
-from .docx_ import update_footer_table_widths
-from .graphics import to_256
-from .graphics import compress_img
-from .graphics import resize_img
-from .graphics import negative
-from .graphics import blueprint
-from .graphics import crop_image
-from .graphics import get_average_color
-from .glb2dracoglb import glb2dracoglb
-from .filename_version import add_filename_version
-from .filename_version import update_filename_version
-from .filename_version import delete_filename_version
-from .filename_version import increase_filename_version
-from .batcher import batch
-from .batcher import rename_illustrations
-from .utils import UiLoader
-from .utils import load_ui
-from .multi import WorkerSignals
-from .multi import Worker
-from .svg_checks import check_line_widths
-from .svg_checks import __check_line_widths
-from .svg_checks import batch_check_line_widths
-from .svg_checks import check_icn
-from .svg_checks import check_icns
-from .svg_checks import check_text_format
-from .svg_checks import batch_check_text_format
-from .svg_checks import check_illu_text
-from .illustration_checks import illu_date_check
-from .illustration_checks import check_cgm_details
-from .illustration_checks import check_tif_details
-from .vendor_list import get_chrome_driver_version
-from .vendor_list import update_chrome_driver
-from .vendor_list import VendorList
-from .unit_table import UnrecognizedUnit
-from .unit_table import UnitTable
-from .repair_steps import clean_xml_tags
-from .repair_steps import RepairSteps
-from .consTableValidator import NoExcelSet
-from .consTableValidator import NoOriginalTableFound
-from .consTableValidator import DictError
-from .consTableValidator import ConsumablesList
-from .ataispec2200 import NoXmlSet
-from .ataispec2200 import ConsumablesValidator
-from .ataispec2200 import TorqueValuesValidator
-from .ataispec2200 import cons_and_teds_checker
-from .ataispec2200 import ipl_to_dict
-from .ataispec2200 import _ipl_to_dict_excel
-from .ataispec2200 import pgblk_9000_ted_checker
-from .ataispec2200 import AtaNumbering
-from .excel_ import download_excel
-from .excel_ import get_excel_sheet_names
-from .excel_ import colum_number_to_letter
-from .excel_ import format_excel
-from .archive import unarchive_file
-from .archive import zip_word_folder
-from .archive import zip_excel_folder
-from .archive import zip_folder
-from .archive import zipdir
-from .archive import seven_unzip
-from .make_library import get_manual_series
-from .make_library import make_library
-from .cgm2clearcgm import cgm2svgclear
-from .cgm2svg import cgm2svg
-from .brex_checker import BrexNotFound
-from .brex_checker import NoBrexDefined
-from .brex_checker import clean_xpath
-from .brex_checker import BrexChecker
-from .clearcgm2svg import get_font_types
-from .clearcgm2svg import linePrepend
-from .clearcgm2svg import prettyPrint
-from .clearcgm2svg import getContent
-from .clearcgm2svg import oneDigit
-from .clearcgm2svg import twoDigits
-from .clearcgm2svg import threeDigits
-from .clearcgm2svg import fourDigits
-from .clearcgm2svg import strokeWidth
-from .clearcgm2svg import stroke
-from .clearcgm2svg import fill
-from .clearcgm2svg import rbg2hex
-from .clearcgm2svg import svgCircle
-from .clearcgm2svg import calculate_points
-from .clearcgm2svg import svgPolyline
-from .clearcgm2svg import svgText
-from .clearcgm2svg import preprocess_svg
-from .clearcgm2svg import clearCGM2SVG
-from .compare_raster import calculate_image_similarity
-from .copying import copy_files
-from .data_extraction import clean_word
-from .file_info import get_file_size
-from .filepath import clean_path
-from .fits_and_clearences_checker import FCChecker
-from .illustrations_checker import illustrationChecker
-from .illustrations_checker import baselineReportFilter
-from .pdf2raster import pdf2raster
-from .procedure_checker import IPLChecker
-from .raster2pdf import convert_image_to_pdf
-from .raster2pdf import raster2pdf
-from .reference_checker import RefChecker
-from .reference_checker import CsnChecker
-from .reference_checker import GraphicRefChecker
-from .s1000d import get_s1000d_version
-from .s1000d import get_references
-from .s1000d import get_s1000d_refs
-from .s1000d import get_4plus_refs
-from .s1000d import get_2and3_refs
-from .s1000d import get_brex_ref
-from .s1000d import ref_dict_to_str
-from .s1000d import find_document_by_reference
-from .s1000d import get_dm_codes_from_dir
-from .s1000d import get_dm_code_from_filename
-from .s1000d import get_dm_code_from_xml
-from .s1000d import validate_references
-from .s1000d import ref_dict_to_dm_code_dict
-from .s1000d import ref_dict_to_xml
-from .s1000d import get_ddn
-from .s1000d import validate_ddn
-from .s1000d import increase_issue_number
-from .s1000d import set_inwork
-from .s1000d import read_dmodule
-from .s1000d import read_procedure
-from .s1000d import read_description
-from .search_bar import include_search_bar
-from .search_bar import _filter_widgets
-from .svg_data import get_svg_data
-from .svg2jpg import svg2jpg
-from .svg2pdf import svg2pdf
-from .time import pdf_date_to_format
-from .xml_processing import delete_first_line
-from .xml_processing import linearize_xml
-from .xml_processing import get_schema_from_xml
-from .xml_processing import get_xml_attribute
-from .xml_processing import set_xml_attribute
-from .xml_processing import get_xml_tag_content
-from .xml_processing import set_xml_tag_content
-from .xml_processing import replace_special_characters
-from .python_func import get_object_attributes
-from .python_func import get_object_methods
-from .python_func import count_lines_of_functions
-from .python_func import simple_pretty_print
-from .python_func import check_brackets
-
-
 import importlib
+import sys
+
+_cache = {}
+
 __all__ = [
     'AtaNumbering',
     'BrexChecker',
@@ -221,9 +43,7 @@ __all__ = [
     'batch_check_text_format',
     'blueprint',
     'calculate_image_similarity',
-    'calculate_image_similarity2',
     'calculate_points',
-    'calculate_version',
     'cgm2svg',
     'cgm2svgclear',
     'check_brackets',
@@ -320,7 +140,6 @@ __all__ = [
     'prepare_estimation',
     'preprocess_svg',
     'prettyPrint',
-    'process_file',
     'raster2pdf',
     'rbg2hex',
     'read_description',
@@ -367,8 +186,9 @@ __all__ = [
     'zipdir',
 ]
 
-
 def __getattr__(name):
+    if name in _cache:
+        return _cache[name]
     modules = {
         'AtaNumbering': 'ataispec2200',
         'BrexChecker': 'brex_checker',
@@ -553,5 +373,7 @@ def __getattr__(name):
     }
     if name in modules:
         module = importlib.import_module(f'.{modules[name]}', __package__)
-        return getattr(module, name)
+        value = getattr(module, name)
+        _cache[name] = value
+        return value
     raise AttributeError(f'module {__name__} has no attribute {name}')
