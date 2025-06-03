@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "acd"
-version = "0.0.0.8"
+version = "0.0.0.9"
 description = "ALTHOM GmbH Python Codebase contains all general purpose python scripts that can be reused for any projects"
 authors = [
     { name = "ALTHOM GmbH", email = "munteanu@althom.de" }
