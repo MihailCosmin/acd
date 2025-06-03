@@ -21,6 +21,13 @@ for root, _, files in os.walk(BASE_DIR):
                         name = node.name
                         imports[rel_module].append(name)
                         module_map[name] = rel_module
+                    elif isinstance(node, ast.Assign):
+                        for target in node.targets:
+                            if isinstance(target, ast.Name):
+                                name = target.id
+                                if not name.startswith('_'):
+                                    imports[rel_module].append(name)
+                                    module_map[name] = rel_module
 
 # -------------------------------
 # Generate __init__.py (lazy only)
