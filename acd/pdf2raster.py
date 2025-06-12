@@ -10,7 +10,7 @@ from pdf2image import convert_from_path
 
 from .filelist import list_files
 
-POPPLER_PATH = join(dirname(dirname(abspath(__file__))), "bin")
+POPPLER_PATH = join(dirname(abspath(__file__)), "bin")
 # Update here: https://github.com/oschwartz10612/poppler-windows/releases/
 
 def pdf2raster(

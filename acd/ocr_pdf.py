@@ -9,7 +9,7 @@ from pypdf import PdfReader, PdfWriter
 import io
 import os
 
-pytesseract.pytesseract.tesseract_cmd = join(dirname(dirname(__file__)), "3rd", "Tesseract-OCR", "tesseract.exe")
+pytesseract.pytesseract.tesseract_cmd = join(dirname(__file__), "3rd", "Tesseract-OCR", "tesseract.exe")
 POPPLER_PATH = join(dirname(abspath(__file__)), "3rd", "bin")
 # Update here: https://github.com/oschwartz10612/poppler-windows/releases/
 
