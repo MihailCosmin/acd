@@ -1,6 +1,8 @@
 from re import findall
 from re import sub
 
+import json
+
 from os.path import expanduser
 from os.path import basename
 from os.path import join
@@ -284,7 +286,10 @@ class UnitTable():
         original_unit = split_value[-1]
         if original_unit not in conversion_dict:
             if self.main_window is not None:
-                self.console.emit(f'Unit "{original_unit}" not found in the Units of Measure and Conversion Factors Table. Please Check the XML file.')
+                print(f'Unit "{original_unit}" not found in the Units of Measure and Conversion Factors Table. Please Check the XML file.\nSaving debug to: {join(self.export_path, f"conversion_dict_{basename(normpath(self.xml_path))}.json")}')
+                self.console.emit(f'Unit "{original_unit}" not found in the Units of Measure and Conversion Factors Table. Please Check the XML file.\nSaving debug to: {join(self.export_path, f"conversion_dict_{basename(normpath(self.xml_path))}.json")}')
+                with open(join(self.export_path, f"conversion_dict_{basename(normpath(self.xml_path))}.json"), "w", encoding="utf-8") as _:
+                    json.dump(conversion_dict, _, indent=4, ensure_ascii=False)
                 return value
             raise UnrecognizedUnit(f"It seems like the xml uses rarely used unit ({original_unit}). Check if that's the case and \
                     contact the developer, to add the unit to the program. Conversion Dict: {conversion_dict}".replace("                    ", ""))
@@ -787,5 +792,4 @@ class UnitTable():
             row += 1
 
         workbook.save(filepath)
-
-
+        workbook.close()

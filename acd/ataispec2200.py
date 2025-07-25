@@ -1006,6 +1006,7 @@ class pgblk_9000_ted_checker():
             str: xml content with mentioned modifications.
         """
         xml_content = self.prepare_xml()
+        print(f"replace_entities - Expecting: {join(FILEPATH, 'inmedISOEntities.ent')}")
         with open(join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
             entities = _.read()
         xml_content = sub(r"(]>(.|\n)*?<cmm)", entities + r'\1', xml_content)
@@ -1036,13 +1037,27 @@ class pgblk_9000_ted_checker():
         # Get toolnbr and toolname from table in pageblock 9000
         pgblk_9000_content = ""
         dict_tools = {}
+        # Get toolnbr and toolname from procedure of all pageblocks except 9000
+        pgblk_contents_without_9000 = []
+        dict_tools_procedure = {}
         for pgblk in pgblk_contents:
             if 'pgblknbr="9000"' in pgblk:
                 pgblk_9000_content = pgblk
 
         root = etree.fromstring(pgblk_9000_content)
-        tool_table = root.xpath(
-            "//topic[title[text()='List of Special Tools, Fixtures and Equipment'] or para[text()='List of Special Tools, Fixtures and Equipment']]")
+        tool_table = root.xpath("""
+            //topic[
+                title[contains(text(), 'List of Special Tools, Fixtures and Equipment')] or 
+                para[contains(text(), 'List of Special Tools, Fixtures and Equipment')] or 
+                title[contains(text(), 'LIST OF SPECIAL TOOLS, FIXTURES AND EQUIPMENT')] or
+                para[contains(text(), 'LIST OF SPECIAL TOOLS, FIXTURES AND EQUIPMENT')]
+            ]
+        """)
+        if not tool_table:
+            print("No tool table found in pageblock 9000.")
+            with open(join(self.export_path, f"Checker_ted_pb9000_{basename(normpath(self.xml_path))}.txt"), "w", encoding="utf-8") as _:
+                _.write("No tool table found in pageblock 9000.\npgblk_9000_content:\n{}".format(pgblk_9000_content))
+            return dict_tools, dict_tools_procedure
         tool_table = etree.tostring(tool_table[0], encoding="unicode")
 
         matches = findall(
@@ -1050,9 +1065,7 @@ class pgblk_9000_ted_checker():
         for match in matches:
             dict_tools[match[1]] = match[3]
 
-        # Get toolnbr and toolname from procedure of all pageblocks except 9000
-        pgblk_contents_without_9000 = []
-        dict_tools_procedure = {}
+
 
         for pgblk in pgblk_contents:
             if 'pgblknbr="9000"' not in pgblk:

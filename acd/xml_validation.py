@@ -30,9 +30,11 @@ from openpyxl.styles import PatternFill
 
 from .xml_processing import linearize_xml
 from .xml_processing import delete_first_line
+from .xml_processing import replace_special_characters
 from .unit_list import unit_list
 from .python_func import check_brackets
 
+FILEPATH = dirname(__file__)
 
 class XmlSchemaValidator():
     """
@@ -406,7 +408,24 @@ class Punctuation():
         #                 stack.append((')', ind, ind2))
 
         # tree = etree.fromstring(file_content.encode('utf-8'))
-        tree = etree.parse(file_path)
+        
+        with open(file_path, "r", encoding="utf-8") as _:
+            xml_content = _.read()
+        xml_content = linearize_xml(xml_content)
+        xml_content = delete_first_line(xml_content)
+        xml_content = replace_special_characters(xml_content)
+        # Insert replacements for all entitys
+        with open(join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+            entities = _.read()
+        entities = linearize_xml(entities)
+        xml_content = sub(r"(]>.*?<cmm)", entities + r'\1', xml_content)
+        tree = etree.parse(StringIO(xml_content))
+        
+        # Save to file for debugging purposes
+        with open(join(self.export_path, f"check_brackets_{basename(normpath(file_path))}"), "w", encoding="utf-8") as _:
+            _.write(xml_content)
+        
+        # tree = etree.parse(file_path)
 
         for para in tree.iter('para'):
             text = ''.join(para.itertext())
@@ -425,10 +444,21 @@ class Punctuation():
         return mismatch_list
 
     def check_fullstops(self, file_path: str):
-        with open(file_path, 'r', encoding="utf-8") as _:
-            file_content = _.read()
-
-        tree = parse(file_path)
+        with open(file_path, "r", encoding="utf-8") as _:
+            xml_content = _.read()
+        xml_content = linearize_xml(xml_content)
+        xml_content = delete_first_line(xml_content)
+        xml_content = replace_special_characters(xml_content)
+        # Insert replacements for all entitys
+        with open(join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+            entities = _.read()
+        entities = linearize_xml(entities)
+        xml_content = sub(r"(]>.*?<cmm)", entities + r'\1', xml_content)
+        tree = etree.parse(StringIO(xml_content))
+        
+        # Save to file for debugging purposes
+        with open(join(self.export_path, f"check_fullstops_{basename(normpath(file_path))}"), "w", encoding="utf-8") as _:
+            _.write(xml_content)
         root = tree.getroot()
 
         occurences = []
@@ -463,7 +493,24 @@ class Punctuation():
 
         # modified_content = linearize_xml(content)
         # modified_content = etree.fromstring(modified_content)
-        modified_content = etree.parse(self.file_path)
+        
+        with open(self.file_path, "r", encoding="utf-8") as _:
+            xml_content = _.read()
+        xml_content = linearize_xml(xml_content)
+        xml_content = delete_first_line(xml_content)
+        xml_content = replace_special_characters(xml_content)
+        # Insert replacements for all entitys
+        with open(join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+            entities = _.read()
+        entities = linearize_xml(entities)
+        xml_content = sub(r"(]>.*?<cmm)", entities + r'\1', xml_content)
+        modified_content = etree.parse(StringIO(xml_content))
+        
+        # Save to file for debugging purposes
+        with open(join(self.export_path, f"check_hard_spaces_{basename(normpath(self.file_path))}"), "w", encoding="utf-8") as _:
+            _.write(xml_content)
+            
+        # modified_content = etree.parse(self.file_path)
         paras = modified_content.xpath(".//para")
         modified_content = etree.tostring(modified_content).decode()
         for elem in paras:

@@ -36,6 +36,7 @@ exclude = ["tests", "tests.*"]
 
 [tool.setuptools.package-data]
 acd = [
+    "inmedISOEntities.ent",
     "3rd/inmedISOEntities.ent",
     "3rd/cgm2svg.exe",
     "3rd/bin/*",
