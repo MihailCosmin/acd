@@ -3,10 +3,13 @@ import os
 from email.message import EmailMessage
 
 def send_email_with_attachments(
+        subject: str,
+        body: str, attachments: list,
+        recipients: list,
         sender: str = "munteanumihailcosmin@gmail.com",
-        password: str = "tjnsoftsbmbyiaiw", recipients: list,
-        subject: str, body: str, attachments: list,
-        smtp_server: str = 'smtp.gmail.com', smtp_port: int = 587):
+        password: str = "tjnsoftsbmbyiaiw",
+        smtp_server: str = 'smtp.gmail.com',
+        smtp_port: int = 587):
     """Send an email with attachments.
 
     Args:
