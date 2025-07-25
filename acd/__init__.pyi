@@ -191,6 +191,7 @@ from .s1000d import validate_ddn
 from .s1000d import validate_references
 from .search_bar import _filter_widgets
 from .search_bar import include_search_bar
+from .send_email import send_email_with_attachments
 from .smg import add_iplnom_to_smg
 from .stp import add_iplnom_to_stp
 from .svg2jpg import svg2jpg
@@ -234,5 +235,6 @@ from .xml_processing import linearize_xml
 from .xml_processing import replace_special_characters
 from .xml_processing import set_xml_attribute
 from .xml_processing import set_xml_tag_content
+from .xml_validation import FILEPATH
 from .xml_validation import Punctuation
 from .xml_validation import XmlSchemaValidator

@@ -72,3 +72,5 @@ for module, names in sorted(imports.items()):
 
 with open(os.path.join(BASE_DIR, "__init__.pyi"), "w", encoding="utf-8") as f:
     f.writelines(pyi_lines)
+
+# RUN THIS SCRIPT TO GENERATE OR UPDATE __init__.py AND __init__.pyi
