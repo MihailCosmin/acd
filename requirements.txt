@@ -24,6 +24,7 @@ svglib
 python-docx
 requests
 pypdf
+paddleocr
 
 # Packages with conditional installation based on Python version
 imagecodecs; python_version >= "3.12"

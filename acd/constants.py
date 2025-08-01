@@ -24,7 +24,7 @@ TIFF_COMPRESSION = ['zlib', 'jpeg', 'deflate', 'none']
 S1000D_VERSION_REGEX = r"(S1000D_)(\d-\d)(/)"
 DM_REF_REGEX = r"<(?:dmRef|refdm)>.*?</(?:dmRef|refdm)>"  # dmRef for Version 4+ and refdm for Version 2.3
 
-DELIVERY_LIST_ITEM_REGEX = """(<deliveryListItem>
+DELIVERY_LIST_ITEM_REGEX = r"""(<deliveryListItem>
 <dispatchFileName>)(.*?)(</dispatchFileName>)(<entityControlNumber>)?(.*?)?
 (</entityControlNumber>)?(<issueInfo inWork=")?(\d\d)?(" issueNumber=")?(\d\d\d)?("/>)?
 (</deliveryListItem>)""".replace("\n", "")

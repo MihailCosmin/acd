@@ -139,9 +139,9 @@ def svgCircle(cgmLine, strokeWidVar, strokeVar, fillVar):
         if fillVar is not False:
             circleAtt["style"] = circleAtt["style"] + \
                 " fill: " + str(fillVar) + "; "
-        circleAtt["cx"] = getContent(cgmLine, "CIRCLE \(", ",")
-        circleAtt["cy"] = getContent(cgmLine, ",", "\)")
-        circleAtt["r"] = getContent(cgmLine, "\) ", ";")
+        circleAtt["cx"] = getContent(cgmLine, r"CIRCLE \(", ",")
+        circleAtt["cy"] = getContent(cgmLine, ",", r"\)")
+        circleAtt["r"] = getContent(cgmLine, r"\) ", ";")
         with tag("circle", **circleAtt):
             pass
 
@@ -210,8 +210,8 @@ def svgText(cgmLine, textfont: str = "Arial", textsize: str = "140", svh_height:
 
     if cgmLine.strip()[0:5] == "TEXT ":
         textAtt = {}
-        textAtt["x"] = getContent(cgmLine, "TEXT \(", ",")
-        textAtt["y"] = str(svh_height - float(getContent(cgmLine, ",", "\) ")))
+        textAtt["x"] = getContent(cgmLine, r"TEXT \(", ",")
+        textAtt["y"] = str(svh_height - float(getContent(cgmLine, ",", r"\) ")))
         textAtt["font-size"] = textsize
         if "Oblique" in textfont:
             textfont = textfont.replace("Oblique", "")
@@ -254,8 +254,8 @@ def clearCGM2SVG(file):
         cgmLines = content.split("\n")
         content = getContent(cgm, "vdcext ", ";")
 
-        firstPart = getContent(content, "\(", "\) \(")
-        secondPart = getContent(content, "\) \(", "\)")
+        firstPart = getContent(content, r"\(", r"\) \(")
+        secondPart = getContent(content, r"\) \(", r"\)")
 
         firstX = getContent(firstPart, "^", ",")
         firstY = getContent(firstPart, ",", "$")

@@ -1,10 +1,26 @@
 """This module provides functions for PDF processing
 """
+
+from os import environ
+from os import pathsep
+from os.path import join
+from os.path import dirname
+from os.path import abspath
+current_file_dir = dirname(abspath(__file__))
+ccache_dir = join(current_file_dir, "3rd", "ccache-4.11.3-windows-x86_64")
+
+environ["PATH"] = ccache_dir + pathsep + environ["PATH"]
+environ["CCACHE"] = join(ccache_dir, "ccache.exe")
+environ["PADDLE_PDX_CACHE_HOME"] = join(current_file_dir, "3rd")  # This needs to be at the top of the file
+# Overrides: paddlex\utils\cache.py
+
 import sys
 
 from os.path import join
-from os.path import basename
 from os.path import dirname
+
+from traceback import format_exc
+
 
 from fitz import open as pdf_open
 from pikepdf import open as pike_open
@@ -14,8 +30,18 @@ if sys.version_info >= (3, 12):
 else:
     from PyPDF4 import PdfFileWriter, PdfFileReader
 
+from PIL import Image
+
 from pdfreader import SimplePDFViewer
-from .filelist import list_files
+if __name__ == "__main__":
+    from filelist import list_files
+    from ocr import ocr_image
+    from ocr import get_ocr_pdf_content
+else:
+    from .filelist import list_files
+    from .ocr import ocr_image
+    from .ocr import get_ocr_pdf_content
+
 
 def pdf_page_count(file_path, engine: str = "pypdf") -> int:
     """
@@ -54,7 +80,7 @@ def get_pdf_content(file_path: str, engine: str = "fitz") -> str:
 
     Args:
         file_path (str): The path to the PDF file.
-        engine (str): The engine to use. Choices: "fitz", "pymupdf", "pypdf", "pdfreader", "pikepdf"
+        engine (str): The engine to use. Choices: "fitz", "pymupdf", "pypdf", "pdfreader"
 
     Returns:
         list: The content of the PDF file.
@@ -63,27 +89,31 @@ def get_pdf_content(file_path: str, engine: str = "fitz") -> str:
         if engine == "pypdf":
             with open(file_path, 'rb') as _:
                 pdf_content = str(PdfFileReader(_, strict=False).getPage(0).extractText())
+            if pdf_content.strip() == "":
+                # If the first page is empty, try to extract text from all pages
+                pdf_content = get_ocr_pdf_content(file_path, "paddle")
             return pdf_content
         elif engine in ("fitz", "pymupdf"):
             with pdf_open(file_path) as _:
                 pdf_content = ""
                 for page in _:
-                    pdf_content += page.get_text()
+                    if page.get_text().strip() == "":
+                        img = page.get_pixmap()
+                        image = Image.frombytes("RGB", [img.width, img.height], img.samples)
+                        text = ocr_image(image, "paddle")
+
+                        pdf_content += text
+                    else:
+                        pdf_content += page.get_text()
             return pdf_content
         elif engine == "pdfreader":
             with open(file_path, 'rb') as _:
                 viewer = SimplePDFViewer(_)
                 viewer.render()
             return viewer.canvas.strings
-        elif engine == "pikepdf":
-            with pike_open(file_path) as _:
-                pdf_content = ""
-                for page in _:
-                    pdf_content += page.get_text()
-            return pdf_content
     except Exception as err:
         # See which exceptions can occur then add them here.
-        print(err)
+        print(f"Error reading PDF content from {file_path}: {err}\n{format_exc()}")
         return None
     return None
 
@@ -153,4 +183,35 @@ def merge_pdfs(folder: str, output_name: str, debug: bool = False) -> int:
     return 0
 
 if __name__ == "__main__":
-    merge_pdfs(r"D:\Excel Tests", "merged.pdf")
+    print(get_pdf_content(
+        r"C:\Users\munteanu\Downloads\CMM Automation-Drawings Summary TEST 1\CMM Automation-Drawings Summary TEST\4115-0056_Rev_04.pdf",
+        "pymupdf"
+    ))
+
+    # start_time = datetime.now()
+    # from paddleocr import PaddleOCR
+
+    # ocr = PaddleOCR(
+    #     text_detection_model_name="PP-OCRv5_mobile_det",
+    #     text_recognition_model_name="PP-OCRv5_mobile_rec",
+    #     use_doc_orientation_classify=False,
+    #     use_doc_unwarping=False,
+    #     use_textline_orientation=False,
+    #     lang="en+de")
+    
+    # end_time = datetime.now()
+    # print(f"Time taken to initialize OCR: {end_time - start_time}")
+    
+    # start_time = datetime.now()
+    
+    # result = ocr.predict(r"C:\Users\munteanu\Downloads\CMM Automation-Drawings Summary TEST 1\CMM Automation-Drawings Summary TEST\4115-0056_Rev_04.pdf")
+    # for res in result:
+    #     # res.print()
+        
+    #     print(" ".join(res["rec_texts"]))
+        
+    #     # for key, value in res.items():
+    #     #     print(f"key: {key}, value: {value}")
+    
+    # end_time = datetime.now()
+    # print(f"Time taken for ocr: {end_time - start_time}")
