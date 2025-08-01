@@ -34,7 +34,45 @@ for root, _, files in os.walk(BASE_DIR):
 # -------------------------------
 init_lines = [
     "import importlib\n",
-    "import sys\n\n",
+    "import sys",
+    """
+import subprocess
+
+from os import environ
+from os import pathsep
+from os.path import join
+from os.path import dirname
+from os.path import abspath
+
+current_file_dir = dirname(abspath(__file__))
+ccache_dir = join(current_file_dir, "3rd", "ccache-4.11.3-windows-x86_64")
+
+environ["PATH"] = ccache_dir + pathsep + environ["PATH"]
+environ["CCACHE"] = join(ccache_dir, "ccache.exe")
+environ["PADDLE_PDX_CACHE_HOME"] = join(current_file_dir, "3rd")  # This needs to be at the top of the file
+print("0 PADDLE_PDX_CACHE_HOME: ", environ["PADDLE_PDX_CACHE_HOME"])
+
+def ensure_paddle():
+    try:
+        import paddleocr
+        import paddle
+    except ImportError:
+        subprocess.check_call([
+            sys.executable, "-m", "pip", "install",
+            "paddlepaddle>=3.1.0", 
+            "-i", "https://www.paddlepaddle.org.cn/packages/stable/cpu/", "--timeout=1000"
+        ])
+        subprocess.check_call([
+            sys.executable, "-m", "pip", "install",
+            "paddlepaddle-gpu>=3.1.0", 
+            "-i", "https://www.paddlepaddle.org.cn/packages/stable/cu118/", "--timeout=1000"
+        ])
+        subprocess.check_call([
+            sys.executable, "-m", "pip", "install",
+            "paddleocr>=3.1.0"
+        ])
+ensure_paddle()
+""",
     "_cache = {}\n\n",
     "__all__ = [\n"
 ]
