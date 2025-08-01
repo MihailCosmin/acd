@@ -39,10 +39,12 @@ acd = [
     "inmedISOEntities.ent",
     "3rd/inmedISOEntities.ent",
     "3rd/cgm2svg.exe",
-    "3rd/bin/*",
-    "3rd/Tesseract-OCR/*",
-    "3rd/Tesseract-OCR/*/*",
-    "3rd/Tesseract-OCR/*/*/*"
+    "3rd/*",
+    "3rd/*/*",
+    "3rd/*/*/*",
+    "3rd/*/*/*/*",
+    "3rd/*/*/*/*/*",
+    "3rd/*/*/*/*/*/*",
 ]
 
 [project.scripts]
