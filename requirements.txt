@@ -1,3 +1,5 @@
+-i https://www.paddlepaddle.org.cn/packages/stable/cpu/
+-i https://www.paddlepaddle.org.cn/packages/stable/cu118/
 # Packages with known Python 3.12 compatibility
 yattag
 opencv-python
@@ -24,9 +26,7 @@ svglib
 python-docx
 requests
 pypdf
--i https://www.paddlepaddle.org.cn/packages/stable/cpu/
 paddlepaddle>=3.1.0
--i https://www.paddlepaddle.org.cn/packages/stable/cu118/
 paddlepaddle-gpu>=3.1.0
 paddleocr>=3.1.0
 
