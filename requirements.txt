@@ -24,10 +24,8 @@ svglib
 python-docx
 requests
 pypdf
---extra-index-url https://www.paddlepaddle.org.cn/packages/stable/cpu/
-paddlepaddle>=3.1.0
---extra-index-url https://www.paddlepaddle.org.cn/packages/stable/cu118/
-paddlepaddle-gpu>=3.1.0
+paddlepaddle>=3.1.0 --extra-index-url https://www.paddlepaddle.org.cn/packages/stable/cpu/
+paddlepaddle-gpu>=3.1.0 --extra-index-url https://www.paddlepaddle.org.cn/packages/stable/cu118/
 paddleocr>=3.1.0
 
 # Packages with conditional installation based on Python version
