@@ -1,5 +1,27 @@
 import importlib
 import sys
+import subprocess
+
+
+def ensure_paddle():
+    try:
+        import paddleocr
+        import paddle
+    except ImportError:
+        subprocess.check_call([
+            sys.executable, "-m", "pip", "install",
+            "paddleocr>=3.1.0"
+        ])
+        subprocess.check_call([
+            sys.executable, "-m", "pip", "install",
+            "paddlepaddle>=3.1.0", 
+            "-i", "https://www.paddlepaddle.org.cn/packages/stable/cpu/"
+        ])
+        subprocess.check_call([
+            sys.executable, "-m", "pip", "install",
+            "paddlepaddle-gpu>=3.1.0", 
+            "-i", "https://www.paddlepaddle.org.cn/packages/stable/cu118/"
+        ])
 
 _cache = {}
 
