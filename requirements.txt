@@ -11,7 +11,7 @@ keyboard==0.13.5
 clipboard==0.0.4
 pytesseract==0.3.9
 inflect
-pdfreader==0.1.12
+pdfreader>=0.1.15
 selenium==4.15.2
 reportlab>=4.0.9
 pdf2image==1.16.3
@@ -24,7 +24,9 @@ svglib
 python-docx
 requests
 pypdf
-paddleocr
+paddlepaddle>=3.1.0
+paddlepaddle-gpu>=3.1.0
+paddleocr>=3.1.0
 
 # Packages with conditional installation based on Python version
 imagecodecs; python_version >= "3.12"

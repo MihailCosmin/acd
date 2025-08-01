@@ -10,7 +10,6 @@ import xlsxwriter
 
 from fitz import open as pdf_open
 from pikepdf import open as pike_open
-from pdfreader import SimplePDFViewer
 
 from json import dump
 
