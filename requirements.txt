@@ -24,6 +24,7 @@ svglib
 python-docx
 requests
 pypdf
+setuptools
 # paddlepaddle>=3.1.0 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
 # paddlepaddle-gpu>=3.1.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu118/
 # paddleocr>=3.1.0
