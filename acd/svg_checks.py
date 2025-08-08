@@ -22,14 +22,79 @@ else:
     from PySide2.QtWidgets import QMainWindow
     from PySide2.QtCore import Signal
 
+if __name__ == "__main__":
+    from filelist import list_files2
+    from txt import get_textfile_content
+else:
+    from .filelist import list_files2
+    from .txt import get_textfile_content
 
-from .filelist import list_files2
-from .txt import get_textfile_content
+def convert_hex_to_rgb(hex: str) -> tuple:
+    """Convert a hex color string to an RGB tuple.
 
+    Args:
+        hex (str): The hex color string.
+
+    Returns:
+        tuple: A tuple containing the RGB values (R, G, B).
+    """
+    hex = hex.lstrip("#")
+    return tuple(int(hex[i:i + 2], 16) for i in (0, 2, 4))
+
+def convert_rgb_to_hex(rgb: tuple) -> str:
+    """Convert an RGB tuple to a hex color string.
+
+    Args:
+        rgb (tuple): A tuple containing the RGB values (R, G, B).
+
+    Returns:
+        str: The hex color string.
+    """
+    return "#{:02x}{:02x}{:02x}".format(*rgb)
+
+def convert_rgb_keys_to_hex(dictionary: dict) -> dict:
+    """Convert RGB keys in a dictionary to hex color strings.
+
+    Args:
+        dictionary (dict): A dictionary with RGB keys.
+
+    Returns:
+        dict: A dictionary with hex color string values.
+    """
+    new_dict = {}
+    for key, value in dictionary.items():
+        rgb_regex = r"(\d{1,3}), (\d{1,3}), (\d{1,3})"
+        match = search(rgb_regex, key)
+        if match:
+            rgb = tuple(int(match.group(i)) for i in range(1, 4))
+            hex = convert_rgb_to_hex(rgb).upper()
+            new_dict[hex] = value
+    return new_dict
+
+def convert_sizes_to_mm(sizes: list) -> list:
+    """Convert a list of sizes from any measurement unit to millimeters.
+
+    Args:
+        sizes (list): List of sizes in any measurement unit (e.g., "10pt", "5mm").
+
+    Returns:
+        list: List of sizes in millimeters.
+    """
+    converted = []
+    for size in sizes:
+        if size.endswith("mm"):
+            converted.append(size[:-2]).strip()
+        elif size.endswith("pt"):
+            converted.append(f"{round(float(size[:-2].strip()) * 25.4 / 72, 3):.3f}")  # Formatted to three digits always, keeping trailing zeros
+            converted.append(f"{round(0.001 + float(size[:-2].strip()) * 25.4 / 72, 3):.3f}")  # Adding +/- 0.001 for differences in conversions
+            converted.append(f"{round(-0.001 + float(size[:-2].strip()) * 25.4 / 72, 3):.3f}")
+        else:
+            converted.append(size.strip())
+    return converted
 
 def check_line_widths(
         svg_file: str,
-        valid_widths: list,
+        valid_widths: dict,
         magnification: int = 5,
         highlight_color: str = r"#FF0000",
         debug: bool = False,
@@ -40,18 +105,32 @@ def check_line_widths(
 
     Args:
         svg_file (str): SVG file to check
-        valid_widths (list): Valid line widths
+        valid_widths (dict): Pairs of colors and valid line widths
         magnification (int, optional): Magnification factor for the line widths. Defaults to 5.
         highlight_color (str, optional): Highlight color for the invalid line widths. Defaults to r"#FF0000".
     """
     try:
+        valid_widths = convert_rgb_keys_to_hex(valid_widths)
+        print(f"Valid widths: {valid_widths}")
+
         # with open(svg_file, "r", encoding="utf-8") as svg:
         # original_svg_content = new_svg_content = svg.read()
         original_svg_content = new_svg_content = get_textfile_content(svg_file)
-        for line in findall(r'<line.*?/>', new_svg_content):
+        for line in findall(r'<line .*?/>', new_svg_content) + findall(r'<path .*?/>', new_svg_content) + findall(r'<polyline .*?/>', new_svg_content):
+            stroke_color = "#000000"
+            stroke_match = search(r'(stroke=")(.*?)(")', line)
+            if stroke_match is not None:
+                stroke_color = stroke_match.group(2)
             for width in findall(r'(stroke-width=")(.*?)(")', ''.join(line)):
-                if width[1] not in valid_widths:
-                    print(f"width {width[1]} not in {valid_widths}")
+                if stroke_color not in valid_widths:
+                    if qt_window is not None:
+                        console.emit(
+                            f"No dimensions given for stroke color rgb: {convert_hex_to_rgb(stroke_color)} hex: {stroke_color}!")
+                    else:
+                        print(
+                            f"No dimensions given for stroke color rgb: {convert_hex_to_rgb(stroke_color)} hex: {stroke_color}!")
+                    continue
+                if width[1] not in valid_widths[stroke_color]:
                     # svg_content = sub(r'(stroke-width=")(.*?)(")', r'\1' + str(float(width[1]) * 10) + r'\3', svg_content)
                     width_value = width[1]
                     new_line = sub(r'(stroke-width=")(' + width_value + ')(")',
@@ -82,6 +161,8 @@ def check_line_widths(
             progress.emit(100)
             console.emit(
                 f"Error checking line widths in {svg_file}.\n{_}\n{format_exc()}")
+        print(
+            f"Error checking line widths in {svg_file}.\n{_}\n{format_exc()}")
         return 2
     return 1
 
@@ -365,9 +446,7 @@ def check_icns(
 
 def check_text_format(
         svg_file: str,
-        valid_font_family: list = None,
-        valid_font_size: list = None,
-        valid_fill: list = None,
+        validation_list: list = None,
         debug: bool = False,
         qt_window: QMainWindow = None,
         progress: Signal = Signal(0),
@@ -378,18 +457,23 @@ def check_text_format(
         svg_file (str): SVG file to check
 
     """
-    if valid_font_family is None:
-        valid_font_family = ["'Helvetica'"]
+    if validation_list is None:
+        validation_list = [
+            {
+                "valid_font_family": "'Helvetica'",
+                "valid_font_size": ["8pt", "9pt", "13pt", "15pt"],
+                "valid_fill": "#000000"
+            }
+        ]
 
-    if valid_font_size is None:
-        valid_font_size = ['2.822', '3.174', '4.586', '5.291']
-
-    if valid_fill is None:
-        valid_fill = ['#000000']
-
-    # with open(svg_file, "r", encoding="utf-8") as svg:
-    #     original_svg_content = new_svg_content = svg.read()
     original_svg_content = new_svg_content = get_textfile_content(svg_file)
+
+    validation = {}
+    for validation_dict in validation_list:
+        if validation_dict["valid_font_family"] + "_" + validation_dict["valid_fill"] not in validation:
+            validation[validation_dict["valid_font_family"] + "_" + validation_dict["valid_fill"]] = convert_sizes_to_mm(validation_dict["valid_font_size"])
+
+
     for text in findall(r'(<text.*?>)(.*?)(</text>)', new_svg_content):
         original_full_text = new_full_text = "".join(text)
         font_family = search(r'(font-family=")(.*?)(")', text[0])
@@ -397,14 +481,16 @@ def check_text_format(
         fill = search(r'(fill=")(.*?)(")', text[0])
         error = False
         if font_family is not None:
-            if font_family[2] not in valid_font_family:
-                error = True
-        if font_size is not None:
-            if font_size[2] not in valid_font_size:
+            if not any(font_family[2] in val_key for val_key in validation.keys()):
                 error = True
         if fill is not None:
-            if fill[2] not in valid_fill:
+            if not any(fill[2] in val_key for val_key in validation.keys()):
                 error = True
+
+        if font_family[2] + "_" + fill[2] in validation:
+            if font_size is not None:
+                if font_size[2] not in validation[font_family[2] + "_" + fill[2]]:
+                    error = True
         if error:
             new_full_text = new_full_text.replace(
                 fill.group(0), 'fill="#FF0000"')
@@ -415,8 +501,7 @@ def check_text_format(
         with open(svg_file.replace('.svg', '_text_format_check.svg'), "w", encoding="utf-8") as svg:
             svg.write(new_svg_content)
         return 0
-    else:
-        return 1
+    return 1
 
 
 def batch_check_text_format(
@@ -550,5 +635,17 @@ def check_illu_text(
 if __name__ == '__main__':
     # check_line_widths(r"D:\Automation\Illu Automation\ICN-CO91-32-32-33-D9893-00657-A01_000.svg",
     #                   ["0.12", "0.18", "0.35", "0.6", "0.7"])
-    check_text_format(
-        r"D:\Automation\Illu Automation\ICN-CO91-32-32-33-D9893-00657-A01_000.svg")
+    # print(
+    #     check_line_widths(
+    #         r"C:\Users\munteanu\Downloads\S1000D CMP_new\new CMP automation\ICN-LIAERBA77-A-579121-B-D9893-00059-A-003-01.svg",
+    #         {
+    #             "Black (0, 0, 0)": ["0.12mm", "0.18mm", "0.35mm", "0.6mm", "0.7mm", "0.8mm"],
+    #             "Blue (0, 0, 255)": ["0.12mm", "0.18mm", "0.35mm", "0.6mm", "0.7mm", "0.8mm", "2mm"]
+    #         }
+    #     )
+    # )
+    print(
+        check_icn(
+            r"C:\Users\munteanu\Downloads\S1000D CMP_new\new CMP automation\ICN-LIAERBA77-A-579121-B-D9893-00059-A-003-01.svg"
+        )
+    )
