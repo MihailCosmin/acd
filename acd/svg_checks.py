@@ -243,7 +243,7 @@ def __check_line_widths(
 
 def batch_check_line_widths(
         svg_folder: str,
-        valid_widths: list,
+        valid_widths: dict,
         magnification: int = 5,
         highlight_color: str = r"#FF0000",
         debug: bool = False,
@@ -510,9 +510,7 @@ def check_text_format(
 
 def batch_check_text_format(
         svg_folder: str,
-        valid_font_family: list = None,
-        valid_font_size: list = None,
-        valid_fill: list = None,
+        validation_list: list = None,
         debug: bool = False,
         qt_window: QMainWindow = None,
         progress: Signal = Signal(0),
@@ -521,9 +519,7 @@ def batch_check_text_format(
 
     Args:
         svg_folder (str): SVG folder to check
-        valid_font_family (list, optional): Valid font families. Defaults to None.
-        valid_font_size (list, optional): Valid font sizes. Defaults to None.
-        valid_fill (list, optional): Valid fill colors. Defaults to None.
+        validation_list (list, optional): List of validation rules. Defaults to None.
         qt_window (QMainWindow, optional): Qt window to show the progress. Defaults to None.
         progress (Signal, optional): Progress signal. Defaults to Signal(0).
         console (Signal, optional): Console signal. Defaults to Signal("").
@@ -531,24 +527,17 @@ def batch_check_text_format(
     Returns:
         int: 0 if successful, 1 if not
     """
-    if valid_font_family is None:
-        valid_font_family = ["'Helvetica'"]
-
-    if valid_font_size is None:
-        valid_font_size = ['2.822', '3.174', '4.586', '5.291']
-
-    if valid_fill is None:
-        valid_fill = ['#000000']
-    result = {1: "Text format is OK",
-              0: "Incorrect text format found", 2: "Error"}
+        
+    result = {
+        1: "Text format is OK",
+        0: "Incorrect text format found", 2: "Error"}
     results = {}
     try:
         scope = list_files2(svg_folder, True, ['svg'])
         for svg in scope:
             if qt_window is not None:
                 progress.emit(int(scope.index(svg) / len(scope) * 100))
-            results[svg.split(sep)[-1]] = result[check_text_format(svg, valid_font_family, valid_font_size,
-                                                                   valid_fill, debug, qt_window, progress, console)]
+            results[svg.split(sep)[-1]] = result[check_text_format(svg, validation_list, debug, qt_window, progress, console)]
 
             if qt_window is not None and debug:
                 console.emit(
