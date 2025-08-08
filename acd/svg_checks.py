@@ -460,9 +460,9 @@ def check_text_format(
     if validation_list is None:
         validation_list = [
             {
-                "valid_font_family": "'Helvetica'",
-                "valid_font_size": ["8pt", "9pt", "13pt", "15pt"],
-                "valid_fill": "#000000"
+                "font_family": "'Helvetica'",
+                "font_size": ["8pt", "9pt", "13pt", "15pt"],
+                "fill": "#000000"
             }
         ]
 
@@ -470,8 +470,8 @@ def check_text_format(
 
     validation = {}
     for validation_dict in validation_list:
-        if validation_dict["valid_font_family"] + "_" + validation_dict["valid_fill"] not in validation:
-            validation[validation_dict["valid_font_family"] + "_" + validation_dict["valid_fill"]] = convert_sizes_to_mm(validation_dict["valid_font_size"])
+        if validation_dict["font_family"] + "_" + validation_dict["fill"] not in validation:
+            validation[validation_dict["font_family"] + "_" + validation_dict["fill"]] = convert_sizes_to_mm(validation_dict["font_size"])
 
 
     for text in findall(r'(<text.*?>)(.*?)(</text>)', new_svg_content):

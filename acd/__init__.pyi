@@ -1,3 +1,4 @@
+print("Start __init__.pyi")
 from .archive import seven_unzip
 from .archive import unarchive_file
 from .archive import zip_excel_folder
@@ -244,3 +245,5 @@ from .xml_processing import set_xml_tag_content
 from .xml_validation import FILEPATH
 from .xml_validation import Punctuation
 from .xml_validation import XmlSchemaValidator
+
+print("Start __init__.pyi")

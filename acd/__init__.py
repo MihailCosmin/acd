@@ -1,3 +1,4 @@
+print("acd intialization start")
 import importlib
 import sys
 import subprocess
@@ -36,6 +37,8 @@ def ensure_paddle():
             "paddleocr>=3.1.0"
         ])
 ensure_paddle()
+
+print("Paddle is installed")
 _cache = {}
 
 __all__ = [
@@ -518,3 +521,5 @@ def __getattr__(name):
         _cache[name] = value
         return value
     raise AttributeError(f'module {__name__} has no attribute {name}')
+
+print("acd intialization is finished")
