@@ -110,6 +110,8 @@ def check_line_widths(
         highlight_color (str, optional): Highlight color for the invalid line widths. Defaults to r"#FF0000".
     """
     try:
+        if isinstance(valid_widths, str):
+            valid_widths = eval(valid_widths)
         valid_widths = convert_rgb_keys_to_hex(valid_widths)
         print(f"Valid widths: {valid_widths}")
 
@@ -465,6 +467,8 @@ def check_text_format(
                 "fill": "#000000"
             }
         ]
+    elif isinstance(validation_list, str):
+        validation_list = eval(validation_list)
 
     original_svg_content = new_svg_content = get_textfile_content(svg_file)
 
