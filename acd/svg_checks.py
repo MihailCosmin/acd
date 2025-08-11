@@ -7,7 +7,7 @@ import sys
 from re import sub
 from re import search
 from re import findall
-
+from datetime import datetime
 from traceback import format_exc
 
 import pandas as pd
@@ -28,6 +28,8 @@ if __name__ == "__main__":
 else:
     from .filelist import list_files2
     from .txt import get_textfile_content
+
+missing_stroke_colors = []
 
 def convert_hex_to_rgb(hex: str) -> tuple:
     """Convert a hex color string to an RGB tuple.
@@ -83,7 +85,7 @@ def convert_sizes_to_mm(sizes: list) -> list:
     converted = []
     for size in sizes:
         if size.endswith("mm"):
-            converted.append(size[:-2]).strip()
+            converted.append(size[:-2].strip())
         elif size.endswith("pt"):
             converted.append(f"{round(float(size[:-2].strip()) * 25.4 / 72, 3):.3f}")  # Formatted to three digits always, keeping trailing zeros
             converted.append(f"{round(0.001 + float(size[:-2].strip()) * 25.4 / 72, 3):.3f}")  # Adding +/- 0.001 for differences in conversions
@@ -118,21 +120,25 @@ def check_line_widths(
         # with open(svg_file, "r", encoding="utf-8") as svg:
         # original_svg_content = new_svg_content = svg.read()
         original_svg_content = new_svg_content = get_textfile_content(svg_file)
-        for line in findall(r'<line .*?/>', new_svg_content) + findall(r'<path .*?/>', new_svg_content) + findall(r'<polyline .*?/>', new_svg_content):
+        # TODO: Cosmin - Talk about whcih ones to include, only lines or all?
+        for line in findall(r'<line .*?/>', new_svg_content): # + findall(r'<polygon .*?/>', new_svg_content) + findall(r'<path .*?/>', new_svg_content) + findall(r'<polyline .*?/>', new_svg_content):
             stroke_color = "#000000"
             stroke_match = search(r'(stroke=")(.*?)(")', line)
             if stroke_match is not None:
                 stroke_color = stroke_match.group(2)
             for width in findall(r'(stroke-width=")(.*?)(")', ''.join(line)):
                 if stroke_color not in valid_widths:
-                    if qt_window is not None:
-                        console.emit(
-                            f"No dimensions given for stroke color rgb: {convert_hex_to_rgb(stroke_color)} hex: {stroke_color}!")
-                    else:
-                        print(
-                            f"No dimensions given for stroke color rgb: {convert_hex_to_rgb(stroke_color)} hex: {stroke_color}!")
+                    if stroke_color not in missing_stroke_colors:
+                        missing_stroke_colors.append(stroke_color)
+                        if qt_window is not None:
+                            console.emit(
+                                f"<!> No dimensions given for stroke color rgb: {convert_hex_to_rgb(stroke_color)} hex: {stroke_color}!")
+                        else:
+                            print(
+                                f"<!> No dimensions given for stroke color rgb: {convert_hex_to_rgb(stroke_color)} hex: {stroke_color}!")
                     continue
-                if width[1] not in valid_widths[stroke_color]:
+                if width[1] not in convert_sizes_to_mm(valid_widths[stroke_color]):
+                    print(f"Width: {width[1]} not in {convert_sizes_to_mm(valid_widths[stroke_color])}")
                     # svg_content = sub(r'(stroke-width=")(.*?)(")', r'\1' + str(float(width[1]) * 10) + r'\3', svg_content)
                     width_value = width[1]
                     new_line = sub(r'(stroke-width=")(' + width_value + ')(")',
@@ -264,11 +270,13 @@ def batch_check_line_widths(
     Returns:
         int: 0 if successful, 1 if not
     """
+
     result = {1: "Line Widths are OK",
               0: "Incorrect Line Widths found", 2: "Error"}
     results = {}
     try:
         scope = list_files2(svg_folder, True, ['svg'])
+        scope = [s for s in scope if "_line_width_check" not in s and "_dimensions_check" not in s and "_text_format_check" not in s]
         for svg in scope:
             if qt_window is not None:
                 progress.emit(int(scope.index(svg) / len(scope) * 100))
@@ -276,8 +284,8 @@ def batch_check_line_widths(
                 svg, valid_widths, magnification, highlight_color, debug, qt_window, progress, console)]
 
             if qt_window is not None and debug:
-                console.emit(
-                    f"Line Width check for {svg.split(sep)[-1]} finished. Result: {results[svg.split(sep)[-1]]}!")
+                console.emit(f"Line Width check for {svg.split(sep)[-1]} finished.")
+                console.emit(f"<!>Result: {results[svg.split(sep)[-1]]}!")
     except Exception as _:
         return 1
 
@@ -286,11 +294,12 @@ def batch_check_line_widths(
         df = pd.DataFrame.from_dict(
             results, orient='index', columns=['Result'])
         df.index.name = 'Filename'
-        df.to_excel(svg_folder + sep + 'Line_Width_check.xlsx',
+        now = datetime.now().strftime("%Y-%m-%d %H_%M_%S")
+        df.to_excel(svg_folder + sep + f'Line_Width_check_{now}.xlsx',
                     engine='xlsxwriter')
 
         workbook = openpyxl.load_workbook(
-            svg_folder + sep + 'Line_Width_check.xlsx')
+            svg_folder + sep + f'Line_Width_check_{now}.xlsx')
         worksheet = workbook.active
 
         # format header blue background white text bold
@@ -329,11 +338,11 @@ def batch_check_line_widths(
         # set column width
         worksheet.column_dimensions['A'].width = 50
         worksheet.column_dimensions['B'].width = 30
-        workbook.save(svg_folder + sep + 'Line_Width_check.xlsx')
+        workbook.save(svg_folder + sep + f'Line_Width_check_{now}.xlsx')
 
         progress.emit(100)
         console.emit(
-            f"\n\nLine Width check finished. Results saved to {svg_folder + sep + 'Line_Width_check.xlsx'}")
+            f"\n\nLine Width check finished. Results saved to {svg_folder + sep + f'Line_Width_check_{now}.xlsx'}")
 
         return 0
 
@@ -397,9 +406,10 @@ def check_icns(
         df = pd.DataFrame.from_dict(
             results, orient='index', columns=['Result'])
         df.index.name = 'Filename'
-        df.to_excel(svg_folder + sep + 'ICN_check.xlsx', engine='xlsxwriter')
+        now = datetime.now().strftime("%Y-%m-%d %H_%M_%S")
+        df.to_excel(svg_folder + sep + f'ICN_check_{now}.xlsx', engine='xlsxwriter')
 
-        workbook = openpyxl.load_workbook(svg_folder + sep + 'ICN_check.xlsx')
+        workbook = openpyxl.load_workbook(svg_folder + sep + f'ICN_check_{now}.xlsx')
         worksheet = workbook.active
 
         # format header blue background white text bold
@@ -437,11 +447,11 @@ def check_icns(
         # set column width
         worksheet.column_dimensions['A'].width = 50
         worksheet.column_dimensions['B'].width = 20
-        workbook.save(svg_folder + sep + 'ICN_check.xlsx')
+        workbook.save(svg_folder + sep + f'ICN_check_{now}.xlsx')
 
         progress.emit(100)
         console.emit(
-            f"ICN check finished. Results saved to {svg_folder + sep + 'ICN_check.xlsx'}")
+            f"ICN check finished. Results saved to {svg_folder + sep + f'ICN_check_{now}.xlsx'}")
         return 0
     return results
 
@@ -534,6 +544,7 @@ def batch_check_text_format(
     results = {}
     try:
         scope = list_files2(svg_folder, True, ['svg'])
+        scope = [s for s in scope if "_line_width_check" not in s and "_dimensions_check" not in s and "_text_format_check" not in s]
         for svg in scope:
             if qt_window is not None:
                 progress.emit(int(scope.index(svg) / len(scope) * 100))
@@ -555,11 +566,12 @@ def batch_check_text_format(
         df = pd.DataFrame.from_dict(
             results, orient='index', columns=['Result'])
         df.index.name = 'Filename'
-        df.to_excel(svg_folder + sep + 'Text_Format_check.xlsx',
+        now = datetime.now().strftime("%Y-%m-%d %H_%M_%S")
+        df.to_excel(svg_folder + sep + f'Text_Format_check_{now}.xlsx',
                     engine='xlsxwriter')
 
         workbook = openpyxl.load_workbook(
-            svg_folder + sep + 'Text_Format_check.xlsx')
+            svg_folder + sep + f'Text_Format_check_{now}.xlsx')
         worksheet = workbook.active
 
         # format header blue background white text bold
@@ -598,11 +610,11 @@ def batch_check_text_format(
         # set column width
         worksheet.column_dimensions['A'].width = 50
         worksheet.column_dimensions['B'].width = 30
-        workbook.save(svg_folder + sep + 'Text_Format_check.xlsx')
+        workbook.save(svg_folder + sep + f'Text_Format_check_{now}.xlsx')
 
         progress.emit(100)
         console.emit(
-            f"\n\nText Format check finished. Results saved to {svg_folder + sep + 'Text_Format_check.xlsx'}")
+            f"\n\nText Format check finished. Results saved to {svg_folder + sep + f'Text_Format_check_{now}.xlsx'}")
         return 0
     return results
 
