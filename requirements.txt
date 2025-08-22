@@ -15,8 +15,8 @@ pdfreader>=0.1.15
 selenium==4.15.2
 reportlab>=4.0.9
 pdf2image==1.16.3
-numpy>=1.26.0; python_version >= "3.12"  # Updated for Python 3.12 compatibility
-numpy==1.24.4; python_version < "3.12"
+# numpy>=1.26.0; python_version >= "3.12"  # Updated for Python 3.12 compatibility
+# numpy==1.24.4; python_version < "3.12"
 Levenshtein==0.22.0
 rapidfuzz>=3.8.1
 xlsxwriter
