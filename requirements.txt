@@ -1,12 +1,12 @@
 # Packages with known Python 3.12 compatibility
 yattag
 opencv-python
-tqdm>=4.62.3
-pillow>=10.2.0
-pikepdf>=8.11.2
+tqdm
+pillow
+pikepdf
 pandas
 openpyxl
-saxonche>=12.4.2
+saxonche
 keyboard
 clipboard
 pytesseract
@@ -51,7 +51,7 @@ elementpath; python_version < "3.12"
 scikit-image; python_version < "3.12"
 scikit-learn; python_version < "3.12"
 regex; python_version < "3.12"
-pywin32==303; sys_platform == "win32" and python_version < "3.12"  # was 301
+pywin32; sys_platform == "win32" and python_version < "3.12"  # was 301
 
 # PySide packages based on Python version
 PySide6 # ; python_version >= "3.12"
