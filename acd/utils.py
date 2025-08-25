@@ -2,7 +2,7 @@
 import sys
 
 # Qt imports
-if sys.version_info >= (3, 12):
+if sys.version_info >= (3, 10):
     from PySide6.QtUiTools import QUiLoader
     from PySide6.QtCore import QMetaObject
     from PySide6.QtWidgets import QMainWindow
