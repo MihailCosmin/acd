@@ -72,6 +72,8 @@ def ensure_paddle():
             "paddleocr>=3.1.0"
         ])
 ensure_paddle()
+
+print("Paddle is installed")
 """,
     "_cache = {}\n\n",
     "__all__ = [\n"
@@ -97,7 +99,9 @@ init_lines += [
 ]
 
 with open(os.path.join(BASE_DIR, "__init__.py"), "w", encoding="utf-8") as f:
+    f.write("print(\"acd intialization start\")\n")
     f.writelines(init_lines)
+    f.write("\nprint(\"acd intialization is finished\")")
 
 # -------------------------------
 # Generate __init__.pyi (static stubs for IDEs)
@@ -109,6 +113,9 @@ for module, names in sorted(imports.items()):
         pyi_lines.append(f"from .{module} import {name}\n")
 
 with open(os.path.join(BASE_DIR, "__init__.pyi"), "w", encoding="utf-8") as f:
+    f.writelines("print(\"Start __init__.pyi\")\n")
     f.writelines(pyi_lines)
+    f.writelines("\nprint(\"End __init__.pyi\")")
 
+print("Generated __init__.py and __init__.pyi")
 # RUN THIS SCRIPT TO GENERATE OR UPDATE __init__.py AND __init__.pyi

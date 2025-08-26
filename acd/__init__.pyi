@@ -89,6 +89,10 @@ from .docx_ import replace_copyright
 from .docx_ import replace_media
 from .docx_ import update_footer_table_widths
 from .docx_ import word2pdf
+from .error_handler import ErrorHandler
+from .error_handler import default_error_handler
+from .error_handler import error_context
+from .error_handler import with_email_on_error
 from .estimation import PAGEBLOCKS
 from .estimation import SVG_ELEMENT_REGEX
 from .estimation import SVG_HEIGHT_REGEX
@@ -212,6 +216,11 @@ from .svg_checks import check_icns
 from .svg_checks import check_illu_text
 from .svg_checks import check_line_widths
 from .svg_checks import check_text_format
+from .svg_checks import convert_hex_to_rgb
+from .svg_checks import convert_rgb_keys_to_hex
+from .svg_checks import convert_rgb_to_hex
+from .svg_checks import convert_sizes_to_mm
+from .svg_checks import missing_stroke_colors
 from .svg_data import get_svg_data
 from .time import pdf_date_to_format
 from .txt import ENCODINGS
@@ -246,4 +255,4 @@ from .xml_validation import FILEPATH
 from .xml_validation import Punctuation
 from .xml_validation import XmlSchemaValidator
 
-print("Start __init__.pyi")
+print("End __init__.pyi")
