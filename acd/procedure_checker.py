@@ -1,14 +1,18 @@
+import sys
 from re import findall
 from re import sub
 from re import search
 from re import escape
 
+from os import makedirs
 from os.path import join
+from os.path import isdir
 from os.path import expanduser
 from os.path import basename
 from os.path import dirname
 from os.path import normpath
 
+from json import dump
 from lxml import etree
 
 from openpyxl import Workbook
@@ -22,12 +26,23 @@ from .xml_processing import delete_first_line
 from .xml_processing import replace_special_characters
 from .xml_processing import linearize_xml
 
+
+if sys.version_info >= (3, 12):
+    from PySide6.QtWidgets import QMainWindow
+    from PySide6.QtCore import Signal
+else:
+    from PySide2.QtWidgets import QMainWindow
+    from PySide2.QtCore import Signal
+
 FILEPATH = dirname(__file__)
 
 
 class IPLChecker():
-    def __init__(self) -> None:
+    def __init__(self, debug: bool = False, qt_window: QMainWindow = None, console: Signal = None) -> None:
         self.xml_path = None
+        self.debug = debug
+        self.qt_window = qt_window
+        self.console = console
         self.export_path = expanduser("~/Desktop")
 
     def set_xml(self, xml_path: str):
@@ -157,7 +172,7 @@ class IPLChecker():
                     nomenclature = prev_item_name
                 my_dict[item_number] = nomenclature
                 prev_item_name = nomenclature
-        words_to_remove = ['from ', 'the ', 'and ', 'an ', 'with ', 'other ', 'one ', 'second ', 'remove ', 'to ', 'install ', 'applied ', 'of ', 'surfaces ', 'step ', 'is ', 'correctly ', 'necessary ', 'between ', 'for ']
+        words_to_remove = ['into the ', 'keep the ', 'put the ', 'at the ', 'on the ', 'from ', 'the ', 'and ', 'an ', 'with ', 'other ', 'one ', 'second ', 'remove ', 'to ', 'install ', 'applied ', 'of ', 'surfaces ', 'step ', 'is ', 'correctly ', 'necessary ', 'between ', 'for ']
         my_new_dict = {}
         for key, value in my_dict.items():
             value = value.lower().strip()
@@ -167,7 +182,7 @@ class IPLChecker():
             for word in words_to_remove:
                 value = value.replace(word, '')
 
-            my_new_dict[key] = value
+            my_new_dict[key] = value.strip()
         # return dict(sorted(my_new_dict.items(), key=lambda x: [int(d) for d in findall(r'\d+', x[0])]))
         return my_new_dict
 
@@ -385,6 +400,20 @@ class IPLChecker():
                 cell = workbook[sheet_name].cell(row=1, column=column)
                 cell.value = header
                 cell.font = Font(bold=is_bold, italic=True, size=size)
+                
+        if self.debug:
+            if isinstance(self.qt_window, QMainWindow):
+                if not isdir(join(self.qt_window.exe_path, "debug")):
+                    makedirs(join(self.qt_window.exe_path, "debug"))
+                with open(join(self.qt_window.exe_path, "debug", "dict_ipl_table.json"), "w", encoding="utf-8") as log_file:
+                    dump(dict_ipl_table, log_file, ensure_ascii=False, indent=4)
+                with open(join(self.qt_window.exe_path, "debug", "dict_disassembly.json"), "w", encoding="utf-8") as log_file:
+                    dump(dict_disassembly, log_file, ensure_ascii=False, indent=4)
+                with open(join(self.qt_window.exe_path, "debug", "dict_repair.json"), "w", encoding="utf-8") as log_file:
+                    dump(dict_repair, log_file, ensure_ascii=False, indent=4)
+                with open(join(self.qt_window.exe_path, "debug", "dict_assembly.json"), "w", encoding="utf-8") as log_file:
+                    dump(dict_assembly, log_file, ensure_ascii=False, indent=4)
+
         # Checks for sheet "IPL"
         row = 2
         for key, value in dict_ipl_table.items():

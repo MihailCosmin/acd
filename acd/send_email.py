@@ -31,7 +31,7 @@ def send_email_with_attachments(
 
         # Add attachments
         for file_path in attachments:
-            if not os.path.isfile(file_path):
+            if not os.path.isfile(str(file_path)):
                 continue
             with open(file_path, 'rb') as f:
                 file_data = f.read()

@@ -5,7 +5,10 @@ from io import StringIO
 from re import findall
 from re import sub
 
+from os import makedirs
 from os.path import join
+from os.path import isfile
+from os.path import isdir
 from os.path import expanduser
 from os.path import basename
 from os.path import dirname
@@ -318,7 +321,6 @@ class ConsumablesValidator():
 
         self._print_result()
 
-
 class TorqueValuesValidator():
     def __init__(self) -> None:
         self.xml_path = None
@@ -608,10 +610,12 @@ class TorqueValuesValidator():
         with open(join(self.export_path, f"Torque_Table_{basename(normpath(self.xml_path))}.xml"), "w", encoding="utf-8") as _:
             _.write(table_content)
 
-
 class cons_and_teds_checker():
-    def __init__(self) -> None:
+    def __init__(self, debug: bool = False, qt_window: QMainWindow = None, console: Signal = None) -> None:
         self.xml_path = None
+        self.debug = debug
+        self.qt_window = qt_window
+        self.console = console
         self.export_path = expanduser("~/Desktop")
         self.pgblk_contents = None
 
@@ -654,6 +658,7 @@ class cons_and_teds_checker():
         with open(join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
             entities = _.read()
         xml_content = sub(r"(]>(.|\n)*?<cmm)", entities + r'\1', xml_content)
+        
         return xml_content
 
     def get_all_pgblks(self):
@@ -664,6 +669,11 @@ class cons_and_teds_checker():
         """
         xml_content = self.replace_entities()
         tree = etree.fromstring(xml_content)
+        if self.debug:
+            if isinstance(self.qt_window, QMainWindow):
+                if not isdir(join(self.qt_window.exe_path, "debug")):
+                    makedirs(join(self.qt_window.exe_path, "debug"))
+                etree.ElementTree(tree).write(join(self.qt_window.exe_path, "debug", "replaced_entities_" + basename(normpath(self.xml_path))), encoding="utf-8")
         pgblks = tree.xpath("//pgblk")
         pgblk_contents = [linearize_xml(etree.tostring(
             pgblk, encoding="unicode")) for pgblk in pgblks]
@@ -685,6 +695,14 @@ class cons_and_teds_checker():
 
         dict_cons = {}
         dict_tools = {}
+
+
+        if self.debug:
+            if isinstance(self.qt_window, QMainWindow):
+                if not isdir(join(self.qt_window.exe_path, "debug")):
+                    makedirs(join(self.qt_window.exe_path, "debug"))
+                with open(join(self.qt_window.exe_path, "debug", "pgblk_contents_" + basename(normpath(self.xml_path))), "w", encoding="utf-8") as _:
+                    _.write("\n".join(pgblk_contents))
 
         for pgblk in pgblk_contents:
             if search(r'(pgblknbr=")(\d+)(")', pgblk):
