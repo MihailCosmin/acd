@@ -99,6 +99,9 @@ def check_line_widths(
         valid_widths: dict,
         magnification: int = 5,
         highlight_color: str = r"#FF0000",
+        paths: bool = False,
+        polylines: bool = False,
+        polygons: bool = False,
         debug: bool = False,
         qt_window: QMainWindow = None,
         progress: Signal = Signal(0),
@@ -121,7 +124,16 @@ def check_line_widths(
         # original_svg_content = new_svg_content = svg.read()
         original_svg_content = new_svg_content = get_textfile_content(svg_file)
         # TODO: Cosmin - Talk about whcih ones to include, only lines or all?
-        for line in findall(r'<line .*?/>', new_svg_content): # + findall(r'<polygon .*?/>', new_svg_content) + findall(r'<path .*?/>', new_svg_content) + findall(r'<polyline .*?/>', new_svg_content):
+
+        scope = findall(r'<line .*?/>', new_svg_content)
+        if paths:
+            scope += findall(r'<path .*?/>', new_svg_content)
+        if polylines:
+            scope += findall(r'<polyline .*?/>', new_svg_content)
+        if polygons:
+            scope += findall(r'<polygon .*?/>', new_svg_content)
+
+        for line in scope:
             stroke_color = "#000000"
             stroke_match = search(r'(stroke=")(.*?)(")', line)
             if stroke_match is not None:
@@ -253,6 +265,9 @@ def batch_check_line_widths(
         magnification: int = 5,
         highlight_color: str = r"#FF0000",
         debug: bool = False,
+        paths: bool = False,
+        polylines: bool = False,
+        polygons: bool = False,
         qt_window: QMainWindow = None,
         progress: Signal = Signal(0),
         console: Signal = Signal("")) -> int:
@@ -281,7 +296,7 @@ def batch_check_line_widths(
             if qt_window is not None:
                 progress.emit(int(scope.index(svg) / len(scope) * 100))
             results[svg.split(sep)[-1]] = result[check_line_widths(
-                svg, valid_widths, magnification, highlight_color, debug, qt_window, progress, console)]
+                svg, valid_widths, magnification, highlight_color, paths, polylines, polygons, debug, qt_window, progress, console)]
 
             if qt_window is not None and debug:
                 console.emit(f"Line Width check for {svg.split(sep)[-1]} finished.")
