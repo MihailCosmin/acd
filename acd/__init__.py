@@ -8,6 +8,7 @@ from os import pathsep
 from os.path import join
 from os.path import dirname
 from os.path import abspath
+
 from sys import platform
 
 current_file_dir = dirname(abspath(__file__))
@@ -96,6 +97,7 @@ __all__ = [
     '_filter_widgets',
     '_initialize_paddle_ocr',
     '_ipl_to_dict_excel',
+    '_pkg_missing',
     'add_filename_version',
     'add_iplnom_to_smg',
     'add_iplnom_to_stp',
@@ -148,6 +150,7 @@ __all__ = [
     'docx_header_replace',
     'download_excel',
     'driver',
+    'ensure_paddle',
     'error_context',
     'estimate_illustration',
     'extract_rows_from_page',
@@ -234,6 +237,7 @@ __all__ = [
     'replace_copyright',
     'replace_media',
     'replace_special_characters',
+    'require_paddle',
     'resize_img',
     'send_email_with_attachments',
     'service',
@@ -344,6 +348,7 @@ def __getattr__(name):
         '_filter_widgets': 'search_bar',
         '_initialize_paddle_ocr': 'ocr',
         '_ipl_to_dict_excel': 'ataispec2200',
+        '_pkg_missing': 'paddle_runtime',
         'add_filename_version': 'filename_version',
         'add_iplnom_to_smg': 'smg',
         'add_iplnom_to_stp': 'stp',
@@ -396,6 +401,7 @@ def __getattr__(name):
         'docx_header_replace': 'docx_',
         'download_excel': 'excel_',
         'driver': 'get_inspect_element_html',
+        'ensure_paddle': 'paddle_runtime',
         'error_context': 'error_handler',
         'estimate_illustration': 'estimation',
         'extract_rows_from_page': 'extract_rows',
@@ -482,6 +488,7 @@ def __getattr__(name):
         'replace_copyright': 'docx_',
         'replace_media': 'docx_',
         'replace_special_characters': 'xml_processing',
+        'require_paddle': 'paddle_runtime',
         'resize_img': 'graphics',
         'send_email_with_attachments': 'send_email',
         'service': 'get_inspect_element_html',

@@ -155,6 +155,9 @@ from .ocr import current_file_dir
 from .ocr import get_ocr_pdf_content
 from .ocr import ocr_image
 from .ocr import ocr_pdf
+from .paddle_runtime import _pkg_missing
+from .paddle_runtime import ensure_paddle
+from .paddle_runtime import require_paddle
 from .pdf import ccache_dir
 from .pdf import current_file_dir
 from .pdf import get_pdf_content
