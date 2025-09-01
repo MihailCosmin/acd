@@ -23,9 +23,6 @@ from pdf2image import convert_from_path
 from pypdf import PdfReader, PdfWriter
 
 import pytesseract
-from .paddle_runtime import require_paddle
-require_paddle()
-from paddleocr import PaddleOCR
 
 pytesseract.pytesseract.tesseract_cmd = join(dirname(__file__), "3rd", "tesseract_5.4.0.20240606", "tesseract.exe")
 POPPLER_PATH = join(dirname(abspath(__file__)), "3rd", "bin")
@@ -35,6 +32,11 @@ _ocr_instance = None  # Private module-level variable
 
 def _initialize_paddle_ocr():
     """Initialize PaddleOCR with default parameters."""
+    
+    from .paddle_runtime import require_paddle
+    require_paddle()
+    from paddleocr import PaddleOCR
+    
     global _ocr_instance
     if _ocr_instance is None:
         _ocr_instance = PaddleOCR(
@@ -58,6 +60,11 @@ def get_ocr_pdf_content(pdf: str, engine: str = "paddle") -> str:
     Returns:
         str: The extracted text from the PDF.
     """
+    
+    from .paddle_runtime import require_paddle
+    require_paddle()
+    from paddleocr import PaddleOCR
+    
     if engine == "paddle":
         ocr = PaddleOCR(
             text_detection_model_name="PP-OCRv5_mobile_det",

@@ -187,31 +187,3 @@ if __name__ == "__main__":
         r"C:\Users\munteanu\Downloads\CMM Automation-Drawings Summary TEST 1\CMM Automation-Drawings Summary TEST\4115-0056_Rev_04.pdf",
         "pymupdf"
     ))
-
-    # start_time = datetime.now()
-    # from paddleocr import PaddleOCR
-
-    # ocr = PaddleOCR(
-    #     text_detection_model_name="PP-OCRv5_mobile_det",
-    #     text_recognition_model_name="PP-OCRv5_mobile_rec",
-    #     use_doc_orientation_classify=False,
-    #     use_doc_unwarping=False,
-    #     use_textline_orientation=False,
-    #     lang="en+de")
-    
-    # end_time = datetime.now()
-    # print(f"Time taken to initialize OCR: {end_time - start_time}")
-    
-    # start_time = datetime.now()
-    
-    # result = ocr.predict(r"C:\Users\munteanu\Downloads\CMM Automation-Drawings Summary TEST 1\CMM Automation-Drawings Summary TEST\4115-0056_Rev_04.pdf")
-    # for res in result:
-    #     # res.print()
-        
-    #     print(" ".join(res["rec_texts"]))
-        
-    #     # for key, value in res.items():
-    #     #     print(f"key: {key}, value: {value}")
-    
-    # end_time = datetime.now()
-    # print(f"Time taken for ocr: {end_time - start_time}")
