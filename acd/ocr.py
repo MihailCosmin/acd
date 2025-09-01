@@ -23,6 +23,8 @@ from pdf2image import convert_from_path
 from pypdf import PdfReader, PdfWriter
 
 import pytesseract
+from .paddle_runtime import require_paddle
+require_paddle()
 from paddleocr import PaddleOCR
 
 pytesseract.pytesseract.tesseract_cmd = join(dirname(__file__), "3rd", "tesseract_5.4.0.20240606", "tesseract.exe")

@@ -8,37 +8,23 @@ from os import pathsep
 from os.path import join
 from os.path import dirname
 from os.path import abspath
+from sys import platform
 
 current_file_dir = dirname(abspath(__file__))
 ccache_dir = join(current_file_dir, "3rd", "ccache-4.11.3-windows-x86_64")
 
-environ["PATH"] = ccache_dir + pathsep + environ["PATH"]
-environ["CCACHE"] = join(ccache_dir, "ccache.exe")
-environ["PADDLE_PDX_CACHE_HOME"] = join(current_file_dir, "3rd")  # This needs to be at the top of the file
-print("0 PADDLE_PDX_CACHE_HOME: ", environ["PADDLE_PDX_CACHE_HOME"])
-
-def ensure_paddle():
+# Only touch PATH when on Windows and when the directory exists
+if platform.startswith("win"):
     try:
-        import paddleocr
-        import paddle
-    except ImportError:
-        subprocess.check_call([
-            sys.executable, "-m", "pip", "install",
-            "paddlepaddle>=3.1.0", 
-            "-i", "https://www.paddlepaddle.org.cn/packages/stable/cpu/", "--timeout=1000"
-        ])
-        subprocess.check_call([
-            sys.executable, "-m", "pip", "install",
-            "paddlepaddle-gpu>=3.1.0", 
-            "-i", "https://www.paddlepaddle.org.cn/packages/stable/cu118/", "--timeout=1000"
-        ])
-        subprocess.check_call([
-            sys.executable, "-m", "pip", "install",
-            "paddleocr>=3.1.0"
-        ])
-ensure_paddle()
+        import os
+        if os.path.isdir(ccache_dir):
+            environ["PATH"] = ccache_dir + os.pathsep + environ.get("PATH", "")
+            environ["CCACHE"] = join(ccache_dir, "ccache.exe")
+    except Exception:
+        pass  # best-effort, no crashes at import
 
-print("Paddle is installed")
+# Always ok to set cache home early (cheap, no network/filesystem churn)
+environ.setdefault("PADDLE_PDX_CACHE_HOME", join(current_file_dir, "3rd"))
 _cache = {}
 
 __all__ = [
