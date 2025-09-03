@@ -12,6 +12,7 @@ clipboard
 pytesseract
 inflect
 pdfreader
+ollama
 selenium
 reportlab
 pdf2image

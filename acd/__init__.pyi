@@ -155,6 +155,17 @@ from .ocr import current_file_dir
 from .ocr import get_ocr_pdf_content
 from .ocr import ocr_image
 from .ocr import ocr_pdf
+from .ocr import pdfs_to_txts
+from .ocr copy import POPPLER_PATH
+from .ocr copy import _initialize_paddle_ocr
+from .ocr copy import ccache_dir
+from .ocr copy import current_file_dir
+from .ocr copy import get_ocr_pdf_content
+from .ocr copy import ocr_image
+from .ocr copy import ocr_pdf
+from .ocr copy import pdfs_to_txts
+from .ollama_automations import ollama_with_files
+from .ollama_automations import ollama_with_images
 from .paddle_runtime import ensure_paddle
 from .paddle_runtime import require_paddle
 from .pdf import ccache_dir
