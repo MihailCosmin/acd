@@ -627,12 +627,12 @@ def word2pdf(
                     console.emit(f"The error message was: {format_exc()}")
 
                 if exists(join(qt_window.exe_path, "debug", "word2pdf_log.txt")):
-                    with open(join(qt_window.exe_path, "debug", "word2pdf_log.txt"), "a", encoding='utf-8') as log:
+                    with open("\\\\?\\" + join(qt_window.exe_path, "debug", "word2pdf_log.txt"), "a", encoding='utf-8') as log:
                         log.write(f"There was an error while processing this file: {file_}\n")
                         log.write("The file was not saved to PDF. Please correct the issue and try again.\n")
                         log.write(f"The error message was: {format_exc()}\n\n")
                 else:
-                    with open(join(qt_window.exe_path, "debug", "word2pdf_log.txt"), "w", encoding='utf-8') as log:
+                    with open("\\\\?\\" + join(qt_window.exe_path, "debug", "word2pdf_log.txt"), "w", encoding='utf-8') as log:
                         log.write(f"There was an error while processing this file: {file_}\n")
                         log.write("The file was not saved to PDF. Please correct the issue and try again.\n")
                         log.write(f"The error message was: {format_exc()}\n\n")

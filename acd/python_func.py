@@ -58,7 +58,7 @@ def count_lines_of_functions(file_path):
     Args:
         file_path (_type_): Path to the python file to get the numer of lines from
     """
-    with open(file_path, 'r') as f:
+    with open("\\\\?\\" + file_path, 'r') as f:
         code = f.readlines()
     functions = {}
     in_function = False
@@ -111,7 +111,7 @@ def check_brackets(file_path: str, linearized=False):
     Returns:
         _type_: _description_
     """
-    with open(file_path, "r", encoding="utf-8") as _:
+    with open("\\\\?\\" + file_path, "r", encoding="utf-8") as _:
         file_content = _.read()
 
     mismatch_list = []

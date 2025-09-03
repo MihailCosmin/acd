@@ -56,11 +56,11 @@ def add_iplnom_to_smg(
 
     try:
         try:
-            with open(join(smg_dir, "product.smgXml"), "r", encoding="utf-8") as smg_xxml:
+            with open("\\\\?\\" + join(smg_dir, "product.smgXml"), "r", encoding="utf-8") as smg_xxml:
                 smg_content = smg_xxml.read()
         except FileNotFoundError:
             try:
-                with open(join(smg_dir, filename, "product.smgxml"), "r", encoding="utf-8") as smg_xxml:
+                with open("\\\\?\\" + join(smg_dir, filename, "product.smgxml"), "r", encoding="utf-8") as smg_xxml:
                     smg_content = smg_xxml.read()
             except FileNotFoundError:
                 if qt_window is not None:
@@ -83,10 +83,10 @@ def add_iplnom_to_smg(
                 new_sgm_content = new_sgm_content.replace("".join(part), f'<Actor.Name Value="{pnr + " | " + str(ipl_dict[pnr.replace("-", "")]["Itemnbr"]) + " " + ipl_dict[pnr.replace("-", "")]["Nomenclature"]}"')
 
         if isfile(join(smg_dir, "product.smgxml")):
-            with open(join(smg_dir, "product.smgXml"), "w", encoding="utf-8") as smg_xxml:
+            with open("\\\\?\\" + join(smg_dir, "product.smgXml"), "w", encoding="utf-8") as smg_xxml:
                 smg_xxml.write(new_sgm_content)
         elif isfile(join(smg_dir, filename, "product.smgXml")):
-            with open(join(smg_dir, filename, "product.smgXml"), "w", encoding="utf-8") as smg_xxml:
+            with open("\\\\?\\" + join(smg_dir, filename, "product.smgXml"), "w", encoding="utf-8") as smg_xxml:
                 smg_xxml.write(new_sgm_content)
         else:
             if qt_window is not None:

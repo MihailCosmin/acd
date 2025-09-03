@@ -50,7 +50,7 @@ class RefChecker():
         Returns:
             str: It returns the resulting XML content as a string.
         """
-        with open(self.xml_path, "r", encoding="utf-8") as _:
+        with open("\\\\?\\" + self.xml_path, "r", encoding="utf-8") as _:
             xml_content = _.read()
             xml_content = delete_first_line(xml_content)
             xml_content = replace_special_characters(xml_content)
@@ -68,7 +68,7 @@ class RefChecker():
             str: xml content with mentioned modifications.
         """
         xml_content = self.prepare_xml()
-        with open(join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+        with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
             entities = _.read()
         xml_content = sub(r"(]>(.|\n)*?<cmm)", entities + r'\1', xml_content)
         return xml_content
@@ -160,7 +160,7 @@ class CsnChecker():
         Returns:
             str: It returns the resulting XML content as a string.
         """
-        with open(self.xml_path, "r", encoding="utf-8") as _:
+        with open("\\\\?\\" + self.xml_path, "r", encoding="utf-8") as _:
             xml_content = _.read()
             xml_content = delete_first_line(xml_content)
             xml_content = replace_special_characters(xml_content)
@@ -175,7 +175,7 @@ class CsnChecker():
             str: xml content with mentioned modifications.
         """
         xml_content = self.prepare_xml()
-        with open(join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+        with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
             entities = _.read()
         xml_content = sub(r"(]>(.|\n)*?<cmm)", entities + r'\1', xml_content)
         return xml_content
@@ -246,7 +246,7 @@ class GraphicRefChecker:
         Returns:
             str: It returns the resulting XML content as a string.
         """
-        with open(self.xml_path, "r", encoding="utf-8") as _:
+        with open("\\\\?\\" + self.xml_path, "r", encoding="utf-8") as _:
             xml_content = _.read()
             xml_content = delete_first_line(xml_content)
             xml_content = replace_special_characters(xml_content)
@@ -261,7 +261,7 @@ class GraphicRefChecker:
             str: xml content with mentioned modifications.
         """
         xml_content = self.prepare_xml()
-        with open(join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+        with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
             entities = _.read()
         xml_content = sub(r"(]>(.|\n)*?<cmm)", entities + r'\1', xml_content)
         return xml_content

@@ -33,7 +33,7 @@ def download_excel(excel: str, path: str = None) -> None:
 
     path = join(getcwd(), "temp.xlsx") if path is None else path
     excel = excel.replace("view", "download") if "view" in excel else excel
-    with open(path, 'wb') as _:
+    with open("\\\\?\\" + path, 'wb') as _:
         _.write(get(excel).content)
 
 def get_excel_sheet_names(excel: str) -> list:

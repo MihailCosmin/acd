@@ -20,7 +20,7 @@ def delete_first_line(xml_content: str, overwrite: bool = False) -> str:
     xml_filename = None
     if isfile(xml_content):
         xml_filename = xml_content
-        with open(xml_content, "r", encoding="utf-8") as _:
+        with open("\\\\?\\" + xml_content, "r", encoding="utf-8") as _:
             xml_content = _.read()
 
     if search(r'(<\?)(.*?)(\?>)', xml_content):
@@ -32,7 +32,7 @@ def delete_first_line(xml_content: str, overwrite: bool = False) -> str:
         extension = "." + xml_filename.split(".")[-1]
         if not overwrite:
             xml_filename = xml_filename.replace(extension, f"_fixed{extension}")
-        with open(xml_filename, "w", encoding="utf-8") as _:
+        with open("\\\\?\\" + xml_filename, "w", encoding="utf-8") as _:
             _.write(xml_content)
     return xml_content
 
@@ -111,7 +111,7 @@ def set_xml_attribute(xml: str, xpath: str, attribute: str, value: str) -> None:
 
     xml_tree.xpath(xpath)[0].attrib[attribute] = value
 
-    with open(xml, "w", encoding="utf-8") as _:
+    with open("\\\\?\\" + xml, "w", encoding="utf-8") as _:
         _.write(etree.tostring(xml_tree, pretty_print=True).decode("utf-8"))
 
 def get_xml_tag_content(xml: str, xpath: str) -> str:
@@ -144,7 +144,7 @@ def set_xml_tag_content(xml: str, xpath: str, content: str) -> None:
 
     xml_tree.xpath(xpath)[0].text = content
 
-    with open(xml, "w", encoding="utf-8") as _:
+    with open("\\\\?\\" + xml, "w", encoding="utf-8") as _:
         _.write(etree.tostring(xml_tree, pretty_print=True).decode("utf-8"))
 
 def replace_special_characters(xml_content: str):

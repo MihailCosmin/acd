@@ -87,12 +87,7 @@ def get_ocr_pdf_content(pdf: str, engine: str = "paddle") -> str:
             use_textline_orientation=False,
             lang="en+de")
 
-    try:
-        # "\\\\?\\" + bypass for longer than 260 char paths
-        images = convert_from_path("\\\\?\\" + pdf, poppler_path=POPPLER_PATH)
-    except Exception as e:
-        # try to get pdf text simply with tesseract
-        pdf_content = pytesseract.image_to_string(pdf)
+    images = convert_from_path(pdf, poppler_path=POPPLER_PATH)
 
     # Extract text using pytesseract
     pdf_content = ""
@@ -169,7 +164,6 @@ def pdfs_to_txts(folder: str, engine: str = "paddle", regex: str = None, skip_ex
 
 if __name__ == "__main__":
     pdfs_to_txts(
-        r"C:\Users\munte\Downloads\Dubai Air Wing\Work\777 AIPC\777 AIPC D633W111, Rev 11 Jul 25 - W0006 - Split",
-        regex=r"\d\d\-\d\d\-\d\d\-\d\d",
-        skip_existing=True
+        r"C:\Users\munte\Downloads\Dubai Air Wing\Work\777 AIPC\short test",
+        engine="tesseract"
     )

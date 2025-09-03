@@ -454,7 +454,7 @@ def pdf_to_dictionary(first_page: int, last_page: int, output_folder: str, top_x
     sleep(2)
     dictionary = []
     if not isfile(join(expanduser("~/Desktop"), "pdf_dictionary_part.txt")):
-        with open(join(expanduser("~/Desktop"), "pdf_dictionary_part.txt"), "w") as f:
+        with open("\\\\?\\" + join(expanduser("~/Desktop"), "pdf_dictionary_part.txt"), "w") as f:
             f.write("[\n")
     
     page = first_page
@@ -525,7 +525,7 @@ def pdf_to_dictionary(first_page: int, last_page: int, output_folder: str, top_x
                 ex2 = ex2.replace("\r\n", " ").replace("\n", " ").replace("\r", " ").replace("  ", " ")
                 
                 dictionary.append((word, meaning, ex1, ex2))
-                with open(join(expanduser("~/Desktop"), "pdf_dictionary_part.txt"), "a") as f:
+                with open("\\\\?\\" + join(expanduser("~/Desktop"), "pdf_dictionary_part.txt"), "a") as f:
                     f.write(str((word, meaning, ex1, ex2)) + ",\n")
 
             page += 1
@@ -539,9 +539,9 @@ def pdf_to_dictionary(first_page: int, last_page: int, output_folder: str, top_x
          
             
     print("Finished")
-    with open(join(expanduser("~/Desktop"), "pdf_dictionary_part.txt"), "a") as f:
+    with open("\\\\?\\" + join(expanduser("~/Desktop"), "pdf_dictionary_part.txt"), "a") as f:
         f.write("\n]")
-    with open(join(expanduser("~/Desktop"), "pdf_dictionary.txt"), "w") as f:
+    with open("\\\\?\\" + join(expanduser("~/Desktop"), "pdf_dictionary.txt"), "w") as f:
         f.write(str(dictionary))
 
 def pdf_page_to_img(first_page: int, last_page: int, output_folder: str, top_x: int, top_y: int, bottom_x: int, bottom_y: int):
@@ -568,7 +568,7 @@ if __name__ == "__main__":
     #     else:
     #         dictionary = ste_dict_rows(img, left=False, dictionary=dictionary)
         
-    # with open(join(expanduser("~/Desktop"), "dictionary.txt"), "w") as f:
+    # with open("\\\\?\\" + join(expanduser("~/Desktop"), "dictionary.txt"), "w") as f:
     #     f.write(str(dictionary))
     
     # ste_dict_rows(

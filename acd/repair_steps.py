@@ -92,13 +92,13 @@ class RepairSteps():
         Returns:
             str: It returns the resulting XML content as a string.
         """
-        with open(self.xml_path, "r", encoding="utf-8") as _:
+        with open("\\\\?\\" + self.xml_path, "r", encoding="utf-8") as _:
             xml_content = _.read()
             xml_content = linearize_xml(xml_content)
             xml_content = delete_first_line(xml_content)
             xml_content = replace_special_characters(xml_content)
             # Insert replacements for all entitys
-            with open(join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+            with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
                 entities = _.read()
             entities = linearize_xml(entities)
             xml_content = sub(r"(]>.*?<cmm)", entities + r'\1', xml_content)
@@ -267,7 +267,7 @@ class RepairSteps():
             xml_content_new = self.check_more_rows(xml_content_new)
             xml_content_new = self.replace_tbd_tag(xml_content_new)
 
-            with open(join(self.export_path, f"completed_repair_step_tables_{basename(self.xml_path)}.xml"), 'w', encoding="utf-8") as _:
+            with open("\\\\?\\" + join(self.export_path, f"completed_repair_step_tables_{basename(self.xml_path)}.xml"), 'w', encoding="utf-8") as _:
                 _.write(xml_content_new)
             if qt_window is not None:
                 console.emit(

@@ -113,7 +113,7 @@ class ConsumablesList():
             raise NoXmlSet("No xml found to validate. Use the set_xml function to set the path of your xml \
                         before you use the validate_consumables function.".replace("                        ", ""))
 
-        with open(self.xml_path, "r", encoding="utf-8") as _:
+        with open("\\\\?\\" + self.xml_path, "r", encoding="utf-8") as _:
             xml_content = _.read()
 
         return xml_content
@@ -141,7 +141,7 @@ class ConsumablesList():
             str: xml content with mentioned modifications.
         """
         xml_content = self.prepare_xml_content()
-        with open(join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+        with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
             entities = _.read()
         entities = linearize_xml(entities)
         xml_content = sub(r"(]>.*?<cmm)", entities + r'\1', xml_content)
@@ -498,7 +498,7 @@ class ConsumablesList():
             tbody_xml = etree.tostring(tbody_xml, encoding="unicode")
         except TypeError:
             pass
-        with open(join(self.export_path, f"cons_tbody_{basename(normpath(self.xml_path))}.xml"), "w", encoding="utf-8") as _:
+        with open("\\\\?\\" + join(self.export_path, f"cons_tbody_{basename(normpath(self.xml_path))}.xml"), "w", encoding="utf-8") as _:
             _.write(
                 tbody_xml
                 .replace('<entry rotate="0" valign="middle">deleteAddress</entry>', '')
@@ -526,7 +526,7 @@ class ConsumablesList():
         Returns:
             str: Representation of the xml content after perfoming the mentioned modifications.
         """
-        with open(self.xml_path, "r", encoding="utf-8") as _:
+        with open("\\\\?\\" + self.xml_path, "r", encoding="utf-8") as _:
             xml_content = _.read()
         xml_content = linearize_xml(xml_content)
         xml_content = delete_first_line(xml_content)
@@ -542,7 +542,7 @@ class ConsumablesList():
         """
         xml_content = self.prepare_xml()
         # Insert replacements for all entitys
-        with open(join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+        with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
             entities = _.read()
         entities = linearize_xml(entities)
         xml_content = sub(r"(]>.*?<cmm)", entities + r'\1', xml_content)
@@ -679,7 +679,7 @@ class ConsumablesList():
         original_rows = self.extract_text_from_original_table()
         created_rows = self.extract_text_from_created_table(created_tbody)
         # Check if row from created table is in the original table
-        with open(join(self.export_path, f"validated_table_{basename(normpath(self.xml_path))}.xml"), "w", encoding="utf-8") as _:
+        with open("\\\\?\\" + join(self.export_path, f"validated_table_{basename(normpath(self.xml_path))}.xml"), "w", encoding="utf-8") as _:
             _.write(f"Validated xml: {basename(self.xml_path)}\n\n")
             for ind, elem in enumerate(created_rows):
                 found = False
@@ -743,7 +743,7 @@ class ConsumablesList():
             self.check_xml_path()
             tbody_xml = self.create_table_file()
             tbody_xml = tbody_xml.replace("&", "&amp;")
-            with open(self.xml_path, "r", encoding="utf-8") as _:
+            with open("\\\\?\\" + self.xml_path, "r", encoding="utf-8") as _:
                 xml_content = _.read()
             if search(r"<title>List of Consumables</title>", xml_content):
                 self.validation_step(tbody_xml)

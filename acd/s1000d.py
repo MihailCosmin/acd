@@ -46,7 +46,7 @@ def get_s1000d_version(xml: str) -> float:
         str: A string containing the S1000D version or None if not found
     """
     if isfile(xml):
-        with open(xml, "r", encoding="utf-8") as _:
+        with open("\\\\?\\" + xml, "r", encoding="utf-8") as _:
             while (line := _.readline().rstrip()):
                 if "s1000d" in line:
                     if search(S1000D_VERSION_REGEX, line):
@@ -86,7 +86,7 @@ def get_references(directory: any, json_dump: bool = False, http_mode: bool = Fa
                 raise Exception(f"Could not find version for {document}.\nPlease check the file.")
     if json_dump and not http_mode:
         parent_dir = directory.split(sep)[-1]
-        with open(join(directory, f"{parent_dir}_references.json"), "w", encoding="utf-8") as _:
+        with open("\\\\?\\" + join(directory, f"{parent_dir}_references.json"), "w", encoding="utf-8") as _:
             dump(references, _, indent=4)
     return references
 
@@ -124,7 +124,7 @@ def get_4plus_refs(xml: str) -> list:
     refs = []
 
     if isfile(xml):
-        with open(xml, "r", encoding="utf-8") as _:
+        with open("\\\\?\\" + xml, "r", encoding="utf-8") as _:
             xml = _.read().replace("\n", " ").replace("> <", "><")
     elif "www.s1000d.org" in str(xml):
         xml = str(xml).replace("\r\n", " ").replace("\n", " ").replace("\t", "").replace("> <", "><")
@@ -176,7 +176,7 @@ def get_2and3_refs(xml: str) -> list:
     refs = []
 
     if isfile(xml):
-        with open(xml, "r", encoding="utf-8") as _:
+        with open("\\\\?\\" + xml, "r", encoding="utf-8") as _:
             xml = _.read().replace("\n", " ").replace("> <", "><")
     elif "www.s1000d.org" in str(xml):
         xml = str(xml).replace("\r\n", " ").replace("\n", " ").replace("\t", "").replace("> <", "><")
@@ -270,7 +270,7 @@ def get_dm_codes_from_dir(directory: str, json_dump: bool = False) -> dict:
 
     if json_dump:
         parent_dir = directory.split(sep)[-1]
-        with open(join(directory, f"{parent_dir}_dmcodes.json"), "w", encoding="utf-8") as _:
+        with open("\\\\?\\" + join(directory, f"{parent_dir}_dmcodes.json"), "w", encoding="utf-8") as _:
             dump(dm_codes, _, indent=4)
 
     return dm_codes
@@ -332,7 +332,7 @@ def get_dm_code_from_xml(xml: str) -> dict:
 
     s1000d_version = get_s1000d_version(xml)
 
-    with open(xml, "r", encoding="utf-8") as _:
+    with open("\\\\?\\" + xml, "r", encoding="utf-8") as _:
         xml = delete_first_line(_.read().replace("\n", " ").replace("> <", "><"))
     if "DDN" in xml_filename:
         code = dict(
@@ -388,7 +388,7 @@ def validate_references(directory: str, json_dump: bool = False) -> dict:
 
     if json_dump:
         parent_dir = directory.split(sep)[-1]
-        with open(join(directory, f"{parent_dir}_reference_validation.json"), "w", encoding="utf-8") as _:
+        with open("\\\\?\\" + join(directory, f"{parent_dir}_reference_validation.json"), "w", encoding="utf-8") as _:
             dump(reference_validation, _, indent=4)
 
     return reference_validation
@@ -466,7 +466,7 @@ def validate_ddn(directory: str, json_dump: bool = False) -> dict:
 
     results = {}
 
-    with open(get_ddn(directory), "r", encoding="utf-8") as _:
+    with open("\\\\?\\" + get_ddn(directory), "r", encoding="utf-8") as _:
         xml = delete_first_line(_.read().replace("\n", " ").replace("> <", "><"))
     dir_list = listdir(directory)
     dcn_items = []
@@ -490,7 +490,7 @@ def validate_ddn(directory: str, json_dump: bool = False) -> dict:
                 results["Files not in DDN"].append(file_)
 
     if json_dump:
-        with open(join(directory, "ddn_validation.json"), "w", encoding="utf-8") as _:
+        with open("\\\\?\\" + join(directory, "ddn_validation.json"), "w", encoding="utf-8") as _:
             dump(results, _, indent=4)
 
     return results
@@ -544,7 +544,7 @@ def read_dmodule(dmodule: str, json_dump: bool = False, show: bool = False) -> d
     Returns:
         dict: Dictionary with the procedure steps that have an id for reference
     """
-    with open(dmodule, "r", encoding="utf-8") as _:
+    with open("\\\\?\\" + dmodule, "r", encoding="utf-8") as _:
         xml = linearize_xml(delete_first_line(_.read()))
         schema = get_schema_from_xml(xml).split("/")[-1].split(".")[0]
     if "proced" == schema:
@@ -680,7 +680,7 @@ def read_procedure(dmodule: str, json_dump: bool = False, show: bool = False) ->
                                                                                         }
 
     if json_dump:
-        with open(join(expanduser("~/Desktop"), "references.json"), "w", encoding="utf-8") as f:
+        with open("\\\\?\\" + join(expanduser("~/Desktop"), "references.json"), "w", encoding="utf-8") as f:
             dump(references, f, indent=4)
     return references
 
@@ -810,7 +810,7 @@ def read_description(dmodule: str, json_dump: bool = False, show: bool = False) 
                                                                                         }
 
     if json_dump:
-        with open(join(expanduser("~/Desktop"), "references.json"), "w", encoding="utf-8") as f:
+        with open("\\\\?\\" + join(expanduser("~/Desktop"), "references.json"), "w", encoding="utf-8") as f:
             dump(references, f, indent=4)
     return references
 

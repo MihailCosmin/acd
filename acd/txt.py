@@ -44,7 +44,7 @@ def get_textfile_content(file_path: str) -> str:
     """
     for encoding in ENCODINGS:
         try:
-            with open(file_path, encoding=encoding) as file_:
+            with open("\\\\?\\" + file_path, encoding=encoding) as file_:
                 return file_.read()
         except UnicodeDecodeError:
             continue

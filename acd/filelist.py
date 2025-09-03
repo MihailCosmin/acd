@@ -61,7 +61,7 @@ def list_files3(
         for root, _, files in walk(directory):
             for file_ in files:
                 if file_matches(file_, ext_list, reg_ex):
-                    file_list.append(join(root, file_) if path else file_)
+                    file_list.append("\\\\?\\" + join(root, file_) if path else file_)
 
             if search_archives:
                 for file_ in files:
@@ -124,7 +124,7 @@ def list_files2(
     for root, _, files in walk(directory):
         for file_ in files:
             if file_matches(file_, ext_list, reg_ex):
-                file_list.append(join(root, file_) if path else file_)
+                file_list.append("\\\\?\\" + join(root, file_) if path else file_)
 
         if search_archives:
             for file_ in files:
@@ -170,17 +170,17 @@ def list_files(
             if reg_ex is not None:
                 if ext_list is not None:
                     if path and any(file_.endswith(ext) for ext in ext_list) and search(reg_ex, file_) is not None:
-                        file_list += [join(root, file_)]
+                        file_list += ["\\\\?\\" + join(root, file_)]
                         ind += 1
                         if qt_window:
                             progress.emit((ind % 2) * multiplier + progress_start)
                     elif any(file_.endswith(ext) for ext in ext_list) and search(reg_ex, file_) is not None:
-                        file_list += [file_]
+                        file_list += ["\\\\?\\" + file_]
                         ind += 1
                         if qt_window:
                             progress.emit((ind % 2) * multiplier + progress_start)
                 elif search(reg_ex, file_) is not None:
-                    file_list += [join(root, file_)] if path else [file_]
+                    file_list += ["\\\\?\\" + join(root, file_)] if path else ["\\\\?\\" + file_]
                     ind += 1
                     if qt_window:
                         progress.emit((ind % 2) * multiplier + progress_start)

@@ -53,7 +53,7 @@ def get_manual_series(
         columns=['Year', 'ATA', 'Manual Type', 'Disassembly Subtask', 'XML Content', ''])
     assembly_df_ = DataFrame(
         columns=['Year', 'ATA', 'Manual Type', 'Assembly Subtask', 'XML Content', ''])
-    with open(manual_xml, 'r', encoding='utf-8') as cmm_file:
+    with open("\\\\?\\" + manual_xml, 'r', encoding='utf-8') as cmm_file:
         cmm_text = cmm_file.read().replace('\n', '')
     if search(r'<figure.*?</figure>', cmm_text) is not None:
         for figure in findall(r'<figure.*?</figure>', cmm_text):

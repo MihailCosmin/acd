@@ -49,7 +49,7 @@ def require_paddle() -> None:
         raise RuntimeError(
             "Failed to install PaddleOCR automatically. "
             "Please install manually:\n"
-            "  pip install -i https://www.paddlepaddle.org.cn/packages/stable/cpu/ 'paddlepaddle>=3.1.0'\n"
+            "  pip install -i https://www.paddlepaddle.org.cn/packages/stable/cpu/ paddlepaddle>=3.1.0\n"
             "  pip install paddleocr>=3.1.0\n"
-            "  pip install -i https://www.paddlepaddle.org.cn/packages/stable/cu118/ 'paddlepaddle-gpu>=3.1.0'"
+            "  pip install -i https://www.paddlepaddle.org.cn/packages/stable/cu118/ paddlepaddle-gpu>=3.1.0"
         )
