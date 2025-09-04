@@ -33,6 +33,7 @@ from .xml_processing import delete_first_line
 from .xml_processing import replace_special_characters
 from .unit_list import unit_list
 from .python_func import check_brackets
+from .filepath import clean_path
 
 FILEPATH = dirname(__file__)
 
@@ -124,7 +125,7 @@ class XmlSchemaValidator():
         schema = etree.parse(schema)
         schema = etree.XMLSchema(schema)
 
-        with open("\\\\?\\" + xml_file, "r", encoding="utf-8") as _:
+        with open(clean_path(xml_file), "r", encoding="utf-8") as _:
             xml_content = _.read()
 
         xml_content = etree.parse(StringIO(xml_content))
@@ -156,7 +157,7 @@ class XmlSchemaValidator():
         schema = etree.parse(schema)
         schema = etree.XMLSchema(schema)
 
-        with open("\\\\?\\" + xml_file, "r", encoding="utf-8") as _:
+        with open(clean_path(xml_file), "r", encoding="utf-8") as _:
             xml_content = _.read()
 
         try:
@@ -200,7 +201,7 @@ class XmlSchemaValidator():
 
         """
 
-        with open("\\\\?\\" + xml_file, "r", encoding="utf-8") as _:
+        with open(clean_path(xml_file), "r", encoding="utf-8") as _:
             xml_content = _.read()
 
         schema_content = self._new_urlopen(schema_url)
@@ -243,7 +244,7 @@ class XmlSchemaValidator():
         my_xml_list = [element + "\n" for element in my_xml_list]
         my_xml_list = ''.join(my_xml_list).replace("\n\n", "\n")
 
-        with open("\\\\?\\" + "edited_xml.xml", "w", encoding="utf-8") as _:
+        with open(clean_path("edited_xml.xml"), "w", encoding="utf-8") as _:
             _.write(my_xml_list)
 
         return "edited_xml.xml"
@@ -284,7 +285,7 @@ class XmlSchemaValidator():
         if debug and not self.debug:
             self.debug = True
 
-        with open("\\\\?\\" + xml_file, "r", encoding="utf-8") as _:
+        with open(clean_path(xml_file), "r", encoding="utf-8") as _:
             xml_content = _.read()
 
         xml_content = linearize_xml(xml_content)
@@ -360,7 +361,7 @@ class Punctuation():
         Returns:
             _type_: _description_
         """
-        with open("\\\\?\\" + file_path, "r", encoding="utf-8") as _:
+        with open(clean_path(file_path), "r", encoding="utf-8") as _:
             file_content = _.read()
         # file_content = linearize_xml(file_content)
         # for para in findall(r"(\<para\>)(.*?)(\</para\>)", file_content):
@@ -373,7 +374,7 @@ class Punctuation():
         #     if "refint" in para:
         #         print(f"NewPara: {new_para}")
         #     file_content = file_content.replace(para, new_para)
-        # with open("\\\\?\\" + "testDeleteLater2.xml", "w", encoding="utf-8") as _:
+        # with open(clean_path("testDeleteLater2.xml"), "w", encoding="utf-8") as _:
         #     _.write(file_content)
 
         mismatch_list = []
@@ -409,20 +410,20 @@ class Punctuation():
 
         # tree = etree.fromstring(file_content.encode('utf-8'))
         
-        with open("\\\\?\\" + file_path, "r", encoding="utf-8") as _:
+        with open(clean_path(file_path), "r", encoding="utf-8") as _:
             xml_content = _.read()
         xml_content = linearize_xml(xml_content)
         xml_content = delete_first_line(xml_content)
         xml_content = replace_special_characters(xml_content)
         # Insert replacements for all entitys
-        with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+        with open(clean_path(join(FILEPATH, "inmedISOEntities.ent")), "r", encoding="utf-8") as _:
             entities = _.read()
         entities = linearize_xml(entities)
         xml_content = sub(r"(]>.*?<cmm)", entities + r'\1', xml_content)
         tree = etree.parse(StringIO(xml_content))
         
         # Save to file for debugging purposes
-        with open("\\\\?\\" + join(self.export_path, f"check_brackets_{basename(normpath(file_path))}"), "w", encoding="utf-8") as _:
+        with open(clean_path(join(self.export_path, f"check_brackets_{basename(normpath(file_path))}")), "w", encoding="utf-8") as _:
             _.write(xml_content)
         
         # tree = etree.parse(file_path)
@@ -444,20 +445,20 @@ class Punctuation():
         return mismatch_list
 
     def check_fullstops(self, file_path: str):
-        with open("\\\\?\\" + file_path, "r", encoding="utf-8") as _:
+        with open(clean_path(file_path), "r", encoding="utf-8") as _:
             xml_content = _.read()
         xml_content = linearize_xml(xml_content)
         xml_content = delete_first_line(xml_content)
         xml_content = replace_special_characters(xml_content)
         # Insert replacements for all entitys
-        with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+        with open(clean_path(join(FILEPATH, "inmedISOEntities.ent")), "r", encoding="utf-8") as _:
             entities = _.read()
         entities = linearize_xml(entities)
         xml_content = sub(r"(]>.*?<cmm)", entities + r'\1', xml_content)
         tree = etree.parse(StringIO(xml_content))
         
         # Save to file for debugging purposes
-        with open("\\\\?\\" + join(self.export_path, f"check_fullstops_{basename(normpath(file_path))}"), "w", encoding="utf-8") as _:
+        with open(clean_path(join(self.export_path, f"check_fullstops_{basename(normpath(file_path))}")), "w", encoding="utf-8") as _:
             _.write(xml_content)
         root = tree.getroot()
 
@@ -483,7 +484,7 @@ class Punctuation():
         return occurences
 
     def check_hard_spaces(self):
-        with open("\\\\?\\" + self.file_path, 'r', encoding="utf-8") as _:
+        with open(clean_path(self.file_path), 'r', encoding="utf-8") as _:
             content = _.read()
         if search(r"\<\?.*?]\>", linearize_xml(content)):
             part_before_cmm = search(
@@ -494,20 +495,20 @@ class Punctuation():
         # modified_content = linearize_xml(content)
         # modified_content = etree.fromstring(modified_content)
         
-        with open("\\\\?\\" + self.file_path, "r", encoding="utf-8") as _:
+        with open(clean_path(self.file_path), "r", encoding="utf-8") as _:
             xml_content = _.read()
         xml_content = linearize_xml(xml_content)
         xml_content = delete_first_line(xml_content)
         xml_content = replace_special_characters(xml_content)
         # Insert replacements for all entitys
-        with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+        with open(clean_path(join(FILEPATH, "inmedISOEntities.ent")), "r", encoding="utf-8") as _:
             entities = _.read()
         entities = linearize_xml(entities)
         xml_content = sub(r"(]>.*?<cmm)", entities + r'\1', xml_content)
         modified_content = etree.parse(StringIO(xml_content))
         
         # Save to file for debugging purposes
-        with open("\\\\?\\" + join(self.export_path, f"check_hard_spaces_{basename(normpath(self.file_path))}"), "w", encoding="utf-8") as _:
+        with open(clean_path(join(self.export_path, f"check_hard_spaces_{basename(normpath(self.file_path))}")), "w", encoding="utf-8") as _:
             _.write(xml_content)
             
         # modified_content = etree.parse(self.file_path)
@@ -528,7 +529,7 @@ class Punctuation():
             # TODO: Add a check for the following cases:
             # matches_2 = findall()
 
-        with open("\\\\?\\" + join(self.export_path, f"added_hard_spaces_{basename(normpath(self.file_path))}.xml"), 'w', encoding="utf-8") as _:
+        with open(clean_path(join(self.export_path, f"added_hard_spaces_{basename(normpath(self.file_path))}.xml")), 'w', encoding="utf-8") as _:
             _.write(part_before_cmm + modified_content)
 
     def check_punctuation(self):

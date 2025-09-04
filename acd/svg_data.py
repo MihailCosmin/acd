@@ -10,6 +10,7 @@ from json import load
 from json import dump
 
 from .filelist import list_files
+from .filepath import clean_path
 
 
 def get_svg_data(svg: str) -> dict:
@@ -31,7 +32,7 @@ def get_svg_data(svg: str) -> dict:
         "d": 0,
     }
 
-    with open("\\\\?\\" + svg, 'r', encoding='utf-8') as f:
+    with open(clean_path(svg), 'r', encoding='utf-8') as f:
         svg_data = f.read()
         for key in result.keys():
             result[key] = svg_data.count(f"<{key} ") + svg_data.count(f"<{key}>") + svg_data.count(f"{key}=\"")
@@ -40,7 +41,7 @@ def get_svg_data(svg: str) -> dict:
 
 
 if __name__ == "__main__":
-    with open("\\\\?\\" + r"C:\Users\munteanu\Downloads\Liebherr Way of Working\Creation\illus.json", "r", encoding="utf-8") as f:
+    with open(clean_path(r"C:\Users\munteanu\Downloads\Liebherr Way of Working\Creation\illus.json"), "r", encoding="utf-8") as f:
         illus = load(f)
 
     svg_dir = r"C:\Users\munteanu\Downloads\Liebherr Way of Working\Creation\SVG"

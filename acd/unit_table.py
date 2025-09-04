@@ -7,6 +7,7 @@ from os.path import expanduser
 from os.path import basename
 from os.path import join
 from os.path import dirname
+from os.path import normpath
 
 from traceback import format_exc
 
@@ -17,6 +18,7 @@ from ast import literal_eval
 from regex import search
 
 from lxml import etree
+from .filepath import clean_path
 
 import sys
 
@@ -76,7 +78,7 @@ class UnitTable():
         Returns:
             str: It returns the resulting XML content as a string.
         """
-        with open("\\\\?\\" + self.xml_path, "r", encoding="utf-8") as _:
+        with open(clean_path(self.xml_path), "r", encoding="utf-8") as _:
             xml_content = _.read()
             # xml_content = linearize_xml(xml_content)
             xml_content = delete_first_line(xml_content)
@@ -94,7 +96,7 @@ class UnitTable():
             str: xml content with mentioned modifications.
         """
         xml_content = self.prepare_xml()
-        with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+        with open(clean_path(join(FILEPATH, "inmedISOEntities.ent")), "r", encoding="utf-8") as _:
             entities = _.read()
         xml_content = sub(r"(]>(.|\n)*?<cmm)", entities + r'\1', xml_content)
         return xml_content
@@ -288,7 +290,7 @@ class UnitTable():
             if self.main_window is not None:
                 print(f'Unit "{original_unit}" not found in the Units of Measure and Conversion Factors Table. Please Check the XML file.\nSaving debug to: {join(self.export_path, f"conversion_dict_{basename(normpath(self.xml_path))}.json")}')
                 self.console.emit(f'Unit "{original_unit}" not found in the Units of Measure and Conversion Factors Table. Please Check the XML file.\nSaving debug to: {join(self.export_path, f"conversion_dict_{basename(normpath(self.xml_path))}.json")}')
-                with open("\\\\?\\" + join(self.export_path, f"conversion_dict_{basename(normpath(self.xml_path))}.json"), "w", encoding="utf-8") as _:
+                with open(clean_path(join(self.export_path, f"conversion_dict_{basename(normpath(self.xml_path))}.json")), "w", encoding="utf-8") as _:
                     json.dump(conversion_dict, _, indent=4, ensure_ascii=False)
                 return value
             raise UnrecognizedUnit(f"It seems like the xml uses rarely used unit ({original_unit}). Check if that's the case and \

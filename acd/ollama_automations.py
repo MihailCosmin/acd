@@ -15,19 +15,24 @@ from traceback import format_exc
 
 if __name__ == "__main__":
     from filelist import list_files
+    from filepath import clean_path
 else:
     from .filelist import list_files
+    from .filepath import clean_path
 
 def ollama_with_files(
     prompt: str,
     base_url: str = "http://10.3.1.174:11434",
     model: str = "gpt-oss:120b",
-    files: list[str] = None
+    files: list[str] = None,
+    num_predict: int = 12,          # cap tokens for short answers
+    temperature: float = 0.1,       # keep it concise/consistent
+    keep_alive: str = "5m",         # keep model hot during batches
 ) -> str:
     # Build context from files
     file_context = "\n<files_context>"
     for file in files or []:
-        with open("\\\\?\\" + file, "r", encoding="utf-8") as f:
+        with open(clean_path(file), "r", encoding="utf-8") as f:
             file_context += (
                 f"\n<file name='{os.path.basename(file)}'>\n"
                 + f.read()
@@ -39,6 +44,11 @@ def ollama_with_files(
     response = Client(host=base_url).generate(
         model=model,
         prompt=prompt + file_context,
+        keep_alive=keep_alive,
+        options={
+            "num_predict": num_predict,
+            "temperature": temperature,
+        },
     )
 
     return (
@@ -97,7 +107,7 @@ if __name__ == "__main__":
     #         results[basename(modification_document)][basename(task)] = result
     # print(f"Total prompts sent: {prompts}")
 
-    # with open("\\\\?\\" + r"C:\Users\munte\Downloads\Dubai Air Wing\Work\777 AIPC\AI Check results.json", "w", encoding="utf-8") as f:
+    # with open(clean_path(r"C:\Users\munte\Downloads\Dubai Air Wing\Work\777 AIPC\AI Check results.json"), "w", encoding="utf-8") as f:
     #     json.dump(results, f, ensure_ascii=False, indent=4)
 
     modification_document = r"C:\Users\munte\Downloads\Dubai Air Wing\Work\777 AIPC\short test\10079-01-A-INST-F01-R00.txt"

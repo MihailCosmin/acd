@@ -10,6 +10,7 @@ if sys.version_info < (3, 12):
 from Levenshtein import distance
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from .filepath import clean_path
 
 ENCODINGS = [
     'utf-8', 'iso-8859-1', 'cp1252', 'utf-16', 'utf-16-be', 'utf-16-le', 'utf-32', 'utf-32-be', 'utf-32-le', 'utf-7',
@@ -44,7 +45,7 @@ def get_textfile_content(file_path: str) -> str:
     """
     for encoding in ENCODINGS:
         try:
-            with open("\\\\?\\" + file_path, encoding=encoding) as file_:
+            with open(clean_path(file_path), encoding=encoding) as file_:
                 return file_.read()
         except UnicodeDecodeError:
             continue

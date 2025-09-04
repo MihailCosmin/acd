@@ -17,6 +17,7 @@ from traceback import format_exc
 from time import sleep
 
 import sys
+from .filepath import clean_path
 
 if sys.version_info >= (3, 12):
     from PySide6.QtWidgets import QMainWindow
@@ -50,7 +51,7 @@ def add_iplnom_to_stp(
     """
 
     try:
-        with open("\\\\?\\" + stp, "r", encoding="utf-8") as stp_file:
+        with open(clean_path(stp), "r", encoding="utf-8") as stp_file:
             stp_content = stp_file.read()
 
         ipl_dict = ipl_to_dict(ipl1)
@@ -65,7 +66,7 @@ def add_iplnom_to_stp(
             elif pnr.replace("-", "") in ipl_dict:
                 stp_content = stp_content.replace("".join(part), f"PRODUCT('{pnr + ' | ' + str(ipl_dict[pnr.replace('-', '')]['Itemnbr']) + ' ' + ipl_dict[pnr.replace('-', '')]['Nomenclature']}'")
 
-        with open("\\\\?\\" + stp, "w", encoding="utf-8") as stp_file:
+        with open(clean_path(stp), "w", encoding="utf-8") as stp_file:
             stp_file.write(stp_content)
     except Exception as err:
         if debug:

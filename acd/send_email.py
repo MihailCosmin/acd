@@ -1,6 +1,7 @@
 import smtplib
 import os
 from email.message import EmailMessage
+from .filepath import clean_path
 
 def send_email_with_attachments(
         subject: str,
@@ -33,7 +34,7 @@ def send_email_with_attachments(
         for file_path in attachments:
             if not os.path.isfile(str(file_path)):
                 continue
-            with open("\\\\?\\" + file_path, 'rb') as f:
+            with open(clean_path(file_path), 'rb') as f:
                 file_data = f.read()
                 file_name = os.path.basename(file_path)
             msg.add_attachment(file_data, maintype='application', subtype='octet-stream', filename=file_name)

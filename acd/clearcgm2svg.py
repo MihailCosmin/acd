@@ -6,6 +6,8 @@ from re import sub
 from re import DOTALL
 from re import findall
 
+from .filepath import clean_path
+
 doc, tag, text = Doc().tagtext()
 
 LINE_TYPES = {
@@ -25,7 +27,7 @@ def get_font_types(content: str) -> dict:
     return font_types
 
 def linePrepend(filename, line):
-    with open("\\\\?\\" + filename, 'r+') as f:
+    with open(clean_path(filename), 'r+') as f:
         content = f.read()
         f.seek(0, 0)
         f.write(line.rstrip('\r\n') + '\n' + content)
@@ -33,7 +35,7 @@ def linePrepend(filename, line):
 
 def prettyPrint(outputFile):
     x = etree.parse(outputFile)
-    with open("\\\\?\\" + outputFile, 'w', encoding="utf8") as f:
+    with open(clean_path(outputFile), 'w', encoding="utf8") as f:
         f.write(str(etree.tostring(x, pretty_print=False)))
 
     with FileInput(outputFile, inplace=True) as file:
@@ -47,7 +49,7 @@ def prettyPrint(outputFile):
             print(correctedLine, end='')
 
     x = etree.parse(outputFile)
-    with open("\\\\?\\" + outputFile, 'w', encoding="utf8") as f:
+    with open(clean_path(outputFile), 'w', encoding="utf8") as f:
         f.write(etree.tostring(x, pretty_print=True).decode())
 
 
@@ -243,11 +245,11 @@ def preprocess_svg(content: str) -> str:
 def clearCGM2SVG(file):
     svgAtt = {}
 
-    with open("\\\\?\\" + file, mode='r') as f_in:
+    with open(clean_path(file), mode='r') as f_in:
         cgm = f_in.read()
 
         content = preprocess_svg(cgm)
-        with open("\\\\?\\" + file.replace(".cgm", "_1.cgm"), "w") as f:
+        with open(clean_path(file.replace(".cgm", "_1.cgm")), "w") as f:
             f.write(content)
 
         # cgmLines = open(file, mode='r').readlines()
@@ -380,7 +382,7 @@ circle
 
         outputFile = file.replace(".cgm", "_2.svg").replace(".CGM", "_2.svg")
 
-        with open("\\\\?\\" + outputFile, "w") as svg:
+        with open(clean_path(outputFile), "w") as svg:
             svg.write(result)
 
         prettyPrint(outputFile)

@@ -14,6 +14,8 @@ from os.path import basename
 from os.path import dirname
 from os.path import normpath
 
+from .filepath import clean_path
+
 from traceback import format_exc
 
 from json import dump
@@ -179,13 +181,13 @@ class ConsumablesValidator():
             raise NoXmlSet("No xml found to validate. Use the set_xml function to set the path of your xml \
                         before you use the validate_consumables function.".replace("                        ", ""))
 
-        with open("\\\\?\\" + self.xml_path, "r", encoding="utf-8") as _:
+        with open(clean_path(self.xml_path), "r", encoding="utf-8") as _:
             xml_content = _.read()
         xml_content = linearize_xml(xml_content)
         xml_content = delete_first_line(xml_content)
         xml_content = replace_special_characters(xml_content)
         # Insert replacements for all entitys
-        with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+        with open(clean_path(join(FILEPATH, "inmedISOEntities.ent")), "r", encoding="utf-8") as _:
             entities = _.read()
         entities = linearize_xml(entities)
         xml_content = sub(r"(]>.*?<cmm)", entities + r'\1', xml_content)
@@ -314,7 +316,7 @@ class ConsumablesValidator():
                     list_to_check_uniqueness.clear()
 
         if export:
-            with open("\\\\?\\" + join(self.export_path, f"main_dict_cons_{basename(normpath(self.xml_path))}.json"), "w", encoding="utf-8") as _:
+            with open(clean_path(join(self.export_path, f"main_dict_cons_{basename(normpath(self.xml_path))}.json")), "w", encoding="utf-8") as _:
                 dump(main_dict, _, indent=4)
 
         self.main_dict = main_dict
@@ -422,13 +424,13 @@ class TorqueValuesValidator():
             export (bool, optional): _description_. Defaults to False.
         """
         try:
-            with open("\\\\?\\" + self.xml_path, "r", encoding="utf-8") as _:
+            with open(clean_path(self.xml_path), "r", encoding="utf-8") as _:
                 xml_content = _.read()
             xml_content = linearize_xml(xml_content)
             xml_content = delete_first_line(xml_content)
             xml_content_backup = xml_content
             xml_content = xml_content.replace("&nbsp;", " ")
-            with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+            with open(clean_path(join(FILEPATH, "inmedISOEntities.ent")), "r", encoding="utf-8") as _:
                 entities = _.read()
             entities = linearize_xml(entities)
             xml_content = sub(r"(]>.*?<cmm)", entities + r'\1', xml_content)
@@ -499,7 +501,7 @@ class TorqueValuesValidator():
             xml_content_backup = xml_content_backup.replace("</csn >", "</csn>").replace(
                 "<csn >", "<csn>").replace("<csn>", "(").replace("</csn>", ")")
             xml_content_backup = replace_special_characters(xml_content_backup)
-            with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+            with open(clean_path(join(FILEPATH, "inmedISOEntities.ent")), "r", encoding="utf-8") as _:
                 entities = _.read()
             entities = linearize_xml(entities)
             xml_content_backup = sub(
@@ -573,7 +575,7 @@ class TorqueValuesValidator():
                     main_dict['Procedure'][(item_num, name)] = torque
 
             if export:
-                with open("\\\\?\\" + join(self.export_path, f"main_dict_torque_values_{basename(normpath(self.xml_path))}.json"), "w", encoding="utf-8") as _:
+                with open(clean_path(join(self.export_path, f"main_dict_torque_values_{basename(normpath(self.xml_path))}.json")), "w", encoding="utf-8") as _:
                     temp_dict = {key: {str(key2): value2 for key2, value2 in value.items(
                     )} for key, value in main_dict.items()}
                     dump(temp_dict, _, indent=4)
@@ -607,7 +609,7 @@ class TorqueValuesValidator():
             row += f'<row><?validrow {ind}?><entry rotate="0" valign="middle"><para chg="N" mark="1">{number}</para></entry><entry align="left" rotate="0" valign="middle"><para>{name}</para></entry><entry align="left" valign="middle"><para>{value}</para></entry></row>'
 
         table_content = f"<tbody>{row}</tbody>"
-        with open("\\\\?\\" + join(self.export_path, f"Torque_Table_{basename(normpath(self.xml_path))}.xml"), "w", encoding="utf-8") as _:
+        with open(clean_path(join(self.export_path, f"Torque_Table_{basename(normpath(self.xml_path))}.xml")), "w", encoding="utf-8") as _:
             _.write(table_content)
 
 class cons_and_teds_checker():
@@ -641,7 +643,7 @@ class cons_and_teds_checker():
         Returns:
             str: It returns the resulting XML content as a string.
         """
-        with open("\\\\?\\" + self.xml_path, "r", encoding="utf-8") as _:
+        with open(clean_path(self.xml_path), "r", encoding="utf-8") as _:
             xml_content = _.read()
             xml_content = delete_first_line(xml_content)
             xml_content = replace_special_characters(xml_content)
@@ -655,7 +657,7 @@ class cons_and_teds_checker():
             str: xml content with mentioned modifications.
         """
         xml_content = self.prepare_xml()
-        with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+        with open(clean_path(join(FILEPATH, "inmedISOEntities.ent")), "r", encoding="utf-8") as _:
             entities = _.read()
         xml_content = sub(r"(]>(.|\n)*?<cmm)", entities + r'\1', xml_content)
         
@@ -701,7 +703,7 @@ class cons_and_teds_checker():
             if isinstance(self.qt_window, QMainWindow):
                 if not isdir(join(self.qt_window.exe_path, "debug")):
                     makedirs(join(self.qt_window.exe_path, "debug"))
-                with open("\\\\?\\" + join(self.qt_window.exe_path, "debug", "pgblk_contents_" + basename(normpath(self.xml_path))), "w", encoding="utf-8") as _:
+                with open(clean_path(join(self.qt_window.exe_path, "debug", "pgblk_contents_" + basename(normpath(self.xml_path)))), "w", encoding="utf-8") as _:
                     _.write("\n".join(pgblk_contents))
 
         for pgblk in pgblk_contents:
@@ -922,7 +924,7 @@ def ipl_to_dict(xml: str) -> dict:
         return _ipl_to_dict_excel(xml)
     ipl_dict = {}
 
-    with open("\\\\?\\" + xml, "r", encoding="utf-8") as xml_in:
+    with open(clean_path(xml), "r", encoding="utf-8") as xml_in:
         content = xml_in.read().replace("\n", "")
 
     if search(ITEMDATA_REGEX, content):
@@ -1010,7 +1012,7 @@ class pgblk_9000_ted_checker():
         Returns:
             str: It returns the resulting XML content as a string.
         """
-        with open("\\\\?\\" + self.xml_path, "r", encoding="utf-8") as _:
+        with open(clean_path(self.xml_path), "r", encoding="utf-8") as _:
             xml_content = _.read()
             xml_content = delete_first_line(xml_content)
             xml_content = replace_special_characters(xml_content)
@@ -1025,7 +1027,7 @@ class pgblk_9000_ted_checker():
         """
         xml_content = self.prepare_xml()
         print(f"replace_entities - Expecting: {join(FILEPATH, 'inmedISOEntities.ent')}")
-        with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+        with open(clean_path(join(FILEPATH, "inmedISOEntities.ent")), "r", encoding="utf-8") as _:
             entities = _.read()
         xml_content = sub(r"(]>(.|\n)*?<cmm)", entities + r'\1', xml_content)
         return xml_content
@@ -1073,7 +1075,7 @@ class pgblk_9000_ted_checker():
         """)
         if not tool_table:
             print("No tool table found in pageblock 9000.")
-            with open("\\\\?\\" + join(self.export_path, f"Checker_ted_pb9000_{basename(normpath(self.xml_path))}.txt"), "w", encoding="utf-8") as _:
+            with open(clean_path(join(self.export_path, f"Checker_ted_pb9000_{basename(normpath(self.xml_path))}.txt")), "w", encoding="utf-8") as _:
                 _.write("No tool table found in pageblock 9000.\npgblk_9000_content:\n{}".format(pgblk_9000_content))
             return dict_tools, dict_tools_procedure
         tool_table = etree.tostring(tool_table[0], encoding="unicode")
@@ -1199,7 +1201,7 @@ class AtaNumbering():
         self.export_path = export_path
 
     def check_key_numbers(self):
-        with open("\\\\?\\" + self.xml_path, 'r', encoding="utf-8") as _:
+        with open(clean_path(self.xml_path), 'r', encoding="utf-8") as _:
             xml_content = _.read()
 
         # get key_number

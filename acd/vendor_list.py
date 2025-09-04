@@ -17,6 +17,7 @@ from openpyxl.styles import Font
 from openpyxl.styles import Alignment
 
 from selenium import webdriver
+from .filepath import clean_path
 
 from json import loads
 
@@ -96,7 +97,7 @@ def get_chrome_driver_version(
     if qt_window is not None and debug:
         console.emit(f"FILEPATH 1: {FILEPATH}")
         console.emit(f"driver_path 1: {driver_path}")
-    with open("\\\\?\\" + driver_path, 'rb') as _:
+    with open(clean_path(driver_path), 'rb') as _:
         license_content = _.read()
     installed_chrome_driver_version = search(
         r'("Surface Duo".*?Chrome\/)(.*?)( )', license_content.decode("latin-1")).group(2)
@@ -123,7 +124,7 @@ def update_chrome_driver(
         if qt_window is not None and debug:
             console.emit(f"FILEPATH 2: {FILEPATH}")
             console.emit(f"driver_path 2: {driver_path}")
-        with open("\\\\?\\" + join(dirname(dirname(dirname(dirname(FILEPATH)))), "chromedriver_win32.zip"), "wb") as _:
+        with open(clean_path(join(dirname(dirname(dirname(dirname(FILEPATH)))), "chromedriver_win32.zip")), "wb") as _:
             _.write(response.content)
         # unarchive_file(join(abspath("chromedriver_win32"), "chromedriver_win32.zip"))
         with zipfile.ZipFile(join(dirname(dirname(dirname(dirname(FILEPATH)))), "chromedriver_win32.zip"), 'r') as _:
@@ -158,7 +159,7 @@ class VendorList():
         Returns:
             str: It returns the resulting XML content as a string.
         """
-        with open("\\\\?\\" + self.xml_path, "r", encoding="utf-8") as _:
+        with open(clean_path(self.xml_path), "r", encoding="utf-8") as _:
             xml_content = _.read()
             xml_content = delete_first_line(xml_content)
             xml_content = replace_special_characters(xml_content)
@@ -173,7 +174,7 @@ class VendorList():
             str: xml content with mentioned modifications.
         """
         xml_content = self.prepare_xml()
-        with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+        with open(clean_path(join(FILEPATH, "inmedISOEntities.ent")), "r", encoding="utf-8") as _:
             entities = _.read()
         xml_content = sub(r"(]>(.|\n)*?<cmm)", entities + r'\1', xml_content)
         return xml_content
@@ -382,7 +383,7 @@ class VendorList():
 
             vendlist = vendlist.replace("content1", vendata)
 
-            with open("\\\\?\\" + join(self.export_path, f"vendor_list_{basename(normpath(self.xml_path))}.xml"), "w", encoding="utf-8") as _:
+            with open(clean_path(join(self.export_path, f"vendor_list_{basename(normpath(self.xml_path))}.xml")), "w", encoding="utf-8") as _:
                 _.write(vendlist)
             if qt_window is not None:
                 progress.emit(100)

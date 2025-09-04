@@ -32,6 +32,7 @@ if __name__ == "__main__":
     from filelist import list_files
 else:
     from .filelist import list_files
+    from .filepath import clean_path
 
 pytesseract.pytesseract.tesseract_cmd = join(dirname(__file__), "3rd", "tesseract_5.5.0.20241111", "tesseract.exe")
 POPPLER_PATH = join(dirname(abspath(__file__)), "3rd", "bin")
@@ -118,7 +119,7 @@ def ocr_pdf(pdf_path: str) -> None:
             writer.add_page(ocr_reader.pages[0])
 
         output_path = pdf_path + ".ocr.pdf"
-        with open("\\\\?\\" + output_path, "wb") as f:
+        with open(clean_path(output_path), "wb") as f:
             writer.write(f)
 
         replace(output_path, pdf_path)
@@ -159,7 +160,7 @@ def pdfs_to_txts(folder: str, engine: str = "paddle", regex: str = None, skip_ex
             continue
         text = get_ocr_pdf_content(pdf, engine=engine)
         text_filename = splitext(pdf)[0] + ".txt"
-        with open("\\\\?\\" + text_filename, "w", encoding="utf-8") as f:
+        with open(clean_path(text_filename), "w", encoding="utf-8") as f:
             f.write(text)
 
 if __name__ == "__main__":

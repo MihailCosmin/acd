@@ -6,6 +6,8 @@ from os.path import join
 from os.path import isdir
 from os.path import isfile
 
+from .filepath import clean_path
+
 from tqdm import tqdm
 
 from json import dump
@@ -122,7 +124,7 @@ def rename_illustrations(
         if debug and qt_window is not None:
             if not isdir(join(qt_window.exe_path, "debug")):
                 mkdir(join(qt_window.exe_path, "debug"))
-            with open("\\\\?\\" + join(qt_window.exe_path, "debug", "scope.json"), "w") as file_:
+            with open(clean_path(join(qt_window.exe_path, "debug", "scope.json")), "w") as file_:
                 dump(scope, file_, indent=4)
         if not scope:
             if qt_window is not None:
@@ -154,7 +156,7 @@ def rename_illustrations(
             if qt_window is not None:
                 progress.emit(int((list(scope.keys()).index(source) + 1) / max_progress * 90 + 10))
                 console.emit(f"Renamed {source} to {target}.")
-        with open("\\\\?\\" + join(folder, "idr_list.txt"), "w", encoding="utf-8") as file_:
+        with open(clean_path(join(folder, "idr_list.txt")), "w", encoding="utf-8") as file_:
             file_.write("\n".join(idr_list))
     except Exception as err:
         if debug:

@@ -32,6 +32,7 @@ else:
 
 from .filelist import list_files  # pylint: disable=import-error,E0401,C0413
 from .excel_ import format_excel  # pylint: disable=import-error,E0401,C0413
+from .filepath import clean_path  # pylint: disable=import-error,E0401,C0413
 
 def get_manual_series(
         manual_xml: str,
@@ -53,7 +54,7 @@ def get_manual_series(
         columns=['Year', 'ATA', 'Manual Type', 'Disassembly Subtask', 'XML Content', ''])
     assembly_df_ = DataFrame(
         columns=['Year', 'ATA', 'Manual Type', 'Assembly Subtask', 'XML Content', ''])
-    with open("\\\\?\\" + manual_xml, 'r', encoding='utf-8') as cmm_file:
+    with open(clean_path(manual_xml), 'r', encoding='utf-8') as cmm_file:
         cmm_text = cmm_file.read().replace('\n', '')
     if search(r'<figure.*?</figure>', cmm_text) is not None:
         for figure in findall(r'<figure.*?</figure>', cmm_text):

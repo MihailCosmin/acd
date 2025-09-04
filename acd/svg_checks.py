@@ -21,6 +21,7 @@ if sys.version_info >= (3, 12):
 else:
     from PySide2.QtWidgets import QMainWindow
     from PySide2.QtCore import Signal
+from .filepath import clean_path
 
 if __name__ == "__main__":
     from filelist import list_files2
@@ -120,7 +121,7 @@ def check_line_widths(
         valid_widths = convert_rgb_keys_to_hex(valid_widths)
         print(f"Valid widths: {valid_widths}")
 
-        # with open("\\\\?\\" + svg_file, "r", encoding="utf-8") as svg:
+        # with open(clean_path(svg_file), "r", encoding="utf-8") as svg:
         # original_svg_content = new_svg_content = svg.read()
         original_svg_content = new_svg_content = get_textfile_content(svg_file)
         # TODO: Cosmin - Talk about whcih ones to include, only lines or all?
@@ -169,7 +170,7 @@ def check_line_widths(
                 progress.emit(100)
                 # console.emit(
                 #     f"Non-conform line widths found in {svg_file}. Please check the file: {svg_file.replace('.svg', '_line_width_check.svg')}")
-            with open("\\\\?\\" + svg_file.replace('.svg', '_line_width_check.svg'), "w", encoding="utf-8") as svg:
+            with open(clean_path(svg_file.replace('.svg', '_line_width_check.svg')), "w", encoding="utf-8") as svg:
                 svg.write(new_svg_content)
             return 0
         elif qt_window is not None:
@@ -208,7 +209,7 @@ def __check_line_widths(
     cgm to svg has a different style, the file cannot be open as image directly. We need a better convertor from cgm to svg.
     """
     try:
-        # with open("\\\\?\\" + svg_file, "r", encoding="utf-8") as svg:
+        # with open(clean_path(svg_file), "r", encoding="utf-8") as svg:
         # original_svg_content = new_svg_content = svg.read()
         original_svg_content = new_svg_content = get_textfile_content(svg_file)
         for line in findall(r'<.*?>', new_svg_content):
@@ -243,7 +244,7 @@ def __check_line_widths(
                 progress.emit(100)
                 # console.emit(
                 #     f"Non-conform line widths found in {svg_file}. Please check the file: {svg_file.replace('.svg', '_line_width_check.svg')}")
-            with open("\\\\?\\" + svg_file.replace('.svg', '_line_width_check.svg'), "w", encoding="utf-8") as svg:
+            with open(clean_path(svg_file.replace('.svg', '_line_width_check.svg')), "w", encoding="utf-8") as svg:
                 svg.write(new_svg_content)
             return 0
         elif qt_window is not None:
@@ -379,7 +380,7 @@ def check_icn(
         bool: True if the icn is in the svg file
     """
     icn = svg_file.split(sep)[-1].replace(".svg", ".CGM")
-    # with open("\\\\?\\" + svg_file, "r", encoding="utf-8") as svg:
+    # with open(clean_path(svg_file), "r", encoding="utf-8") as svg:
     #     svg_content = svg.read()
     svg_content = get_textfile_content(svg_file)
     if search(rf'(<text.*?>)({icn})(</text>)', svg_content) is not None:
@@ -527,7 +528,7 @@ def check_text_format(
                 original_full_text, new_full_text)
 
     if original_svg_content != new_svg_content:
-        with open("\\\\?\\" + svg_file.replace('.svg', '_text_format_check.svg'), "w", encoding="utf-8") as svg:
+        with open(clean_path(svg_file.replace('.svg', '_text_format_check.svg')), "w", encoding="utf-8") as svg:
             svg.write(new_svg_content)
         return 0
     return 1
@@ -645,7 +646,7 @@ def check_illu_text(
         svg_file (str): SVG file to check
 
     """
-    # with open("\\\\?\\" + svg_file, "r", encoding="utf-8") as svg:
+    # with open(clean_path(svg_file), "r", encoding="utf-8") as svg:
     #     svg_content = svg.read()
     svg_content = get_textfile_content(svg_file)
     for text in findall(r'(<text.*?>)(.*?)(</text>)', svg_content):

@@ -10,6 +10,8 @@ from os.path import basename
 from os.path import isfile
 from os.path import isdir
 
+from .filepath import clean_path
+
 # from re import search  # To be replaced by regex.search, see below
 
 from io import StringIO
@@ -83,7 +85,7 @@ class BrexChecker():
         Args:
             xml (str): xml file path
         """
-        with open("\\\\?\\" + xml, "r", encoding="utf-8") as f:
+        with open(clean_path(xml), "r", encoding="utf-8") as f:
             self._xml_content = f.read()
         self._xml_path = xml
         if self._brex_dir_path[0] is None and self._brex_dir_path[1] is not True:
@@ -160,7 +162,7 @@ class BrexChecker():
         Returns:
             any: Set of nodes
         """
-        with open("\\\\?\\" + brex, "r", encoding="utf-8") as _:
+        with open(clean_path(brex), "r", encoding="utf-8") as _:
             brex_content = _.read()
         brex_content = delete_first_line(brex_content)
         brex_content = etree.parse(StringIO(brex_content))
@@ -222,7 +224,7 @@ class BrexChecker():
                 }
             )
         if debug:
-            with open("\\\\?\\" + join(expanduser("~/Desktop"), f'brex_{basename(brex)}.json'), 'w', encoding="utf-8") as _:
+            with open(clean_path(join(expanduser("~/Desktop"), f'brex_{basename(brex)}.json')), 'w', encoding="utf-8") as _:
                 for elem in allowed_object_flag_dict:
                     _.write(dumps(elem, indent=4, ensure_ascii=False))
         return allowed_object_flag_dict
@@ -362,7 +364,7 @@ class BrexChecker():
         Returns:
             any: Dictionary with all errors
         """
-        with open("\\\\?\\" + self._xml_path, "r", encoding="utf-8") as _:
+        with open(clean_path(self._xml_path), "r", encoding="utf-8") as _:
             self.xml_content = _.read()
         schema = get_schema_from_xml(self.xml_content)
         brex_violations_dict = {}
@@ -379,7 +381,7 @@ class BrexChecker():
             all_content_rules += content_rules
 
         if debug:
-            with open("\\\\?\\" + join(expanduser("~/Desktop"), "All_content_rules.txt"), 'w', encoding="utf-8") as _:
+            with open(clean_path(join(expanduser("~/Desktop"), "All_content_rules.txt")), 'w', encoding="utf-8") as _:
                 for rule in all_content_rules:
                     _.write(str(rule) + "\n")
         error_0, error_1, error_2 = 1, 1, 1
@@ -420,7 +422,7 @@ class BrexChecker():
         """
         if self._xml_dir:
             if debug:
-                with open("\\\\?\\" + join(expanduser("~/Desktop"), f'Errors_{basename(self._xml_dir)}.json'), 'w', encoding="utf-8") as _:
+                with open(clean_path(join(expanduser("~/Desktop"), f'Errors_{basename(self._xml_dir)}.json')), 'w', encoding="utf-8") as _:
                     _.write("{")
             files = [_ for _ in listdir(self._xml_dir) if ".xml" in _.lower() and "-022a-" not in _.lower() ]
             container = tqdm(files) if include_tqdm else files
@@ -430,12 +432,12 @@ class BrexChecker():
                 result = self._check_rules(debug=debug, include_tqdm=include_tqdm)
                 summary = self._append_summary(result)
                 if debug:
-                    with open("\\\\?\\" + join(expanduser("~/Desktop"), f'Errors_{basename(self._xml_dir)}.json'), 'a', encoding="utf-8") as _:
+                    with open(clean_path(join(expanduser("~/Desktop"), f'Errors_{basename(self._xml_dir)}.json')), 'a', encoding="utf-8") as _:
                         dump({_xml: result, "Summary": summary}, _, indent=4)
                 self._brex_list = (None, None)
                 self._brex_dir_path = (None, None)
             if debug:
-                with open("\\\\?\\" + join(expanduser("~/Desktop"), f'Errors_{basename(self._xml_dir)}.json'), 'a', encoding="utf-8") as _:
+                with open(clean_path(join(expanduser("~/Desktop"), f'Errors_{basename(self._xml_dir)}.json')), 'a', encoding="utf-8") as _:
                     _.write("}")
         else:
             self._init_brex_list()
@@ -443,7 +445,7 @@ class BrexChecker():
             summary = self._append_summary(result)
             result["Summary"] = summary
             if debug:
-                with open("\\\\?\\" + join(expanduser("~/Desktop"), f'Errors_{basename(self._xml_path)}.json'), 'w', encoding="utf-8") as _:
+                with open(clean_path(join(expanduser("~/Desktop"), f'Errors_{basename(self._xml_path)}.json')), 'w', encoding="utf-8") as _:
                     dump(result, _, indent=4)
         return result
 

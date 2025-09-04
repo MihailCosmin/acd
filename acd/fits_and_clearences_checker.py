@@ -23,6 +23,7 @@ from ast import literal_eval
 from .xml_processing import delete_first_line
 from .xml_processing import replace_special_characters
 from .xml_processing import linearize_xml
+from .filepath import clean_path
 
 FILEPATH = dirname(__file__)
 
@@ -55,7 +56,7 @@ class FCChecker():
         Returns:
             str: It returns the resulting XML content as a string.
         """
-        with open("\\\\?\\" + self.xml_path, "r", encoding="utf-8") as _:
+        with open(clean_path(self.xml_path), "r", encoding="utf-8") as _:
             xml_content = _.read()
             xml_content = delete_first_line(xml_content)
             xml_content = replace_special_characters(xml_content)
@@ -70,7 +71,7 @@ class FCChecker():
             str: xml content with mentioned modifications.
         """
         xml_content = self.prepare_xml()
-        with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+        with open(clean_path(join(FILEPATH, "inmedISOEntities.ent")), "r", encoding="utf-8") as _:
             entities = _.read()
         xml_content = sub(r"(]>(.|\n)*?<cmm)", entities + r'\1', xml_content)
         return xml_content

@@ -22,6 +22,8 @@ else:
     from PySide2.QtWidgets import QMainWindow
     from PySide2.QtCore import Signal
 
+from .filepath import clean_path
+
 
 def download_excel(excel: str, path: str = None) -> None:
     """download_excel downloads an Excel file from a onedrive.live.com URL.
@@ -33,7 +35,7 @@ def download_excel(excel: str, path: str = None) -> None:
 
     path = join(getcwd(), "temp.xlsx") if path is None else path
     excel = excel.replace("view", "download") if "view" in excel else excel
-    with open("\\\\?\\" + path, 'wb') as _:
+    with open(clean_path(path), 'wb') as _:
         _.write(get(excel).content)
 
 def get_excel_sheet_names(excel: str) -> list:

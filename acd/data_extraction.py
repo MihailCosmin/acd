@@ -8,6 +8,7 @@ from re import findall
 
 from fitz import open as pdf_open
 from .txt import word_frequency
+from .filepath import clean_path
 
 from .estimation import PAGEBLOCKS
 
@@ -37,7 +38,7 @@ def clean_word(word: str) -> str:
 
 # for row in df.iterrows():
 #     df_dict[str(row[1][0]) + "-" + str(row[1][1])] = row[1][2] if not pd.isna(row[1][2]) else row[1][3]
-# with open("\\\\?\\" + excel.split(".")[0] + ".json", 'w', encoding="utf-8") as f:
+# with open(clean_path(excel.split(".")[0] + ".json"), 'w', encoding="utf-8") as f:
 #     dump(df_dict, f, ensure_ascii=False, indent=4)
 if __name__ == "__main__":
     SECTION_TO_CATEGORY = {
@@ -69,7 +70,7 @@ if __name__ == "__main__":
 
     df = pd.DataFrame(columns=["Section", "Page", "ICN", "ICN Count", "Content Length", "Word Count", "Average Word Length", "Simple Words", "Middle Words", "Complex Words", "Result"])
 
-    with open("\\\\?\\" + pdf.replace(".pdf", ".json"), 'r', encoding="utf-8") as f:
+    with open(clean_path(pdf.replace(".pdf", ".json")), 'r', encoding="utf-8") as f:
         result = load(f)
 
     important_words = []
@@ -136,7 +137,7 @@ if __name__ == "__main__":
 
         icn = 1 if icn_match else 0
 
-        with open("\\\\?\\" + r"C:\Users\munteanu\Downloads\Liebherr Way of Working\Creation\complexity.json", 'r', encoding="utf-8") as f:
+        with open(clean_path(r"C:\Users\munteanu\Downloads\Liebherr Way of Working\Creation\complexity.json"), 'r', encoding="utf-8") as f:
             important_dict_updated = load(f)
 
         complex_words = len([word for word in word_freq if clean_word(word[0]) in important_dict_updated["Complex"]])
@@ -154,7 +155,7 @@ if __name__ == "__main__":
 
     df.to_excel(pdf.split(".")[0] + ".xlsx", index=False)
 
-    # with open("\\\\?\\" + pdf.replace(".pdf", ".txt"), 'w', encoding="utf-8") as f:
+    # with open(clean_path(pdf.replace(".pdf", ".txt")), 'w', encoding="utf-8") as f:
     #     for word in important_words:
     #         f.write(word + "\n")
 
@@ -171,5 +172,5 @@ if __name__ == "__main__":
     #         important_dict_updated["Simple"].append(word)
 
 
-    # with open("\\\\?\\" + r"C:\Users\munteanu\Downloads\Liebherr Way of Working\Creation\complexity.json", 'w', encoding="utf-8") as f:
+    # with open(clean_path(r"C:\Users\munteanu\Downloads\Liebherr Way of Working\Creation\complexity.json"), 'w', encoding="utf-8") as f:
     #     dump(important_dict_updated, f, ensure_ascii=False, indent=4)

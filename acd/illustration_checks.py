@@ -27,6 +27,7 @@ else:
 
 from .filelist import list_files
 from .txt import get_textfile_content
+from .filepath import clean_path
 
 def illu_date_check(
         folder: str,
@@ -110,14 +111,14 @@ def illu_date_check(
         return 0
 
     if export_json:
-        with open("\\\\?\\" + join(folder, "illu_date_check.json"), "w", encoding="utf-8") as out:
+        with open(clean_path(join(folder, "illu_date_check.json")), "w", encoding="utf-8") as out:
             dump(result, out, indent=4)
     return result
 
 def check_cgm_details(folder: str, check_strings: list, export_json: bool = False) -> dict:
     result = {}
     for cgm in list_files(folder, True, ["cgm"]):
-        # with open("\\\\?\\" + cgm, "r", encoding="utf-8") as cgm_in:
+        # with open(clean_path(cgm), "r", encoding="utf-8") as cgm_in:
         #     cgm_data = cgm_in.read()
         cgm_data = get_textfile_content(cgm)
 
@@ -127,7 +128,7 @@ def check_cgm_details(folder: str, check_strings: list, export_json: bool = Fals
             result[cgm] = "OK"
 
     if export_json:
-        with open("\\\\?\\" + join(folder, "cgm_details_check.json"), "w", encoding="utf-8") as out:
+        with open(clean_path(join(folder, "cgm_details_check.json")), "w", encoding="utf-8") as out:
             dump(result, out, indent=4)
     return result
 
@@ -144,7 +145,7 @@ def check_tif_details(folder: str, export_json: bool = False) -> dict:
         }
 
     if export_json:
-        with open("\\\\?\\" + join(folder, "tif_details_check.json"), "w", encoding="utf-8") as out:
+        with open(clean_path(join(folder, "tif_details_check.json")), "w", encoding="utf-8") as out:
             dump(result, out, indent=4)
     return result
 

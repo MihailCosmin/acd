@@ -25,6 +25,7 @@ from inflect import engine
 from .xml_processing import delete_first_line
 from .xml_processing import replace_special_characters
 from .xml_processing import linearize_xml
+from .filepath import clean_path
 
 
 if sys.version_info >= (3, 12):
@@ -67,7 +68,7 @@ class IPLChecker():
         Returns:
             str: It returns the resulting XML content as a string.
         """
-        with open("\\\\?\\" + self.xml_path, "r", encoding="utf-8") as _:
+        with open(clean_path(self.xml_path), "r", encoding="utf-8") as _:
             xml_content = _.read()
             xml_content = delete_first_line(xml_content)
             xml_content = replace_special_characters(xml_content)
@@ -81,7 +82,7 @@ class IPLChecker():
             str: xml content with mentioned modifications.
         """
         xml_content = self.prepare_xml()
-        with open("\\\\?\\" + join(FILEPATH, "inmedISOEntities.ent"), "r", encoding="utf-8") as _:
+        with open(clean_path(join(FILEPATH, "inmedISOEntities.ent")), "r", encoding="utf-8") as _:
             entities = _.read()
         xml_content = sub(r"(]>(.|\n)*?<cmm)", entities + r'\1', xml_content)
         return xml_content
@@ -405,13 +406,13 @@ class IPLChecker():
             if isinstance(self.qt_window, QMainWindow):
                 if not isdir(join(self.qt_window.exe_path, "debug")):
                     makedirs(join(self.qt_window.exe_path, "debug"))
-                with open("\\\\?\\" + join(self.qt_window.exe_path, "debug", "dict_ipl_table.json"), "w", encoding="utf-8") as log_file:
+                with open(clean_path(join(self.qt_window.exe_path, "debug", "dict_ipl_table.json")), "w", encoding="utf-8") as log_file:
                     dump(dict_ipl_table, log_file, ensure_ascii=False, indent=4)
-                with open("\\\\?\\" + join(self.qt_window.exe_path, "debug", "dict_disassembly.json"), "w", encoding="utf-8") as log_file:
+                with open(clean_path(join(self.qt_window.exe_path, "debug", "dict_disassembly.json")), "w", encoding="utf-8") as log_file:
                     dump(dict_disassembly, log_file, ensure_ascii=False, indent=4)
-                with open("\\\\?\\" + join(self.qt_window.exe_path, "debug", "dict_repair.json"), "w", encoding="utf-8") as log_file:
+                with open(clean_path(join(self.qt_window.exe_path, "debug", "dict_repair.json")), "w", encoding="utf-8") as log_file:
                     dump(dict_repair, log_file, ensure_ascii=False, indent=4)
-                with open("\\\\?\\" + join(self.qt_window.exe_path, "debug", "dict_assembly.json"), "w", encoding="utf-8") as log_file:
+                with open(clean_path(join(self.qt_window.exe_path, "debug", "dict_assembly.json")), "w", encoding="utf-8") as log_file:
                     dump(dict_assembly, log_file, ensure_ascii=False, indent=4)
 
         # Checks for sheet "IPL"

@@ -18,6 +18,7 @@ from pandas import DataFrame
 from .filelist import list_files
 from .pdf import get_pdf_content
 from .txt import word_frequency
+from .filepath import clean_path
 
 def is_fullpage_illu(text: str) -> str:
     """Checks if the page is a fullpage illustration.
@@ -88,7 +89,7 @@ def estimate_illustration(svg_dir: str) -> dict:
             "clipPath_count": len(findall(r"<clipPath", svg_content)),
             "marker_count": len(findall(r"<marker", svg_content)),
         }
-    with open("\\\\?\\" + join(svg_dir, "svg_data.json"), 'w', encoding='utf-8') as svg_out:
+    with open(clean_path(join(svg_dir, "svg_data.json")), 'w', encoding='utf-8') as svg_out:
         dump(svg_data, svg_out, indent=4)
     return svg_data
 

@@ -37,10 +37,12 @@ if __name__ == "__main__":
     from filelist import list_files
     from ocr import ocr_image
     from ocr import get_ocr_pdf_content
+    from filepath import clean_path
 else:
     from .filelist import list_files
     from .ocr import ocr_image
     from .ocr import get_ocr_pdf_content
+    from .filepath import clean_path
 
 
 def pdf_page_count(file_path, engine: str = "pypdf") -> int:
@@ -56,14 +58,14 @@ def pdf_page_count(file_path, engine: str = "pypdf") -> int:
     try:
         pdf_pages = 0
         if engine == "pypdf":
-            with open("\\\\?\\" + file_path, 'rb') as _:
+            with open(clean_path(file_path), 'rb') as _:
                 pdf = PdfFileReader(_, strict=False)
                 pdf_pages = pdf.getNumPages()
         elif engine in ("fitz", "pymupdf"):
             with pdf_open(file_path) as _:
                 pdf_pages = _.page_count
         elif engine == "pdfreader":
-            with open("\\\\?\\" + file_path, 'rb') as _:
+            with open(clean_path(file_path), 'rb') as _:
                 viewer = SimplePDFViewer(_)
                 viewer.render()
                 pdf_pages = viewer.doc.page_count
@@ -87,7 +89,7 @@ def get_pdf_content(file_path: str, engine: str = "fitz") -> str:
     """
     try:
         if engine == "pypdf":
-            with open("\\\\?\\" + file_path, 'rb') as _:
+            with open(clean_path(file_path), 'rb') as _:
                 pdf_content = str(PdfFileReader(_, strict=False).getPage(0).extractText())
             if pdf_content.strip() == "":
                 # If the first page is empty, try to extract text from all pages
@@ -107,7 +109,7 @@ def get_pdf_content(file_path: str, engine: str = "fitz") -> str:
                         pdf_content += page.get_text()
             return pdf_content
         elif engine == "pdfreader":
-            with open("\\\\?\\" + file_path, 'rb') as _:
+            with open(clean_path(file_path), 'rb') as _:
                 viewer = SimplePDFViewer(_)
                 viewer.render()
             return viewer.canvas.strings
@@ -132,7 +134,7 @@ def get_pdf_metadata(file_path: str, engine: str = "fitz", pike_meta: bool = Fal
     """
     try:
         if engine in ("PyPDF", "PYPDF", "pypdf"):
-            with open("\\\\?\\" + file_path, 'rb') as _:
+            with open(clean_path(file_path), 'rb') as _:
                 return PdfFileReader(_, strict=False).getDocumentInfo()
         elif engine in ("fitz", "pymupdf"):
             with pdf_open(file_path) as _:
@@ -174,7 +176,7 @@ def merge_pdfs(folder: str, output_name: str, debug: bool = False) -> int:
                 pdf_reader = PdfFileReader(file, strict=False)
                 for page in range(pdf_reader.getNumPages()):
                     pdf_writer.addPage(pdf_reader.getPage(page))
-        with open("\\\\?\\" + join(folder, output_name), 'wb') as _:
+        with open(clean_path(join(folder, output_name)), 'wb') as _:
             pdf_writer.write(_)
     except Exception as err:
         # See which exceptions can occur then add them here.
