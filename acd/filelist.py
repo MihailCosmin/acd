@@ -1,5 +1,7 @@
 """This module provides functions to list all/specific files in a directory.
 """
+# print(f"doc {__doc__} filename: {__file__} name: {__name__}")
+
 from os import walk
 from os.path import join
 from os.path import splitext
@@ -11,7 +13,10 @@ from zipfile import BadZipFile
 
 from tqdm import tqdm
 
-from .filepath import clean_path
+if __name__ == "__main__" or __name__ == "filelist":
+    from filepath import clean_path
+else:
+    from .filepath import clean_path
 
 import sys
 

@@ -45,10 +45,12 @@ _ocr_instance = None  # Private module-level variable
 import re
 from collections import Counter
 from math import ceil
-from typing import List, Tuple, Dict
+from typing import List, Dict, Tuple, Optional
+from pathlib import Path
+
+# ---------- helpers used by the detector ----------
 
 def _normalize(s: str) -> str:
-    # Collapse whitespace and upper-case (OCR is noisy; case-insensitive helps)
     return re.sub(r"\s+", " ", s).strip().upper()
 
 def _ngrams(tokens: List[str], nmin: int, nmax: int) -> List[str]:
@@ -60,10 +62,6 @@ def _ngrams(tokens: List[str], nmin: int, nmax: int) -> List[str]:
     return out
 
 def _is_region_match(row: str, phrase: str, region: str, max_offset: int = 60) -> bool:
-    """
-    region: 'any' | 'prefix' | 'suffix'
-    max_offset: tolerance (chars) from start/end to still count as header/footer
-    """
     idx = row.find(phrase)
     if idx < 0:
         return False
@@ -78,31 +76,30 @@ def _is_region_match(row: str, phrase: str, region: str, max_offset: int = 60) -
 def detect_repeated_chunks(
     rows: List[str],
     min_words: int = 4,
-    max_words: int = 12,
+    max_words: int = 50,
     min_chars: int = 25,
-    support_ratio: float = 0.6,   # phrase must appear in >= 60% of rows
-    region: str = "any"           # 'any' | 'prefix' | 'suffix'
+    support_ratio: float = 0.2,
+    region: str = "any",
+    region_offset: int = 60,
 ) -> Dict[str, List[str]]:
     """
-    Returns {'phrases': [list of repeated phrases], 'cleaned_rows': [rows with phrases removed]}
-    Detection is done on normalized (uppercased, space-collapsed) rows; removal uses that normalized form, too.
+    Find repeated n-gram phrases across rows. Returns normalized phrases.
     """
-    assert 0 < support_ratio <= 1.0
     if not rows:
         return {"phrases": [], "cleaned_rows": []}
 
     norm_rows = [_normalize(r) for r in rows]
     tokenized = [nr.split(" ") if nr else [] for nr in norm_rows]
 
-    # Collect candidate n-grams per row (as a set, to avoid double counting within a row)
     per_row_ngrams = []
     for toks, nr in zip(tokenized, norm_rows):
         grams = _ngrams(toks, min_words, max_words)
-        # Keep only reasonably long chunks
-        grams = {g for g in grams if len(g) >= min_chars and _is_region_match(nr, g, region)}
+        grams = {
+            g for g in grams
+            if len(g) >= min_chars and _is_region_match(nr, g, region, region_offset)
+        }
         per_row_ngrams.append(grams)
 
-    # Count in how many rows each n-gram appears
     c = Counter()
     for grams in per_row_ngrams:
         c.update(grams)
@@ -110,25 +107,121 @@ def detect_repeated_chunks(
     needed = ceil(support_ratio * len(rows))
     candidates = [g for g, cnt in c.items() if cnt >= needed]
 
-    # Prefer longest phrases and drop sub-phrases contained inside longer ones
+    # keep longest unique phrases
     candidates.sort(key=lambda s: (-len(s), s))
     kept = []
     for g in candidates:
-        if not any(g in k for k in kept):  # if g is not contained in a longer kept phrase
+        if not any(g in k for k in kept):
             kept.append(g)
 
-    # Remove all kept phrases from each normalized row (repeat to catch both header+footer)
-    cleaned = []
-    for nr in norm_rows:
-        r = nr
-        for ph in kept:
-            # Restrict removal to region if specified
-            if _is_region_match(r, ph, region):
-                r = r.replace(ph, " ")
-        r = re.sub(r"\s+", " ", r).strip()
-        cleaned.append(r)
+    return {"phrases": kept, "cleaned_rows": norm_rows}
 
-    return {"phrases": kept, "cleaned_rows": cleaned}
+# ---------- bridge from detected, normalized phrases -> regex over original text ----------
+
+def _phrase_to_regex(phrase_norm: str) -> re.Pattern:
+    """
+    Convert a normalized phrase (UPPER with single spaces) to a case-insensitive
+    regex that tolerates arbitrary whitespace in the original line.
+    """
+    # escape specials and allow flexible whitespace between tokens
+    parts = [re.escape(tok) for tok in phrase_norm.split(" ")]
+    pattern = r"\s*".join(parts)  # tolerate extra spaces from OCR
+    # word-ish boundaries are intentionally omitted—OCR can be messy
+    return re.compile(pattern, flags=re.IGNORECASE)
+
+def _match_is_in_region(line: str, m: re.Match, region: str, max_offset: int) -> bool:
+    if region == "any":
+        return True
+    if region == "prefix":
+        return m.start() <= max_offset
+    if region == "suffix":
+        return (len(line) - m.end()) <= max_offset
+    return True
+
+# ---------- main API ----------
+
+def remove_repeated_header_footer(
+    filepath: str,
+    output_suffix: str = "_cleaned.txt",
+    *,
+    support_ratio: float = 0.2,
+    min_words: int = 4,
+    max_words: int = 50,
+    min_chars: int = 25,
+    header_offset: int = 80,   # how far from start a header may begin
+    footer_offset: int = 80,   # how far from end a footer may end
+) -> Tuple[str, Dict[str, List[str]]]:
+    """
+    Detects repeated header/footer phrases and removes them from the file.
+    Returns (output_path, {'headers': [...], 'footers': [...]}).
+    """
+    p = Path(filepath)
+    text = p.read_text(encoding="utf-8", errors="replace")
+    rows = [line.rstrip("\n") for line in text.splitlines()]
+
+    # Detect headers and footers separately (on normalized rows)
+    hdr = detect_repeated_chunks(
+        rows, min_words, max_words, min_chars, support_ratio, region="prefix", region_offset=header_offset
+    )["phrases"]
+    ftr = detect_repeated_chunks(
+        rows, min_words, max_words, min_chars, support_ratio, region="suffix", region_offset=footer_offset
+    )["phrases"]
+
+    header_patterns = [_phrase_to_regex(ph) for ph in hdr]
+    footer_patterns = [_phrase_to_regex(ph) for ph in ftr]
+
+    cleaned_lines = []
+    for line in rows:
+        orig = line
+
+        # Remove headers near the start
+        for rx in header_patterns:
+            m = rx.search(orig)
+            if m and _match_is_in_region(orig, m, "prefix", header_offset):
+                orig = (orig[:m.start()] + orig[m.end():]).strip()
+
+        # Remove footers near the end
+        for rx in footer_patterns:
+            m = rx.search(orig)
+            if m and _match_is_in_region(orig, m, "suffix", footer_offset):
+                orig = (orig[:m.start()] + orig[m.end():]).strip()
+
+        # normalize spaces a bit
+        orig = re.sub(r"\s+", " ", orig).strip()
+        cleaned_lines.append(orig)
+
+    cleaned_text = "\n".join(cleaned_lines)
+    output_path = str(p).replace(".txt", output_suffix).replace(".TXT", output_suffix)
+    Path(output_path).write_text(cleaned_text + "\n", encoding="utf-8")
+
+    return output_path, {"headers": hdr, "footers": ftr}
+
+def batch_remove_repeated_header_footer(
+    filepath: str,
+    output_suffix: str = "_cleaned.txt",
+    iterations: int = 2,
+    overwrite: bool = False,
+    *,
+    support_ratio: float = 0.2,
+    min_words: int = 4,
+    max_words: int = 50,
+    min_chars: int = 25,
+    header_offset: int = 80,   # how far from start a header may begin
+    footer_offset: int = 80   # how far from end a footer may end
+):
+    for txt in tqdm(list_files(filepath, True, [".txt", ".TXT"]), desc="Cleaning text files", colour="green"):
+        for i in range(iterations):
+            output, _ = remove_repeated_header_footer(
+                txt,
+                output_suffix=".txt" if overwrite else output_suffix.replace(".txt", f"_{i + 1}.txt"),
+                support_ratio=support_ratio,
+                min_words=min_words,
+                max_words=max_words,
+                min_chars=min_chars,
+                header_offset=header_offset,
+                footer_offset=footer_offset
+            )
+
 
 def _initialize_paddle_ocr():
     """Initialize PaddleOCR with default parameters."""
@@ -151,13 +244,16 @@ def _initialize_paddle_ocr():
         )
     return _ocr_instance
 
-def get_ocr_pdf_content(pdf: str, engine: str = "paddle") -> str:
+def get_ocr_pdf_content(
+        pdf: str,
+        engine: str = "paddle") -> str:
     """Extract text from a PDF file using OCR.
 
     Args:
         pdf (str): The path to the PDF file.
         engine (str, optional): The OCR engine to use. Defaults to "paddle".
             Other options include "tesseract", "surya", and "easyocr".
+        remove_header_footer (bool, optional): Whether to remove repeated headers and footers. Defaults to False.
 
     Returns:
         str: The extracted text from the PDF.
@@ -179,7 +275,6 @@ def get_ocr_pdf_content(pdf: str, engine: str = "paddle") -> str:
             lang="en+de")
 
     try:
-        # clean_path() bypass for longer than 260 char paths
         images = convert_from_path(pdf, poppler_path=POPPLER_PATH)
     except Exception as e:
         # try to get pdf text simply with tesseract
@@ -248,7 +343,12 @@ def ocr_image(image: Any, engine: str = "paddle") -> str:
         return text
     return ""
 
-def pdfs_to_txts(folder: str, engine: str = "paddle", regex: str = None, skip_existing: bool = False) -> None:
+def pdfs_to_txts(
+    folder: str,
+    engine: str = "paddle",
+    regex: str = None,
+    skip_existing: bool = False,
+    remove_header_footer: bool = False) -> None:
     """Convert all PDF files in a folder to text files."""
     for pdf in tqdm(list_files(folder, True, [".pdf", ".PDF"], regex), desc="Processing PDFs", colour="green"):
         if skip_existing and exists(splitext(pdf)[0] + ".txt"):
@@ -257,10 +357,34 @@ def pdfs_to_txts(folder: str, engine: str = "paddle", regex: str = None, skip_ex
         text_filename = splitext(pdf)[0] + ".txt"
         with open(text_filename, "w", encoding="utf-8") as f:
             f.write(text)
+        if remove_header_footer:
+            remove_repeated_header_footer(
+                text_filename,
+                output_suffix="",
+                overwrite=True
+            )
+
 
 if __name__ == "__main__":
-    pdfs_to_txts(
-        r"C:\Users\munte\Downloads\Dubai Air Wing\Work\777 AIPC\777 AIPC D633W111, Rev 11 Jul 25 - W0006 - Split",
-        regex=r"\d\d\-\d\d\-\d\d\-\d\d",
-        skip_existing=True
+    # pdfs_to_txts(
+    #     r"C:\Users\munte\Downloads\Dubai Air Wing\Work\777 AIPC\777 AIPC D633W111, Rev 11 Jul 25 - W0006 - Split",
+    #     regex=r"\d\d\-\d\d\-\d\d\-\d\d",
+    #     skip_existing=True
+    # )
+    
+    # with open(r"C:\Users\munte\Downloads\Dubai Air Wing\Work\777 AIPC\aipc txt\53-01-01-01 - Floor Pallets - Install.txt", "r", encoding="utf-8") as f:
+    #     text = f.read()
+    # rows = [line for line in text.splitlines() if line.strip()]
+    # # Detect a header near the line start:
+    # result_hdr = detect_repeated_chunks(rows, support_ratio=0.7, region="prefix")
+    # # Detect a footer near the line end:
+    # result_ftr = detect_repeated_chunks(rows, support_ratio=0.7, region="suffix")
+    # # Print phrases found and show a sample cleaned line:
+    # print("Header phrases:", result_hdr["phrases"])
+    # print("Footer phrases:", result_ftr["phrases"])
+
+    batch_remove_repeated_header_footer(
+        r"C:\Users\munte\Downloads\Dubai Air Wing\Work\777 AIPC\aipc txt",
+        iterations=5,
+        overwrite=True
     )
