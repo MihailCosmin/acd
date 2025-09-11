@@ -127,7 +127,9 @@ class illustrationChecker():
                     temp["Sh."] = str(cell.value)
                 elif counter == 4:
                     temp["Title"] = str(cell.value)
-                elif counter == 7:
+                elif counter == 6 and cell.value is not None and cell.value != "" and (row[6].value is None or row[6].value == ""):
+                    temp["ICN ATA"] = str(cell.value)
+                elif counter == 7 and cell.value is not None and cell.value != "":
                     temp["ICN ATA"] = str(cell.value)
                 else:
                     pass
@@ -176,11 +178,15 @@ class illustrationChecker():
                 if "rm" in icn_ata:
                     # Case 1: 35 characters
                     icn_ata = search(
-                        r"[a-z0-9]{3}-[a-z0-9]{4}-[a-z0-9]{2}-[a-z0-9]{2}-[a-z0-9]{4}-[a-z0-9]{5}-[a-z0-9]{5}-[a-z0-9]{3}", icn_ata).group(0)
+                        r"[a-z0-9]{3}-[a-z0-9]{4}-[a-z0-9]{2}-[a-z0-9]{2}-[a-z0-9]{4}-[a-z0-9]{5}-[a-z0-9]{5}-[a-z0-9]{3}", icn_ata)
+                    if icn_ata:
+                        icn_ata = icn_ata.group(0)
                 elif "rm" not in icn_ata:
                     # Case 2: 33 Characters
                     icn_ata = search(
-                        r"[a-z0-9]{3}-[a-z0-9]{4}-[a-z0-9]{2}-[a-z0-9]{2}-[a-z0-9]{2}-[a-z0-9]{5}-[a-z0-9]{5}-[a-z0-9]{3}", icn_ata).group(0)
+                        r"[a-z0-9]{3}-[a-z0-9]{4}-[a-z0-9]{2}-[a-z0-9]{2}-[a-z0-9]{2}-[a-z0-9]{5}-[a-z0-9]{5}-[a-z0-9]{3}", icn_ata)
+                    if icn_ata:
+                        icn_ata = icn_ata.group(0)
                 if '"' + icn_ata + '"' not in graphic_content:
                     # print(f"ICN ATA not found: {table_dict[key]['ICN ATA'].replace('.cgm', '')} | {graphic_content}")
                     validation_result = ("Failed", "ICN ATA incorrect")
@@ -472,5 +478,4 @@ class baselineReportFilter():
 
         workbook_new.save(join(
             self.export_path, f"baseline_report_filter_{basename(normpath(base_report_excel))}.xlsx"))
-
 
