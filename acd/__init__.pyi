@@ -150,20 +150,20 @@ from .multi import Worker
 from .multi import WorkerSignals
 from .ocr import POPPLER_PATH
 from .ocr import _initialize_paddle_ocr
+from .ocr import _is_region_match
+from .ocr import _match_is_in_region
+from .ocr import _ngrams
+from .ocr import _normalize
+from .ocr import _phrase_to_regex
+from .ocr import batch_remove_repeated_header_footer
 from .ocr import ccache_dir
 from .ocr import current_file_dir
+from .ocr import detect_repeated_chunks
 from .ocr import get_ocr_pdf_content
 from .ocr import ocr_image
 from .ocr import ocr_pdf
 from .ocr import pdfs_to_txts
-from .ocr copy import POPPLER_PATH
-from .ocr copy import _initialize_paddle_ocr
-from .ocr copy import ccache_dir
-from .ocr copy import current_file_dir
-from .ocr copy import get_ocr_pdf_content
-from .ocr copy import ocr_image
-from .ocr copy import ocr_pdf
-from .ocr copy import pdfs_to_txts
+from .ocr import remove_repeated_header_footer
 from .ollama_automations import ollama_with_files
 from .ollama_automations import ollama_with_images
 from .paddle_runtime import ensure_paddle
