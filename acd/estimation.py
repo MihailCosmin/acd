@@ -267,33 +267,24 @@ def prepare_estimation(pdf: str, type: str = "Revision", ret: bool = False):
                     worksheet1.write(sheet1_row, 1, page_number, normal_body_centered_format)
                     worksheet1.write(sheet1_row, 2, text_estimation, yellow_body_format)
                     sheet1_row += 1
-        elif "TP1" in page_text:
-            json_dict["TP" + "_" + "1"] = {
-                "Section": "TP",
-                "Page Number": "1",
-                "Fullpage Illu?": '',
-            }
-            if not ret:
-                worksheet1.write(sheet1_row, 0, "TP", normal_body_format)
-                worksheet1.write(sheet1_row, 1, "1", normal_body_centered_format)
-                worksheet1.write(sheet1_row, 2, "", yellow_body_format)
-                sheet1_row += 1
-
-        elif "TP2" in page_text:
-            json_dict["TP" + "_" + "2"] = {
-                "Section": "TP",
-                "Page Number": "2",
-                "Fullpage Illu?": '',
-            }
-            if not ret:
-                worksheet1.write(sheet1_row, 0, "TP", normal_body_format)
-                worksheet1.write(sheet1_row, 1, "2", normal_body_centered_format)
-                worksheet1.write(sheet1_row, 2, "", yellow_body_format)
-                sheet1_row += 1
+        elif search(r"TP\d+", page_text):
+            tp_match = search(r"TP(\d+)", page_text)
+            if tp_match:
+                tp_number = tp_match.group(1)
+                json_dict["TP" + "_" + tp_number] = {
+                    "Section": "TP",
+                    "Page Number": tp_number,
+                    "Fullpage Illu?": '',
+                }
+                if not ret:
+                    worksheet1.write(sheet1_row, 0, "TP", normal_body_format)
+                    worksheet1.write(sheet1_row, 1, tp_number, normal_body_centered_format)
+                    worksheet1.write(sheet1_row, 2, "", yellow_body_format)
+                    sheet1_row += 1
 
         else:
-            print(page_text)
-            break
+            # Skip non-structured pages such as title pages, copyright pages, or blank pages.
+            continue
     if not ret:
         workbook.close()
     if ret:
