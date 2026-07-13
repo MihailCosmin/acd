@@ -177,19 +177,21 @@ class illustrationChecker():
                     ".cgm", "").replace(".gcm", "").lower()
                 if "rm" in icn_ata:
                     # Case 1: 35 characters
-                    icn_ata = search(
+                    icn_match = search(
                         r"[a-z0-9]{3}-[a-z0-9]{4}-[a-z0-9]{2}-[a-z0-9]{2}-[a-z0-9]{4}-[a-z0-9]{5}-[a-z0-9]{5}-[a-z0-9]{3}", icn_ata)
-                    if icn_ata:
-                        icn_ata = icn_ata.group(0)
-                elif "rm" not in icn_ata:
+                else:
                     # Case 2: 33 Characters
-                    icn_ata = search(
+                    icn_match = search(
                         r"[a-z0-9]{3}-[a-z0-9]{4}-[a-z0-9]{2}-[a-z0-9]{2}-[a-z0-9]{2}-[a-z0-9]{5}-[a-z0-9]{5}-[a-z0-9]{3}", icn_ata)
-                    if icn_ata:
-                        icn_ata = icn_ata.group(0)
-                if '"' + icn_ata + '"' not in graphic_content:
-                    # print(f"ICN ATA not found: {table_dict[key]['ICN ATA'].replace('.cgm', '')} | {graphic_content}")
-                    validation_result = ("Failed", "ICN ATA incorrect")
+                if icn_match is None:
+                    # e.g. OEM/vendor drawings that do not follow the ICN naming
+                    validation_result = (
+                        "Failed", "ICN ATA does not match the expected ICN format")
+                else:
+                    icn_ata = icn_match.group(0)
+                    if '"' + icn_ata + '"' not in graphic_content:
+                        # print(f"ICN ATA not found: {table_dict[key]['ICN ATA'].replace('.cgm', '')} | {graphic_content}")
+                        validation_result = ("Failed", "ICN ATA incorrect")
                 # print(icn_ata)
                 # print(graphic_content)
 

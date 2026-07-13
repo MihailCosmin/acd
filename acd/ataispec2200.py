@@ -238,10 +238,14 @@ class ConsumablesValidator():
                             table_con_list.append(f"{num}:{table_con_tuple}")
                     list_to_check_uniqueness.clear()
 
-                procedure_con = task.xpath(r"./topic[title = 'Procedure']")
-                procedure_con += task.xpath(r"./topic[title = 'Job Set-up']")
+                # Case-insensitive title match ("Job Set-Up" also occurs) and
+                # do not assume both topics exist in every task
+                procedure_con = task.xpath(
+                    r"./topic[translate(normalize-space(title), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = 'procedure']")
+                procedure_con += task.xpath(
+                    r"./topic[translate(normalize-space(title), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = 'job set-up']")
                 if procedure_con:
-                    for con in procedure_con[0].xpath(r".//con") + procedure_con[1].xpath(r".//con"):
+                    for con in [con for topic in procedure_con for con in topic.xpath(r".//con")]:
                         connbr_text = ""
                         try:
                             connbr_text = str(con.xpath("connbr")[0].text)
@@ -289,10 +293,14 @@ class ConsumablesValidator():
                             table_ted_list.append(f"{num}:{table_ted_tuple}")
                     list_to_check_uniqueness.clear()
 
-                procedure_ted = task.xpath(r"./topic[title = 'Procedure']")
-                procedure_ted += task.xpath(r"./topic[title = 'Job Set-up']")
+                # Case-insensitive title match ("Job Set-Up" also occurs) and
+                # do not assume both topics exist in every task
+                procedure_ted = task.xpath(
+                    r"./topic[translate(normalize-space(title), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = 'procedure']")
+                procedure_ted += task.xpath(
+                    r"./topic[translate(normalize-space(title), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = 'job set-up']")
                 if procedure_ted:
-                    for ted in procedure_ted[0].xpath(r".//ted") + procedure_ted[1].xpath(r".//ted"):
+                    for ted in [ted for topic in procedure_ted for ted in topic.xpath(r".//ted")]:
                         toolnbr_text = ""
                         try:
                             toolnbr_text = str(ted.xpath("toolnbr")[0].text)

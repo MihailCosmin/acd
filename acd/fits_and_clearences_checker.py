@@ -300,6 +300,8 @@ class FCChecker():
                 paras = [para[1].replace("<para>", " ").replace(
                     "</para>", " ").replace("   ", "  ").strip() for para in entry]
                 paras = [sub(r"\<para.*?\>", "", para) for para in paras]
+                # drop footnote markers like <super>1)</super> from value cells
+                paras = [sub(r"\<super\>.*?\</super\>", "", para).strip() for para in paras]
                 # print(paras)
                 if 'morerows="1"' in elem and 'matched' not in paras[2].lower():
                     # print("Do conversion and calculation")
@@ -324,6 +326,9 @@ class FCChecker():
                     paras_next = [para[1].replace("<para>", " ").replace(
                         "</para>", " ").strip() for para in entry_next]
                     paras_next = [sub(r"\<para.*?\>", "", para)
+                                  for para in paras_next]
+                    # drop footnote markers like <super>1)</super> from value cells
+                    paras_next = [sub(r"\<super\>.*?\</super\>", "", para).strip()
                                   for para in paras_next]
                     # print(paras)
                     # print(paras_next)
@@ -449,8 +454,9 @@ class FCChecker():
                         conv_sheet.cell(row=next_empty_row_conv_sheet,
                                         column=5).value = elem[4]
                         next_empty_row_conv_sheet += 1
-            except AttributeError or ValueError:
-                print(f"paras[2]: {paras[2]}")
+            except (AttributeError, ValueError, SyntaxError, IndexError):
+                # "except A or B" only caught AttributeError; a row with a
+                # non-numeric value cell must be skipped, not kill the check
                 print(f"The Error traceback for {row}\n{format_exc()}")
                 continue
         workbook.save(join(
