@@ -175,7 +175,7 @@ def format_excel(
 
         for i, column in enumerate(sheet_d_frame.columns):
             column_letter = get_column_letter(i + 1)
-            max_length = max(sheet_d_frame[column].astype(str).map(len).max(), len(column))
+            max_length = max(sheet_d_frame[column].fillna('').astype(str).map(len).max(), len(column))
             worksheet.set_column(f'{column_letter}:{column_letter}', max_length + 5)
         if auto_filter_columns is not None:
             worksheet.autofilter(0, 0, len(sheet_d_frame), len(sheet_d_frame.columns) - 1)

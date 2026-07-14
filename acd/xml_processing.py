@@ -3,6 +3,8 @@ from os.path import isfile
 from re import search
 from re import sub
 
+from urllib.parse import quote
+
 from lxml import etree
 from .filepath import clean_path
 
@@ -148,6 +150,32 @@ def set_xml_tag_content(xml: str, xpath: str, content: str) -> None:
     with open(clean_path(xml), "w", encoding="utf-8") as _:
         _.write(etree.tostring(xml_tree, pretty_print=True).decode("utf-8"))
 
+def sanitize_entity_system_uris(xml_content: str) -> str:
+    """
+    Percent-encodes the SYSTEM literal of <!ENTITY ... SYSTEM "..."> declarations
+    (e.g. graphic/CGM file names used as NDATA entities). CGM file names are
+    frequently authored with spaces, parentheses, etc., which are not valid
+    unescaped characters in a URI reference. libxml2 validates the SYSTEM
+    literal as a URI while parsing the DTD internal subset and raises
+    "Invalid URI" for these otherwise well-formed documents, so the literal
+    needs to be percent-encoded before parsing. The entity name itself
+    (used elsewhere in the document) is left untouched.
+
+    Args:
+        xml_content (str): Content of the xml document
+
+    Returns:
+        str: xml content with SYSTEM literals percent-encoded
+    """
+
+    entity_system_regex = r'(<!ENTITY\s+\S+\s+SYSTEM\s+")([^"]*)(")'
+
+    def encode_system_literal(match):
+        prefix, literal, suffix = match.groups()
+        return prefix + quote(literal, safe="/:._-") + suffix
+
+    return sub(entity_system_regex, encode_system_literal, xml_content)
+
 def replace_special_characters(xml_content: str):
     """
     replace_special_characters
@@ -164,5 +192,6 @@ def replace_special_characters(xml_content: str):
     xml_content = xml_content.replace("\u00b1", "±")
     xml_content = xml_content.replace("&#xb1;", "±")
     xml_content = xml_content.replace("&plusmn;", "±")
+    xml_content = sanitize_entity_system_uris(xml_content)
 
     return xml_content
