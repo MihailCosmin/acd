@@ -1,5 +1,6 @@
 from re import findall
 from re import sub
+from re import escape
 
 import json
 
@@ -161,7 +162,8 @@ class UnitTable():
                 if search(r"-?[0-9]+\.?[0-9]+ and -?[0-9]+\.?[0-9]+", line):
                     line = self.remove_x_and_super(line)
                     for elem in unit_list:
-                        pattern = r"-?[0-9]+\.?[0-9]+ and -?[0-9]+\.?[0-9]+ " + elem
+                        escaped_elem = escape(elem)
+                        pattern = r"-?[0-9]+\.?[0-9]+ and -?[0-9]+\.?[0-9]+ " + escaped_elem
                         matches = findall(pattern, line)
                         line_matches, values = self.check_for_substrings(
                             matches, line_matches, values, pgblk_nbr)
@@ -170,7 +172,8 @@ class UnitTable():
                 elif search(r"-?\d+\.?\d* (?:&#177;|&#xb1;|\+|-){1}\d+\.?\d*", line):
                     line = self.remove_x_and_super(line)
                     for elem in unit_list:
-                        pattern = r"-?\d+\.?\d* (?:&#177;|&#xb1;|\+|-){1}\d+\.?\d* " + elem
+                        escaped_elem = escape(elem)
+                        pattern = r"-?\d+\.?\d* (?:&#177;|&#xb1;|\+|-){1}\d+\.?\d* " + escaped_elem
                         matches = findall(pattern, line)
                         line_matches, values = self.check_for_substrings(
                             matches, line_matches, values, pgblk_nbr)
@@ -178,7 +181,8 @@ class UnitTable():
                 elif search(r"-?\d+\.?\d* to -?\d+\.?\d*", line):
                     line = self.remove_x_and_super(line)
                     for elem in unit_list:
-                        pattern = r"-?\d+\.?\d* to -?\d+\.?\d* " + elem
+                        escaped_elem = escape(elem)
+                        pattern = r"-?\d+\.?\d* to -?\d+\.?\d* " + escaped_elem
                         matches = findall(pattern, line)
                         line_matches, values = self.check_for_substrings(
                             matches, line_matches, values, pgblk_nbr)
@@ -186,8 +190,9 @@ class UnitTable():
                 else:
                     line = self.remove_x_and_super(line)
                     for elem in unit_list:
+                        escaped_elem = escape(elem)
                         pattern = r"(&#177;?|-?)([0-9]+\.?[0-9]* )" + \
-                            rf"({elem})" + r"(?![a-zA-Z])"
+                            rf"({escaped_elem})" + r"(?![a-zA-Z])"
                         matches = findall(pattern, line)
                         line_matches, values = self.check_for_substrings(
                             matches, line_matches, values, pgblk_nbr)
@@ -728,8 +733,9 @@ class UnitTable():
                 if search(r"-?[0-9]+\.?[0-9]+ and -?[0-9]+\.?[0-9]+", line):
                     line = self.remove_x_and_super(line)
                     for elem in unit_list:
+                        escaped_elem = escape(elem)
                         pattern = r"-?[0-9]+\.?[0-9]+ and -?[0-9]+\.?[0-9]+ " + \
-                            elem + r" \(.*?\)"
+                            escaped_elem + r" \(.*?\)"
                         matches = findall(pattern, line)
                         line_matches, values = self.check_for_substrings(
                             matches, line_matches, values, pgblk_nbr)
@@ -738,8 +744,9 @@ class UnitTable():
                 elif search(r"-?\d+\.?\d* (?:&#177;|&#xb1;|\+|-){1}\d+\.?\d*", line):
                     line = self.remove_x_and_super(line)
                     for elem in unit_list:
+                        escaped_elem = escape(elem)
                         pattern = r"-?\d+\.?\d* (?:&#177;|&#xb1;|\+|-){1}\d+\.?\d* " + \
-                            elem + r" \(.*?\)"
+                            escaped_elem + r" \(.*?\)"
                         matches = findall(pattern, line)
                         line_matches, values = self.check_for_substrings(
                             matches, line_matches, values, pgblk_nbr)
@@ -747,8 +754,9 @@ class UnitTable():
                 elif search(r"-?\d+\.?\d* to -?\d+\.?\d*", line):
                     line = self.remove_x_and_super(line)
                     for elem in unit_list:
+                        escaped_elem = escape(elem)
                         pattern = r"-?\d+\.?\d* to -?\d+\.?\d* " + \
-                            elem + r" \(.*?\)"
+                            escaped_elem + r" \(.*?\)"
                         matches = findall(pattern, line)
                         line_matches, values = self.check_for_substrings(
                             matches, line_matches, values, pgblk_nbr)
@@ -756,8 +764,9 @@ class UnitTable():
                 else:
                     line = self.remove_x_and_super(line)
                     for elem in unit_list:
+                        escaped_elem = escape(elem)
                         pattern = r"(&#177;?|-?)([0-9]+\.?[0-9]* )" + \
-                            rf"({elem})" + r"( \(.*?\))"
+                            rf"({escaped_elem})" + r"( \(.*?\))"
                         matches = findall(pattern, line)
                         line_matches, values = self.check_for_substrings(
                             matches, line_matches, values, pgblk_nbr)
