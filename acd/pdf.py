@@ -6,11 +6,14 @@ from os import pathsep
 from os.path import join
 from os.path import dirname
 from os.path import abspath
+from sys import platform
 current_file_dir = dirname(abspath(__file__))
 ccache_dir = join(current_file_dir, "3rd", "ccache-4.11.3-windows-x86_64")
 
-environ["PATH"] = ccache_dir + pathsep + environ["PATH"]
-environ["CCACHE"] = join(ccache_dir, "ccache.exe")
+# The bundled ccache is a Windows binary; only wire it up on Windows.
+if platform.startswith("win"):
+    environ["PATH"] = ccache_dir + pathsep + environ["PATH"]
+    environ["CCACHE"] = join(ccache_dir, "ccache.exe")
 environ["PADDLE_PDX_CACHE_HOME"] = join(current_file_dir, "3rd")  # This needs to be at the top of the file
 # Overrides: paddlex\utils\cache.py
 

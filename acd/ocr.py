@@ -9,14 +9,17 @@ from os.path import exists
 from os.path import splitext
 from io import BytesIO
 import tempfile
+from sys import platform
 
 from tqdm import tqdm
 
 current_file_dir = dirname(abspath(__file__))
 ccache_dir = join(current_file_dir, "3rd", "ccache-4.11.3-windows-x86_64")
 
-environ["PATH"] = ccache_dir + pathsep + environ["PATH"]
-environ["CCACHE"] = join(ccache_dir, "ccache.exe")
+# The bundled ccache is a Windows binary; only wire it up on Windows.
+if platform.startswith("win"):
+    environ["PATH"] = ccache_dir + pathsep + environ["PATH"]
+    environ["CCACHE"] = join(ccache_dir, "ccache.exe")
 environ["PADDLE_PDX_CACHE_HOME"] = join(current_file_dir, "3rd")  # This needs to be at the top of the file
 
 from typing import Any
@@ -35,9 +38,15 @@ else:
     from .filelist import list_files
     from .filepath import clean_path
 
-pytesseract.pytesseract.tesseract_cmd = join(dirname(__file__), "3rd", "tesseract_5.5.0.20241111", "tesseract.exe")
-POPPLER_PATH = join(dirname(abspath(__file__)), "3rd", "bin")
-# Update here: https://github.com/oschwartz10612/poppler-windows/releases/
+if platform.startswith("win"):
+    # Bundled Windows binaries.
+    pytesseract.pytesseract.tesseract_cmd = join(dirname(__file__), "3rd", "tesseract_5.5.0.20241111", "tesseract.exe")
+    POPPLER_PATH = join(dirname(abspath(__file__)), "3rd", "bin")
+    # Update here: https://github.com/oschwartz10612/poppler-windows/releases/
+else:
+    # On Linux, rely on system packages (e.g. `apt install tesseract-ocr poppler-utils`)
+    # being available on PATH instead of the bundled Windows binaries.
+    POPPLER_PATH = None
 
 _ocr_instance = None  # Private module-level variable
 

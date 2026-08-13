@@ -3,6 +3,7 @@ from os.path import isdir
 from os.path import isfile
 from os.path import dirname
 from os.path import abspath
+from sys import platform
 
 from subprocess import check_output
 
@@ -10,8 +11,14 @@ from pdf2image import convert_from_path
 
 from .filelist import list_files
 
-POPPLER_PATH = join(dirname(abspath(__file__)), "3rd", "bin")
-# Update here: https://github.com/oschwartz10612/poppler-windows/releases/
+if platform.startswith("win"):
+    # Bundled Windows binaries.
+    POPPLER_PATH = join(dirname(abspath(__file__)), "3rd", "bin")
+    # Update here: https://github.com/oschwartz10612/poppler-windows/releases/
+else:
+    # On Linux, rely on poppler-utils being available on PATH
+    # (e.g. `apt install poppler-utils`) instead of the bundled Windows binaries.
+    POPPLER_PATH = None
 
 def pdf2raster(
         item: str,

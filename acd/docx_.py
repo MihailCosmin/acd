@@ -18,6 +18,9 @@ from os.path import dirname
 from os.path import basename
 
 from subprocess import Popen
+from subprocess import run
+from subprocess import CalledProcessError
+from subprocess import TimeoutExpired
 
 from .filepath import clean_path
 
@@ -589,36 +592,46 @@ def word2pdf(
                     remove(pdf_file)
                 elif isfile(pdf_file) and skip_existing:
                     continue
-                word = Dispatch("Word.Application")
 
-                doc = word.Documents.Open(file_)
+                if system() == "Windows":
+                    word = Dispatch("Word.Application")
 
-                # Save as PDF - Advanced Option, with choices
-                doc.ExportAsFixedFormat(pdf_file,
-                                        17,  # ExportFormat # 17 - wdExportFormatPDF, 18 - wdExportFormatXPS
-                                        False,  # OpenAfterExport # Boolean value
-                                        0,  # OptimizeFor # 0 - wdExportOptimizeForPrint, 1 - wdExportOptimizeForOnScreen
-                                        0,  # Range # 0 - wdExportAllDocument,
-                                            # 1 - wdExportSelection,
-                                            # 2 - wdExportCurrentPage,
-                                            # 3 - wdExportFromTo
-                                        1,  # From # keep 1 as default if Range is 0
-                                        1,  # To # keep 1 as default if Range is 0
-                                        7,  # Item # 0 - wdExportDocumentContent, 7 - wdExportDocumentWithMarkup
-                                        False,  # IncludeDocProps # Boolean value
-                                        False,  # KeepIRM # Boolean value
-                                        bookmarks,  # CreateBookmarks
-                                                    # 0 - wdExportCreateNoBookmarks,
-                                                    # 1 - wdExportCreateHeadingBookmarks,
-                                                    # 2 - wdExportCreateWordBookmarks
-                                        True,  # DocStructureTags # Boolean value
-                                        True,  # BitmapMissingFonts # Boolean value
-                                        False,  # UseISO19005_1 # Boolean value
-                                        )
+                    doc = word.Documents.Open(file_)
 
-                doc.Close()
+                    # Save as PDF - Advanced Option, with choices
+                    doc.ExportAsFixedFormat(pdf_file,
+                                            17,  # ExportFormat # 17 - wdExportFormatPDF, 18 - wdExportFormatXPS
+                                            False,  # OpenAfterExport # Boolean value
+                                            0,  # OptimizeFor # 0 - wdExportOptimizeForPrint, 1 - wdExportOptimizeForOnScreen
+                                            0,  # Range # 0 - wdExportAllDocument,
+                                                # 1 - wdExportSelection,
+                                                # 2 - wdExportCurrentPage,
+                                                # 3 - wdExportFromTo
+                                            1,  # From # keep 1 as default if Range is 0
+                                            1,  # To # keep 1 as default if Range is 0
+                                            7,  # Item # 0 - wdExportDocumentContent, 7 - wdExportDocumentWithMarkup
+                                            False,  # IncludeDocProps # Boolean value
+                                            False,  # KeepIRM # Boolean value
+                                            bookmarks,  # CreateBookmarks
+                                                        # 0 - wdExportCreateNoBookmarks,
+                                                        # 1 - wdExportCreateHeadingBookmarks,
+                                                        # 2 - wdExportCreateWordBookmarks
+                                            True,  # DocStructureTags # Boolean value
+                                            True,  # BitmapMissingFonts # Boolean value
+                                            False,  # UseISO19005_1 # Boolean value
+                                            )
 
-        except (OSError, RuntimeError, ValueError, NameError, AttributeError):
+                    doc.Close()
+                else:
+                    # No MS Word/COM automation available outside Windows.
+                    # Use LibreOffice headless as an equivalent docx -> pdf conversion.
+                    run(
+                        ["soffice", "--headless", "--convert-to", "pdf", "--outdir", dirname(file_), file_],
+                        check=True,
+                        timeout=180,
+                    )
+
+        except (OSError, RuntimeError, ValueError, NameError, AttributeError, CalledProcessError, TimeoutExpired):
             if debug:
                 if not isdir(join(qt_window.exe_path, "debug")):
                     mkdir(join(qt_window.exe_path, "debug"))
@@ -639,7 +652,8 @@ def word2pdf(
                         log.write("The file was not saved to PDF. Please correct the issue and try again.\n")
                         log.write(f"The error message was: {format_exc()}\n\n")
                 # word.Quit()
-                doc.Close()
+                if system() == "Windows" and "doc" in locals():
+                    doc.Close()
                 continue
 
     if qt_window is None:
