@@ -1,3 +1,5 @@
+from io import BytesIO
+
 from os.path import isfile
 
 from re import search
@@ -7,6 +9,8 @@ from urllib.parse import quote
 
 from lxml import etree
 from .filepath import clean_path
+
+XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance"
 
 def delete_first_line(xml_content: str, overwrite: bool = False) -> str:
     """
@@ -62,24 +66,29 @@ def linearize_xml(xml_content: str) -> str:
     xml_content = xml_content.replace("> <", "><")
     return xml_content
 
-def get_schema_from_xml(linearized_file: str) -> str:
+def get_schema_from_xml(xml_content: str) -> str:
     """
-    Searches if a schema url is given inside the xml document.
-    If a url matches the regular expression,
-    the url is returned.
+    Reads the root element's xsi:noNamespaceSchemaLocation attribute via a
+    namespace-aware parsed lookup (equivalent to the XPath
+    /*/@xsi:noNamespaceSchemaLocation), so the result no longer depends on
+    where that attribute sits among the root element's attributes.
 
     Args:
-        linearized_file (str): Linearized content of the xml document,
+        xml_content (str): Content of the xml document (linearized or not)
 
     Returns:
-        tuple: A string that contains the schema name or None
+        str: A string that contains the schema location, or None if the
+        root element does not declare one
 
     """
 
-    schema_url_regex = r'(xsi:noNamespaceSchemaLocation=")(.*?)(">)'
-    if search(schema_url_regex, linearized_file):
-        schema = str(search(schema_url_regex, linearized_file).group(2))
-        return schema
+    content = xml_content.encode("utf-8") if isinstance(xml_content, str) else xml_content
+    try:
+        for _, root in etree.iterparse(BytesIO(content), events=("start",), recover=True, huge_tree=True):
+            values = root.xpath('/*/@xsi:noNamespaceSchemaLocation', namespaces={'xsi': XSI_NAMESPACE})
+            return str(values[0]) if values else None
+    except etree.XMLSyntaxError:
+        return None
     return None
 
 def get_xml_attribute(xml: str, xpath: str, attribute: str) -> str:

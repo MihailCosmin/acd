@@ -243,7 +243,7 @@ class BrexChecker():
             build_regex = f'({attribute_name})(.*?)(")(.*?)(")'
         return build_regex
 
-    def _check_object_flag_0(self, schema: str, brex_violations: dict, root: any, value: any, error_0: int):
+    def _check_object_flag_0(self, schema: str, brex_violations: dict, root: any, value: any):
         if value['contextRules'] == schema or value['contextRules'] == "":
             if self._saxon:
                 with PySaxonProcessor(license=False) as proc:
@@ -268,17 +268,24 @@ class BrexChecker():
                                 for element in list_xml_content:
                                     match_found_in_list = search(build_regex, element)
                                     if match_found_in_list:
-                                        brex_violations[value["Brex"]]['0'] |= {error_0: {
+                                        brex_violations[value["Brex"]]['0'].append({
                                             'Line': list_xml_content.index(element) + 1,
                                             'Description': value["objectUse"],
                                             'Xpath': value['xpath']}
-                                        }
-                                        error_0 += 1
+                                        )
                     proc.exception_clear()
             else:
                 selector = elementpath.Selector(value['xpath'], namespaces=NS_DICT)
-                if type(selector.select(root)) is not bool:
-                    for element in selector.select(root):
+                result = selector.select(root)
+                if isinstance(result, bool):
+                    if result:
+                        brex_violations[value["Brex"]]['0'].append({
+                            'Line': "(Boolean condition -> Interpret XPath)",
+                            'Description': value["objectUse"],
+                            'Xpath': value['xpath']}
+                        )
+                else:
+                    for element in result:
                         if ' and ' in value['xpath']:
                             line_no = "(Origin traced back to multiple lines -> Interpret XPath)"
                         else:
@@ -293,26 +300,31 @@ class BrexChecker():
                                             line_no = ind + 1
                                 else:
                                     line_no = "x"
-                        brex_violations[value["Brex"]]['0'] |= {error_0: {
-                            'Line': line_no,  # was line_no
+                        brex_violations[value["Brex"]]['0'].append({
+                            'Line': line_no,
                             'Description': value["objectUse"],
                             'Xpath': value['xpath']}
-                        }
-                        error_0 += 1
+                        )
         return brex_violations
 
-    def _check_object_flag_1(self, schema: str, brex_violations: dict, root: any, value: any, error_1: int):
+    def _check_object_flag_1(self, schema: str, brex_violations: dict, root: any, value: any):
         if value['contextRules'] == schema or value['contextRules'] == "":
             selector = elementpath.Selector(value['xpath'], namespaces=NS_DICT)
-            if not selector.select(root) or selector.select(root) == []:
-                brex_violations[value["Brex"]]['1'] |= {error_1: {
+            result = selector.select(root)
+            if isinstance(result, bool):
+                violation = not result
+            elif isinstance(result, (str, int, float)):
+                violation = not result
+            else:
+                violation = len(result) == 0
+            if violation:
+                brex_violations[value["Brex"]]['1'].append({
                             'Description': value["objectUse"],
                             'Xpath': value['xpath']}
-                            }
-                error_1 += 1
+                            )
         return brex_violations
 
-    def _check_object_flag_2(self, schema: str, brex_violations: dict, root: any, value: any, error_2: int):
+    def _check_object_flag_2(self, schema: str, brex_violations: dict, root: any, value: any):
         if ('values_allowed' in value or 'regex_allowed' in value) and (value['contextRules'] == schema or value['contextRules'] == ""):
             selector = elementpath.Selector(value['xpath'], namespaces=NS_DICT)
             if type(selector.select(root)) is not bool:
@@ -344,14 +356,13 @@ class BrexChecker():
                                             line_no = ind + 1
                                 else:
                                     line_no = "x"
-                        brex_violations[value["Brex"]]['2'] |= {error_2: {
+                        brex_violations[value["Brex"]]['2'].append({
                             'Line': line_no,
                             'Description': f'Element/Attribute ({element}) did not match the object values.',
                             'Xpath': value['xpath'],
                             'Single Values': [value["values_allowed"]],
                             'Pattern Values': [value["regex_allowed"]],
-                            'ObjectUse': value["objectUse"]}}
-                        error_2 += 1
+                            'ObjectUse': value["objectUse"]})
         return brex_violations
 
     def _check_rules(self, debug: bool = False, include_tqdm: bool = False) -> dict:
@@ -370,9 +381,9 @@ class BrexChecker():
         brex_violations_dict = {}
         for brex in self._brex_list[0]:
             brex_violations_dict[brex] = {
-                '0': {},
-                '1': {},
-                '2': {}
+                '0': [],
+                '1': [],
+                '2': []
             }
         root = etree.parse(self._xml_path)
         all_content_rules = []
@@ -384,19 +395,18 @@ class BrexChecker():
             with open(clean_path(join(expanduser("~/Desktop"), "All_content_rules.txt")), 'w', encoding="utf-8") as _:
                 for rule in all_content_rules:
                     _.write(str(rule) + "\n")
-        error_0, error_1, error_2 = 1, 1, 1
         container = tqdm(all_content_rules) if include_tqdm else all_content_rules
         for value in container:
             if value["ObjectFlag"] == '0':
                 if schema != "http://www.s1000d.org/S1000D_4-2/xml_schema_flat/ddn.xsd":
-                    brex_violations_dict |= self._check_object_flag_0(schema, brex_violations_dict, root, value, error_0)
+                    brex_violations_dict |= self._check_object_flag_0(schema, brex_violations_dict, root, value)
             if value["ObjectFlag"] == '1':
-                if schema != "http://www.s1000d.org/S1000D_4-2/xml_schema_flat/ddn.xsd":    
-                    brex_violations_dict |= self._check_object_flag_1(schema, brex_violations_dict, root, value, error_1)
+                if schema != "http://www.s1000d.org/S1000D_4-2/xml_schema_flat/ddn.xsd":
+                    brex_violations_dict |= self._check_object_flag_1(schema, brex_violations_dict, root, value)
             if value["ObjectFlag"] == '2':
                 if value["values_allowed"] != [] or value["regex_allowed"] != []:
                     if schema != "http://www.s1000d.org/S1000D_4-2/xml_schema_flat/ddn.xsd":
-                        brex_violations_dict |= self._check_object_flag_2(schema, brex_violations_dict, root, value, error_2)
+                        brex_violations_dict |= self._check_object_flag_2(schema, brex_violations_dict, root, value)
         return brex_violations_dict
 
     def _append_summary(self, object_flag_dict: dict) -> dict:
