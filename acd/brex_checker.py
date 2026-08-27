@@ -21,6 +21,7 @@ from json import dumps
 import elementpath
 
 from regex import search
+from regex import fullmatch
 from re import findall
 from regex import V1
 
@@ -35,6 +36,7 @@ from saxonche import PyXdmNode
 
 from .xml_processing import get_schema_from_xml
 from .xml_processing import delete_first_line
+from .xml_processing import translate_xsd_regex_to_python
 from .s1000d import get_brex_ref
 from .s1000d import ref_dict_to_str
 from .s1000d import find_document_by_reference
@@ -190,7 +192,7 @@ class BrexChecker():
                         values_allowed.append(objectValue.attrib["valueAllowed"])
                         break
                     elif key == "valueForm" and value == "pattern":
-                        regex_allowed.append(objectValue.attrib["valueAllowed"])
+                        regex_allowed.append(translate_xsd_regex_to_python(objectValue.attrib["valueAllowed"]))
                         break
                     elif key == "valueForm" and value == "range":
                         values_range = objectValue.attrib["valueAllowed"]
@@ -333,11 +335,11 @@ class BrexChecker():
                     if element not in value["values_allowed"]:
                         if len(value["regex_allowed"]) > 0:
                             try:
-                                if any([bool(search(regex, element, V1)) for regex in value["regex_allowed"]]):
+                                if any([bool(fullmatch(regex, element, V1)) for regex in value["regex_allowed"]]):
                                     valid_elem = True
                             except TypeError:
                                 regex2 = search(r"(@)([a-zA-Z]+)(^[a-zA-Z])", value['xpath'], V1)
-                                if any([bool(search(regex, element.attrib[regex2.group(2)], V1)) for regex in value["regex_allowed"]]):
+                                if any([bool(fullmatch(regex, element.attrib[regex2.group(2)], V1)) for regex in value["regex_allowed"]]):
                                     valid_elem = True
                     else:
                         valid_elem = True

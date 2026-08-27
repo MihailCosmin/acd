@@ -12,6 +12,77 @@ from .filepath import clean_path
 
 XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance"
 
+# XML 1.0 Name production, per the XSD regex spec (Appendix G):
+# NameStartChar := ":" | [A-Z] | "_" | [a-z] | [#xC0-#xD6] | ...
+_XSD_NAME_START_CHAR = (
+    r":A-Z_a-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D"
+    r"\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF"
+    r"\uF900-\uFDCF\uFDF0-\uFFFD\U00010000-\U000EFFFF"
+)
+# NameChar := NameStartChar | "-" | "." | [0-9] | #xB7 | ...
+_XSD_NAME_CHAR = _XSD_NAME_START_CHAR + r"\-.0-9\u00B7\u0300-\u036F\u203F-\u2040"
+
+_XSD_MULTICHAR_ESCAPES = {
+    "i": f"[{_XSD_NAME_START_CHAR}]",
+    "I": f"[^{_XSD_NAME_START_CHAR}]",
+    "c": f"[{_XSD_NAME_CHAR}]",
+    "C": f"[^{_XSD_NAME_CHAR}]",
+}
+
+def translate_xsd_regex_to_python(pattern: str) -> str:
+    """
+    Translates an XSD (xsd:pattern / valueAllowed) regular expression into
+    the syntax understood by the `regex` module compiled with the `V1` flag.
+
+    Handles the constructs that differ between the two dialects:
+    - Character-class subtraction, `[A-Z-[IO]]`, which XSD writes with a
+      single `-` but `regex` V1 set operations require doubled, `[A-Z--[IO]]`.
+    - The `\\i` / `\\I` / `\\c` / `\\C` XML-name-character escapes, which
+      `regex` does not know, expanded into their explicit Unicode classes.
+    - Block escapes, `\\p{IsBasicLatin}` / `\\P{IsBasicLatin}`, whose `Is`
+      block-name prefix `regex` spells `In_`.
+
+    Args:
+        pattern (str): The XSD regular expression as read from `valueAllowed`
+
+    Returns:
+        str: An equivalent pattern that `regex.fullmatch(pattern, value, regex.V1)`
+        can compile
+
+    """
+
+    pattern = sub(r'\\([pP])\{Is', r'\\\1{In_', pattern)
+
+    out = []
+    depth = 0
+    i = 0
+    length = len(pattern)
+    while i < length:
+        char = pattern[i]
+        if char == "\\" and i + 1 < length:
+            nxt = pattern[i + 1]
+            replacement = _XSD_MULTICHAR_ESCAPES.get(nxt)
+            out.append(replacement if replacement is not None else char + nxt)
+            i += 2
+            continue
+        if char == "[":
+            depth += 1
+            out.append(char)
+            i += 1
+            continue
+        if char == "]":
+            depth = max(0, depth - 1)
+            out.append(char)
+            i += 1
+            continue
+        if char == "-" and depth > 0 and i + 1 < length and pattern[i + 1] == "[":
+            out.append("--")
+            i += 1
+            continue
+        out.append(char)
+        i += 1
+    return "".join(out)
+
 def delete_first_line(xml_content: str, overwrite: bool = False) -> str:
     """
     If the first line of the schema matches the regular expression, it is removed

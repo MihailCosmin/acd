@@ -236,10 +236,10 @@ Latent in these three BREX: all 18 element-returning flag-2 rules happen to have
 - [x] **Handle boolean XPath results for flag `0`.** Mirror s1kd `is_invalid`: empty node-set → violation iff the boolean result is true; non-empty node-set → violation. Ref §3.2.
 - [x] **Harden flag `1` result interpretation.** Distinguish `bool` / node-set / string / number results explicitly instead of relying on Python truthiness, and evaluate the selector once. Ref §3.2, §3.12.
 - [x] **Replace `get_schema_from_xml` with a parsed lookup** of `/*/@xsi:noNamespaceSchemaLocation` (lxml, namespace-aware) instead of the order-dependent regex. Ref §3.3.
-- [ ] **Add a regression test** asserting the schema is read correctly when `xsi:noNamespaceSchemaLocation` is the first, middle and last attribute.
-- [ ] **Make `pattern` matching whole-value.** Use `regex.fullmatch`, or wrap the pattern as `^(?:…)$`. Ref §3.4.
-- [ ] **Translate XSD regex syntax to Python before compiling.** At minimum character-class subtraction `[A-Z-[IO]]` → `[A-Z--[IO]]` (regex `V1` set operations), plus `\i`, `\c`, `\I`, `\C` and XSD block/category escapes. Both ATABREX modules use subtraction today. Ref §3.4.
-- [ ] **Add a test** covering `00[A-Z-[IO]]{1,3}|00[0]{1}` accepting `00ABC` and rejecting `00IOI`, and `[0-9]{2}` rejecting `XX12XX`.
+- [x] **Add a regression test** asserting the schema is read correctly when `xsi:noNamespaceSchemaLocation` is the first, middle and last attribute.
+- [x] **Make `pattern` matching whole-value.** Use `regex.fullmatch`, or wrap the pattern as `^(?:…)$`. Ref §3.4.
+- [x] **Translate XSD regex syntax to Python before compiling.** At minimum character-class subtraction `[A-Z-[IO]]` → `[A-Z--[IO]]` (regex `V1` set operations), plus `\i`, `\c`, `\I`, `\C` and XSD block/category escapes. Both ATABREX modules use subtraction today. Ref §3.4.
+- [x] **Add a test** covering `00[A-Z-[IO]]{1,3}|00[0]{1}` accepting `00ABC` and rejecting `00IOI`, and `[0-9]{2}` rejecting `XX12XX`.
 - [ ] **Reimplement `range` as `is_in_set` / `is_in_range`** (port `s1kd_tools.c:378-434`): split on `|`, then on `~`, compare numerically when both bounds and the value are numeric, otherwise lexicographically. Stop enumerating values. Ref §3.5.
 - [ ] **Add a test matrix for range/set values**: `a~c`, `A|B|C`, `01|02`, `aa01~aa09`, `0001~0099`, `20~100` (numeric vs lexicographic), `accpnl51~accpnl99`.
 - [ ] **Normalise flag-2 result items to their string value** before comparison (element → text content; attribute → value), removing the broken `TypeError` fallback and the unreachable `(@)([a-zA-Z]+)(^[a-zA-Z])` regex. Ref §3.9.
