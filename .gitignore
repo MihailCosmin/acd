@@ -133,3 +133,5 @@ dmypy.json
 
 # Other
 *DMC-*.XML
+# ...except the built-in default BREX modules shipped as package data.
+!acd/brex/*.XML

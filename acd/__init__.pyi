@@ -20,6 +20,7 @@ from .brex_checker import BrexChecker
 from .brex_checker import BrexNotFound
 from .brex_checker import NS_DICT
 from .brex_checker import NoBrexDefined
+from .brex_checker import SNS_MODES
 from .brex_checker import clean_xpath
 from .cgm2clearcgm import CGM2CLEARCGM
 from .cgm2clearcgm import cgm2svgclear
@@ -74,6 +75,10 @@ from .constants import TIFF_COMPRESSION
 from .constants import TORQUE_VALUES_REGEX
 from .copying import copy_files
 from .data_extraction import clean_word
+from .default_brex import DEFAULT_BREX_DIR
+from .default_brex import default_brex_dmc
+from .default_brex import default_brex_path
+from .default_brex import find_default_brex_fallback
 from .docx_ import WORD_EXTENSIONS
 from .docx_ import WORD_NS
 from .docx_ import adjust_column_widths
@@ -148,7 +153,6 @@ from .make_library import get_manual_series
 from .make_library import make_library
 from .multi import Worker
 from .multi import WorkerSignals
-from .ocr import POPPLER_PATH
 from .ocr import _initialize_paddle_ocr
 from .ocr import _is_region_match
 from .ocr import _match_is_in_region
@@ -174,7 +178,6 @@ from .pdf import get_pdf_content
 from .pdf import get_pdf_metadata
 from .pdf import merge_pdfs
 from .pdf import pdf_page_count
-from .pdf2raster import POPPLER_PATH
 from .pdf2raster import pdf2raster
 from .procedure_checker import FILEPATH
 from .procedure_checker import IPLChecker
@@ -256,14 +259,20 @@ from .vendor_list import VENDOR_EXCEPTIONS
 from .vendor_list import VendorList
 from .vendor_list import get_chrome_driver_version
 from .vendor_list import update_chrome_driver
+from .xml_processing import XSI_NAMESPACE
+from .xml_processing import _as_float
 from .xml_processing import delete_first_line
 from .xml_processing import get_schema_from_xml
 from .xml_processing import get_xml_attribute
 from .xml_processing import get_xml_tag_content
+from .xml_processing import is_in_range
+from .xml_processing import is_in_set
 from .xml_processing import linearize_xml
 from .xml_processing import replace_special_characters
+from .xml_processing import sanitize_entity_system_uris
 from .xml_processing import set_xml_attribute
 from .xml_processing import set_xml_tag_content
+from .xml_processing import translate_xsd_regex_to_python
 from .xml_validation import FILEPATH
 from .xml_validation import Punctuation
 from .xml_validation import XmlSchemaValidator

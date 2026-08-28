@@ -198,21 +198,47 @@ def get_2and3_refs(xml: str) -> list:
 def get_brex_ref(xml: str, to_string: bool = False) -> dict:
     """Get BREX reference from inside a S1000D data module
 
+    Looks up the dedicated `brexDmRef` (S1000D >= 4.0) / `brexref` (S1000D <= 3.0)
+    element instead of scanning every `dmRef` in the document for `infoCode` `022`,
+    so an unrelated reference elsewhere in the content (e.g. to another BREX-coded
+    data module) cannot be mistaken for the object's actual applicable BREX.
+    `s1kd-brexcheck` resolves the same way, via the XPath `//brexDmRef|//brexref`.
+
     Args:
         xml (str): File path to XML file
 
     Returns:
-        dict: BREX reference
+        dict: BREX reference, or None if the object does not reference a BREX DM
     """
-    if get_s1000d_version(xml) is not None:
-        for ref in get_s1000d_refs(xml, get_s1000d_version(xml)):
-            if ref["infoCode"] == "022":
-                if to_string:
-                    return ref_dict_to_str(ref)
-                return ref
-    else:
+    if get_s1000d_version(xml) is None:
         raise Exception(f"Could not find version for {xml}.\nPlease check the file.")
-    return None
+
+    with open(clean_path(xml), "r", encoding="utf-8") as _:
+        content = delete_first_line(_.read().replace("\n", " ").replace("> <", "><"))
+
+    brex_nodes = etree.fromstring(content).xpath("//brexDmRef|//brexref")
+    if not brex_nodes:
+        return None
+    brex_node = brex_nodes[0]
+
+    dm_code_nodes = brex_node.xpath(".//dmCode|.//avee")
+    if not dm_code_nodes:
+        return None
+    dm_code_node = dm_code_nodes[0]
+
+    if dm_code_node.tag == "dmCode":
+        issue_info_nodes = brex_node.xpath(".//issueInfo")
+        issue_info = dict(issue_info_nodes[0].attrib) if issue_info_nodes else {
+            "inWork": "",
+            "issueNumber": ""
+        }
+        ref = dict(dm_code_node.attrib) | issue_info
+    else:
+        ref = {OLD_TO_NEW[child.tag]: child.text for child in dm_code_node}
+
+    if to_string:
+        return ref_dict_to_str(ref)
+    return ref
 
 def ref_dict_to_str(ref: dict) -> str:
     """Converts a reference dictionary to a datamodule filename string
