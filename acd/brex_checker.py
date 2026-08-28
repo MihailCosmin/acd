@@ -700,6 +700,52 @@ class BrexChecker():
 
         return values, nodes
 
+    def _resolve_owning_element(self, node: any) -> any:
+        """Resolve a raw XPath node (from `_select_with_nodes`) to the lxml
+        element that backs it, walking up to the parent for an attribute/text
+        result (which has no element of its own). Shared by
+        `_node_xpath_and_copy` (categories D2/D3) and `_node_line_number`
+        (category D1).
+
+        Args:
+            node (any): raw XPath node from `_select_with_nodes`'s `nodes`
+                list, or `None`
+
+        Returns:
+            any: the backing `lxml.etree._Element`, or `None` when `node` is
+                `None` or does not resolve to one
+        """
+        if node is None:
+            return None
+        element = getattr(node, 'obj', None)
+        if not isinstance(element, etree._Element):
+            parent = getattr(node, 'parent', None)
+            element = getattr(parent, 'obj', None) if parent is not None else None
+        if not isinstance(element, etree._Element):
+            return None
+        return element
+
+    def _node_line_number(self, node: any) -> any:
+        """Real line number of a violating node, read from the parsed tree's
+        `sourceline` (lxml's binding to libxml2's `xmlGetLineNo`) instead of
+        scanning the raw XML text for the attribute name. An attribute or
+        text result has no `sourceline` of its own, so it is reported against
+        its owning element's line, same as `_node_xpath_and_copy` does for
+        the node's XPath/copy. Ref §3.12, category D1.
+
+        Args:
+            node (any): raw XPath node from `_select_with_nodes`'s `nodes`
+                list, or `None` when no such node is available
+
+        Returns:
+            any: the 1-based line number (`int`), or `None` when it cannot be
+                resolved (no backing node, or the node carries no line info)
+        """
+        element = self._resolve_owning_element(node)
+        if element is None:
+            return None
+        return element.sourceline
+
     def _node_xpath_and_copy(self, node: any, deep_copy_nodes: bool = False) -> tuple:
         """Resolve a raw XPath node (from `_select_with_nodes`) into the two
         fields `s1kd-brexcheck`'s `dump_nodes_xml` attaches to every violation:
@@ -732,11 +778,8 @@ class BrexChecker():
         except AttributeError:
             canonical_xpath = None
 
-        element = getattr(node, 'obj', None)
-        if not isinstance(element, etree._Element):
-            parent = getattr(node, 'parent', None)
-            element = getattr(parent, 'obj', None) if parent is not None else None
-        if not isinstance(element, etree._Element):
+        element = self._resolve_owning_element(node)
+        if element is None:
             return canonical_xpath, None
 
         try:
@@ -819,21 +862,13 @@ class BrexChecker():
                         )
                 else:
                     for idx, element in enumerate(result):
+                        node = nodes[idx] if nodes else None
                         if ' and ' in value['xpath']:
                             line_no = "(Origin traced back to multiple lines -> Interpret XPath)"
                         else:
-                            try:
-                                line_no = element.sourceline
-                            except AttributeError:
-                                if search(r'(/@)([a-zA-Z]+)', value['xpath'], V1):
-                                    attrib_name = search(r'(/@)([a-zA-Z]+)', value['xpath'], V1).group(2)
-                                    split_xml = self._xml_content.split("\n")
-                                    for ind, elem in enumerate(split_xml):
-                                        if attrib_name in elem:
-                                            line_no = ind + 1
-                                else:
-                                    line_no = "x"
-                        node = nodes[idx] if nodes else None
+                            line_no = self._node_line_number(node)
+                            if line_no is None:
+                                line_no = "x"
                         node_xpath, node_copy = self._node_xpath_and_copy(node, deep_copy_nodes)
                         brex_violations[value["Brex"]]['0'].append({
                             'Line': line_no,
@@ -923,21 +958,13 @@ class BrexChecker():
             else:
                 valid_elem = True
             if not valid_elem:
+                node = nodes[idx] if nodes else None
                 if (r'] and ' or r'and \[' or r'] and \[' or r'\) and' or r'and \(' or r'\) and \(') in value['xpath']:
                     line_no = "(Origin traced back to multiple lines -> Read XPath)"
                 else:
-                    try:
-                        line_no = element.sourceline
-                    except AttributeError:
-                        if search(r'(/@)([a-zA-Z]+)', value['xpath'], V1) is not None:
-                            attrib_name = search(r'(/@)([a-zA-Z]+)', value['xpath'], V1).group(2)
-                            split_xml = self._xml_content.split("\n")
-                            for ind, elem in enumerate(split_xml):
-                                if attrib_name in elem and element_value in elem:
-                                    line_no = ind + 1
-                        else:
-                            line_no = "x"
-                node = nodes[idx] if nodes else None
+                    line_no = self._node_line_number(node)
+                    if line_no is None:
+                        line_no = "x"
                 node_xpath, node_copy = self._node_xpath_and_copy(node, deep_copy_nodes)
                 violations.append({
                     'Line': line_no,
