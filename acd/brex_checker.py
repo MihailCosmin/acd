@@ -2,6 +2,8 @@ from datetime import datetime
 
 from copy import deepcopy
 
+from decimal import Decimal
+
 import sys
 
 from os import listdir
@@ -81,12 +83,20 @@ class BrexChecker():
 
         self._brex_list = (None, None)
         self._brex_dir_path = (None, None)
+        self._brex_search_paths = []
+        self._brex_recursive_search = True
         self._use_default_brex = False
         self._brex_fallbacks = []
 
         self._severity_levels_path = None
         self._severity_levels_search = True
         self._severity_levels = (None, False)
+
+        self._xinclude = False
+        self._resolve_entities = True
+        self._load_external_dtd = False
+        self._allow_network = False
+        self._ignore_empty = False
 
     def set_xml_dir(self, dir_path: str) -> None:
         """_summary_
@@ -128,7 +138,14 @@ class BrexChecker():
             brex_ref = ref_dict_to_str(brex_ref_dict)
             if brex_ref in xml:
                 break
-            resolved = find_document_by_reference(brex_ref, self._brex_dir_path[0])
+            resolved = find_document_by_reference(brex_ref, self._brex_dir_path[0],
+                                                   recursive=self._brex_recursive_search)
+            if resolved is None:
+                for search_path in self._brex_search_paths:
+                    resolved = find_document_by_reference(brex_ref, search_path,
+                                                           recursive=self._brex_recursive_search)
+                    if resolved is not None:
+                        break
             if resolved is None:
                 # The referenced BREX isn't on disk anywhere we looked: fall
                 # back to the built-in default BREX if the reference names
@@ -174,6 +191,45 @@ class BrexChecker():
             raise BrexNotFound(f"The given path {brex_path} seems to be leading to a file. \
                 Please make sure to input the path of the directory containing ALL brex data modules or \
                 use override_brex_list if the brex data modules are in different directories.".replace("                ", ""))
+
+    def add_brex_search_path(self, brex_path: str):
+        """Add an additional directory to search for referenced BREX data
+        modules, equivalent to `s1kd-brexcheck`'s repeatable `-I`/`--include`
+        option. Can be called multiple times to register several search
+        paths.
+
+        Each path added here is only searched if the referenced BREX was not
+        found in the primary path (`set_brex_path`, or the checked XML's own
+        directory when `set_brex_path` was not called); paths are then tried
+        in the order they were added, stopping at the first match.
+
+        Args:
+            brex_path (str): directory to add to the BREX search path list
+        """
+        if isdir(brex_path):
+            self._brex_search_paths.append(brex_path)
+        else:
+            raise BrexNotFound(f"The given search path {brex_path} seems to be leading to a file. \
+                Please make sure to input the path of a directory containing brex data modules.".replace("                ", ""))
+
+    def clear_brex_search_paths(self):
+        """Remove all additional BREX search paths added via
+        `add_brex_search_path`.
+        """
+        self._brex_search_paths = []
+
+    def set_brex_recursive_search(self, enabled: bool):
+        """Enable or disable recursive search (equivalent to
+        `s1kd-brexcheck`'s `-r`/`--recursive`) of the primary BREX directory
+        (`set_brex_path`, or the checked XML's own directory) and of every
+        path added via `add_brex_search_path`. Enabled by default; disable it
+        to only look directly inside each search directory, ignoring
+        subdirectories.
+
+        Args:
+            enabled (bool): whether to search subdirectories recursively
+        """
+        self._brex_recursive_search = enabled
 
     def override_brex_list(self, _brex_list: list):
         """The user can specify a list with specific paths and brex files
@@ -312,12 +368,177 @@ class BrexChecker():
             return True
         return level['fail']
 
-    def _get_object_rule_nodes(self, brex: str) -> any:
-        """Return all nodes in a set matching an XPath expression
+    def set_xinclude(self, enabled: bool = True):
+        """Equivalent to `s1kd-brexcheck`'s `--xinclude`: resolve `xi:include`
+        elements in the checked object and every BREX file before checking,
+        via lxml's `ElementTree.xinclude()`. Mirrors `read_xml_doc`'s
+        `xmlXIncludeProcessFlags` call (`s1kd_tools.c:538-539`), which is
+        applied uniformly to every CSDB object it reads. Disabled by default,
+        matching libxml2's `XML_PARSE_XINCLUDE` default.
 
         Args:
-            xpath (str): xpath expression
+            enabled (bool): whether to process XInclude directives
+        """
+        self._xinclude = enabled
+
+    def set_resolve_entities(self, enabled: bool = True):
+        """Control whether entity references are substituted with their
+        declared content (lxml's `resolve_entities` parser option),
+        equivalent to `--noent`. Entities declared in the internal DTD
+        subset are read the same way regardless (see `_check_notation_rules`,
+        which reads them directly off `docinfo.internalDTD`); this only
+        affects whether an entity *reference* elsewhere in the content
+        survives in the parsed tree as a placeholder or is replaced in place
+        before rules are checked. Enabled by default -- lxml's own default,
+        already stricter than `s1kd-brexcheck`'s default of leaving
+        references unresolved unless `--noent` is given.
+
+        Args:
+            enabled (bool): whether to substitute entity references with content
+        """
+        self._resolve_entities = enabled
+
+    def set_entity_resolution(self, load_external_dtd: bool = True, allow_network: bool = False):
+        """Enable resolving entities declared in an *external* DTD subset
+        (`SYSTEM`/`PUBLIC` entities), equivalent to `s1kd-brexcheck`'s
+        `--dtdload` (and, if `allow_network` is also set, `--net`). Both are
+        off by default: an external DTD is not fetched, and network access is
+        never allowed unless explicitly requested here, so that parsing a
+        checked object cannot trigger unexpected file or network access on
+        its own.
+
+        Args:
+            load_external_dtd (bool): fetch and parse the object's external DTD subset
+            allow_network (bool): allow the parser to resolve `http(s)://`
+                DTD/entity references over the network; only takes effect
+                when `load_external_dtd` is also True. Defaults to False.
+        """
+        self._load_external_dtd = load_external_dtd
+        self._allow_network = allow_network and load_external_dtd
+
+    def set_xml_catalog(self, catalog_path: str):
+        """Register an XML catalog file for resolving external DTD/entity/
+        schema references, equivalent to `--xml-catalog <file>`
+        (`xmlLoadCatalog`). lxml has no direct catalog-loading binding, so
+        this appends the path to the `XML_CATALOG_FILES` environment
+        variable, which libxml2 reads the first time it needs to consult the
+        global catalog -- the standard way to drive libxml2's catalog
+        resolution from Python. Can be called multiple times to register
+        several catalogs, same as repeating the command-line flag.
+
+        Note: libxml2 only reads `XML_CATALOG_FILES` once per process, on its
+        first catalog lookup, so a catalog registered after that point may
+        not take effect within the same process.
+
+        Args:
+            catalog_path (str): path to an XML (or SGML) catalog file
+        """
+        if not isfile(catalog_path):
+            raise BrexNotFound(f"The given catalog path {catalog_path} does not point to a file.")
+        entries = environ.get("XML_CATALOG_FILES", "").split()
+        if catalog_path not in entries:
+            entries.append(catalog_path)
+            environ["XML_CATALOG_FILES"] = " ".join(entries)
+
+    def set_ignore_empty(self, enabled: bool = True):
+        """Equivalent to `-e`/`--ignore-empty`: silently skip a checked object
+        that is empty or not well-formed XML, instead of raising. In
+        directory mode (`set_xml_dir`) the file is left out of the results
+        entirely, matching `s1kd-brexcheck`'s `continue`; for a single object
+        (`set_xml`/`validate()`), the skip is reported as
+        `{"Skipped": True, "Summary": "..."}` instead of raising.
+
+        Args:
+            enabled (bool): whether to skip empty/non-XML input instead of raising
+        """
+        self._ignore_empty = enabled
+
+    def _build_xml_parser(self) -> etree.XMLParser:
+        """Build the lxml parser used for both the checked object and every
+        BREX file, honouring the parser options set via `set_resolve_entities`
+        / `set_entity_resolution`. Mirrors `DEFAULT_PARSE_OPTS`
+        (`s1kd_tools.c:14`), which `read_xml_doc` applies uniformly to every
+        CSDB object it reads.
+
+        Returns:
+            etree.XMLParser: configured parser
+        """
+        return etree.XMLParser(
+            resolve_entities=self._resolve_entities,
+            load_dtd=self._load_external_dtd,
+            no_network=not self._allow_network,
+            huge_tree=True,
+        )
+
+    def _finish_parse(self, tree: any) -> any:
+        """Apply XInclude processing to a freshly parsed tree, if enabled via
+        `set_xinclude`. Equivalent to `read_xml_doc`'s
+        `xmlXIncludeProcessFlags` call (`s1kd_tools.c:538-539`).
+
+        Args:
+            tree (any): parsed `ElementTree`
+
+        Returns:
+            any: the same tree, with XInclude directives resolved in place if enabled
+        """
+        if self._xinclude:
+            tree.xinclude()
+        return tree
+
+    def _parse_xml_file(self, path: str) -> any:
+        """Parse an XML file from disk with the configured parser options.
+
+        Args:
+            path (str): path to the XML file
+
+        Returns:
+            any: parsed `ElementTree`
+        """
+        return self._finish_parse(etree.parse(path, parser=self._build_xml_parser()))
+
+    def _parse_xml_text(self, content: str) -> any:
+        """Parse XML held in a string with the configured parser options.
+
+        Args:
+            content (str): XML content
+
+        Returns:
+            any: parsed `ElementTree`
+        """
+        return self._finish_parse(etree.parse(StringIO(content), parser=self._build_xml_parser()))
+
+    def _is_valid_xml_file(self, path: str) -> bool:
+        """Return whether `path` parses as well-formed XML with the
+        configured parser options. Used by `set_ignore_empty` to decide
+        whether a checked object should be silently skipped, equivalent to
+        the `read_xml_doc(...) == NULL` check in `s1kd-brexcheck.c:2151-2160`.
+
+        Args:
+            path (str): path to the object to test
+
+        Returns:
+            bool: True if the file parses as XML; False if it is missing,
+                empty, or not well-formed
+        """
+        try:
+            self._parse_xml_file(path)
+            return True
+        except (etree.XMLSyntaxError, OSError):
+            return False
+
+    def _get_object_rule_nodes(self, brex: str, schema: str = None) -> any:
+        """Return all `objectPath` nodes whose enclosing `contextRules` is
+        unqualified or targets the given schema, selected with the descendant
+        axis so nested/grouped rules at any depth are found. Uses real XPath
+        (`Element.xpath`) rather than the restricted ElementPath `findall`,
+        which also avoids lxml's "This search incorrectly ignores the root
+        element" FutureWarning on a leading `//`.
+
+        Args:
             brex (str): path of the brex
+            schema (str): the object's declared schema; rules whose
+                `rulesContext`/`context` names a different schema are
+                excluded at selection time. `None` returns every rule.
 
         Returns:
             any: Set of nodes
@@ -325,21 +546,37 @@ class BrexChecker():
         with open(clean_path(brex), "r", encoding="utf-8") as _:
             brex_content = _.read()
         brex_content = delete_first_line(brex_content)
-        brex_content = etree.parse(StringIO(brex_content))
-        brothers = brex_content.findall('//structureObjectRuleGroup/structureObjectRule/objectPath')
-        return brothers
+        root = self._parse_xml_text(brex_content).getroot()
+        if schema is None:
+            nodes = root.xpath('//contextRules//structureObjectRule/objectPath')
+            # S1000D <= 3.0 spelling
+            nodes += root.xpath('//contextrules//objrule/objpath')
+        else:
+            nodes = root.xpath(
+                '//contextRules[not(@rulesContext) or @rulesContext=$schema]'
+                '//structureObjectRule/objectPath',
+                schema=schema,
+            )
+            # S1000D <= 3.0 spelling
+            nodes += root.xpath(
+                '//contextrules[not(@context) or @context=$schema]//objrule/objpath',
+                schema=schema,
+            )
+        return nodes
 
-    def _show_rules(self, brex: str, debug: bool = False) -> any:
+    def _show_rules(self, brex: str, schema: str = None, debug: bool = False) -> any:
         """Creates a, in nested dictionaries structured, JSON file containing all necessary information about the brex rules i.e.
         xpath, objectflag, objectUse, objectValues et Al.
 
         Args:
             brex (str): brex_path
+            schema (str): the object's declared schema, passed through to
+                `_get_object_rule_nodes` to filter rules at selection time
 
         Returns:
             any: Nested Dictionary
         """
-        nodes_to_check = self._get_object_rule_nodes(brex)
+        nodes_to_check = self._get_object_rule_nodes(brex, schema)
         default_br_severity_level = None
         if len(nodes_to_check) > 0:
             default_br_severity_level = nodes_to_check[0].getroottree().getroot().get('defaultBrSeverityLevel')
@@ -348,37 +585,55 @@ class BrexChecker():
             values_allowed = []
             regex_allowed = []
             ranges_allowed = []
-            for objectValue in x.getparent().xpath('objectValue'):
-                for key, value in objectValue.attrib.items():
-                    if key == "valueForm" and value == "single":
-                        values_allowed.append(objectValue.attrib["valueAllowed"])
-                        break
-                    elif key == "valueForm" and value == "pattern":
-                        regex_allowed.append(translate_xsd_regex_to_python(objectValue.attrib["valueAllowed"]))
-                        break
-                    elif key == "valueForm" and value == "range":
-                        ranges_allowed.append(objectValue.attrib["valueAllowed"])
-                        break
-            try:
-                context_rules = x.getparent().getparent().getparent().attrib['rulesContext']
-            except KeyError:
-                context_rules = ""
+            for objectValue in x.getparent().xpath('objectValue|objval'):
+                # S1000D <= 3.0 spells these @valtype and @val1[~@val2] instead
+                # of @valueForm and @valueAllowed (a range is written as two
+                # attributes rather than one "first~last" string).
+                value_form = objectValue.get('valueForm', objectValue.get('valtype'))
+                value_allowed = objectValue.get('valueAllowed')
+                if value_allowed is None and objectValue.get('val1') is not None:
+                    value_allowed = objectValue.get('val1')
+                    val2 = objectValue.get('val2')
+                    if val2 is not None:
+                        value_allowed = f"{value_allowed}~{val2}"
+                if value_form == "single":
+                    values_allowed.append(value_allowed)
+                elif value_form == "pattern":
+                    regex_allowed.append(translate_xsd_regex_to_python(value_allowed))
+                elif value_form == "range":
+                    ranges_allowed.append(value_allowed)
+            context_group = next(x.iterancestors('contextRules', 'contextrules'), None)
+            context_rules = (
+                context_group.get('rulesContext', context_group.get('context', ''))
+                if context_group is not None else ''
+            )
             br_decision_ref = x.getparent().find('brDecisionRef')
             br_decision_ident_number = br_decision_ref.get('brDecisionIdentNumber') if br_decision_ref is not None else None
             br_severity_level = x.getparent().get('brSeverityLevel')
             if br_severity_level is None:
                 br_severity_level = default_br_severity_level
+            # Register every namespace in scope at this objectPath node (lxml's
+            # nsmap includes prefixes declared on ancestors), rather than relying
+            # on a hard-coded rdf+xsi dictionary. The default namespace (lxml key
+            # None) is remapped to '' as elementpath expects. NS_DICT is kept as
+            # a base so rdf/xsi stay resolvable even if a rule's local scope
+            # happens not to declare them. Ref §3.12.
+            namespaces = dict(NS_DICT)
+            namespaces.update(
+                {(prefix or ''): uri for prefix, uri in x.nsmap.items()}
+            )
             allowed_object_flag_dict.append({
                     'xpath': str(nodes_to_check[counter].text),
                     'Brex': str(brex),
-                    'ObjectFlag': str(x.attrib['allowedObjectFlag']),
-                    'objectUse': str(x.getparent().xpath('objectUse')[0].text),
+                    'ObjectFlag': x.get('allowedObjectFlag', x.get('objappl')),
+                    'objectUse': str(x.getparent().xpath('objectUse|objuse')[0].text),
                     'contextRules': context_rules,
                     'values_allowed': values_allowed,
                     'regex_allowed': regex_allowed,
                     'ranges_allowed': ranges_allowed,
                     'brDecisionIdentNumber': br_decision_ident_number,
-                    'brSeverityLevel': br_severity_level
+                    'brSeverityLevel': br_severity_level,
+                    'namespaces': namespaces
                 }
             )
         if debug:
@@ -401,14 +656,115 @@ class BrexChecker():
             build_regex = f'({attribute_name})(.*?)(")(.*?)(")'
         return build_regex
 
-    def _check_object_flag_0(self, schema: str, brex_violations: dict, root: any, value: any):
+    def _select_with_nodes(self, selector: any, root: any) -> tuple:
+        """Evaluate a compiled `elementpath.Selector` the same way `Selector.select`
+        does, while also returning the raw XPath node backing each item of a
+        node-set result. `Selector.select` (via `XPathToken.get_results`) reduces
+        every node to its plain value (an lxml element, or a bare string for an
+        attribute/text result), discarding the node's parent/position -- exactly
+        the information needed to compute a violating node's canonical XPath and
+        a copy of its owning element (categories D2/D3). This re-implements that
+        reduction from the lower-level, un-formatted `root_token.select()` so the
+        formatted half of the return value stays identical to plain `.select()`.
+
+        Args:
+            selector (any): compiled rule selector (`elementpath.Selector`)
+            root (any): document root to evaluate the selector against
+
+        Returns:
+            tuple: `(result, nodes)`. `result` is exactly what `selector.select(root)`
+                would return. `nodes` is `None` when `result` is a bare scalar (no
+                node backs a computed boolean/number), otherwise a list of raw
+                `elementpath` XPath node objects (or `None` per position for a
+                non-node item) aligned with `result`.
+        """
+        context = elementpath.XPathContext(root, schema=selector.parser.schema)
+        raw_items = list(selector.root_token.select(context))
+
+        values = []
+        nodes = []
+        for item in raw_items:
+            if isinstance(item, elementpath.xpath_nodes.XPathNode):
+                values.append(item.value)
+                nodes.append(item)
+            else:
+                values.append(item)
+                nodes.append(None)
+
+        if len(raw_items) == 1 and not isinstance(
+                raw_items[0], (elementpath.xpath_nodes.ElementNode, elementpath.xpath_nodes.DocumentNode)):
+            if isinstance(raw_items[0], (bool, int, float, Decimal)):
+                return raw_items[0], None
+            elif selector.root_token.label in ('function', 'literal'):
+                return values[0], None
+
+        return values, nodes
+
+    def _node_xpath_and_copy(self, node: any, deep_copy_nodes: bool = False) -> tuple:
+        """Resolve a raw XPath node (from `_select_with_nodes`) into the two
+        fields `s1kd-brexcheck`'s `dump_nodes_xml` attaches to every violation:
+        the node's canonical XPath (port of `xpath_of`, `s1kd_tools.c:59-144`,
+        using `elementpath`'s own equivalent node-path computation instead of
+        re-walking the tree) and a copy of its owning element, serialised to an
+        XML string. An attribute or text result is reported against its owning
+        element (`if (node->type == XML_ATTRIBUTE_NODE) node = node->parent;` in
+        the C original), since a bare attribute/text value has no subtree of its
+        own to copy.
+
+        Args:
+            node (any): raw XPath node from `_select_with_nodes`'s `nodes` list,
+                or `None` when the violation has no backing node (e.g. a flag-1
+                "required but missing" violation, or a boolean-valued rule)
+            deep_copy_nodes (bool): copy the full subtree (all descendants),
+                equivalent to `-8`/`--deep-copy-nodes`. Defaults to a shallow
+                copy of just the element's own tag and attributes, matching
+                `xmlCopyNode(node, 2)` (properties only, no children).
+
+        Returns:
+            tuple: `(canonical_xpath, xml_snippet)`, both `None` when `node` is
+                `None` or does not resolve to an lxml element
+        """
+        if node is None:
+            return None, None
+
+        try:
+            canonical_xpath = node.extended_path
+        except AttributeError:
+            canonical_xpath = None
+
+        element = getattr(node, 'obj', None)
+        if not isinstance(element, etree._Element):
+            parent = getattr(node, 'parent', None)
+            element = getattr(parent, 'obj', None) if parent is not None else None
+        if not isinstance(element, etree._Element):
+            return canonical_xpath, None
+
+        try:
+            if deep_copy_nodes:
+                copy_elem = deepcopy(element)
+            else:
+                copy_elem = etree.Element(element.tag, nsmap=element.nsmap)
+                for key, val in element.attrib.items():
+                    copy_elem.set(key, val)
+            xml_snippet = etree.tostring(copy_elem, encoding="unicode")
+        except (TypeError, ValueError):
+            xml_snippet = None
+
+        return canonical_xpath, xml_snippet
+
+    def _check_object_flag_0(self, schema: str, brex_violations: dict, root: any, value: any, xml_text: str = None,
+                              deep_copy_nodes: bool = False):
         if value['contextRules'] == schema or value['contextRules'] == "":
             if self._saxon:
                 with PySaxonProcessor(license=False) as proc:
                     xp = proc.new_xpath_processor()
-                    for prefix, uri in NS_DICT.items():
-                        xp.declare_namespace(prefix, uri)
-                    node = proc.parse_xml(xml_file_name=self._xml_path)
+                    for prefix, uri in value.get('namespaces', NS_DICT).items():
+                        if prefix:
+                            xp.declare_namespace(prefix, uri)
+                    if xml_text is not None:
+                        node = proc.parse_xml(xml_text=xml_text)
+                    else:
+                        node = proc.parse_xml(xml_file_name=self._xml_path)
                     xp.set_context(xdm_item=node)
                     items = xp.evaluate(clean_xpath(value['xpath']))
                     if items is not None:
@@ -430,6 +786,8 @@ class BrexChecker():
                                             'Line': list_xml_content.index(element) + 1,
                                             'Description': value["objectUse"],
                                             'Xpath': value['xpath'],
+                                            'NodeXpath': None,
+                                            'Object': None,
                                             'BrDecisionIdentNumber': value.get('brDecisionIdentNumber'),
                                             'BrSeverityLevel': value.get('brSeverityLevel'),
                                             'Fail': self._is_severity_failure(value.get('brSeverityLevel'))}
@@ -437,8 +795,8 @@ class BrexChecker():
                     proc.exception_clear()
             else:
                 try:
-                    selector = elementpath.Selector(value['xpath'], namespaces=NS_DICT)
-                    result = selector.select(root)
+                    selector = elementpath.Selector(value['xpath'], namespaces=value.get('namespaces', NS_DICT))
+                    result, nodes = self._select_with_nodes(selector, root)
                 except elementpath.ElementPathError as e:
                     brex_violations[value["Brex"]]['xpathError'].append({
                         'Description': value["objectUse"],
@@ -453,12 +811,14 @@ class BrexChecker():
                             'Line': "(Boolean condition -> Interpret XPath)",
                             'Description': value["objectUse"],
                             'Xpath': value['xpath'],
+                            'NodeXpath': None,
+                            'Object': None,
                             'BrDecisionIdentNumber': value.get('brDecisionIdentNumber'),
                             'BrSeverityLevel': value.get('brSeverityLevel'),
                             'Fail': self._is_severity_failure(value.get('brSeverityLevel'))}
                         )
                 else:
-                    for element in result:
+                    for idx, element in enumerate(result):
                         if ' and ' in value['xpath']:
                             line_no = "(Origin traced back to multiple lines -> Interpret XPath)"
                         else:
@@ -473,21 +833,26 @@ class BrexChecker():
                                             line_no = ind + 1
                                 else:
                                     line_no = "x"
+                        node = nodes[idx] if nodes else None
+                        node_xpath, node_copy = self._node_xpath_and_copy(node, deep_copy_nodes)
                         brex_violations[value["Brex"]]['0'].append({
                             'Line': line_no,
                             'Description': value["objectUse"],
                             'Xpath': value['xpath'],
+                            'NodeXpath': node_xpath,
+                            'Object': node_copy,
                             'BrDecisionIdentNumber': value.get('brDecisionIdentNumber'),
                             'BrSeverityLevel': value.get('brSeverityLevel'),
                             'Fail': self._is_severity_failure(value.get('brSeverityLevel'))}
                         )
         return brex_violations
 
-    def _check_object_flag_1(self, schema: str, brex_violations: dict, root: any, value: any):
+    def _check_object_flag_1(self, schema: str, brex_violations: dict, root: any, value: any,
+                              deep_copy_nodes: bool = False):
         if value['contextRules'] == schema or value['contextRules'] == "":
             try:
-                selector = elementpath.Selector(value['xpath'], namespaces=NS_DICT)
-                result = selector.select(root)
+                selector = elementpath.Selector(value['xpath'], namespaces=value.get('namespaces', NS_DICT))
+                result, nodes = self._select_with_nodes(selector, root)
             except elementpath.ElementPathError as e:
                 brex_violations[value["Brex"]]['xpathError'].append({
                     'Description': value["objectUse"],
@@ -506,16 +871,20 @@ class BrexChecker():
                 brex_violations[value["Brex"]]['1'].append({
                             'Description': value["objectUse"],
                             'Xpath': value['xpath'],
+                            'NodeXpath': None,
+                            'Object': None,
                             'BrDecisionIdentNumber': value.get('brDecisionIdentNumber'),
                             'BrSeverityLevel': value.get('brSeverityLevel'),
                             'Fail': self._is_severity_failure(value.get('brSeverityLevel'))}
                             )
             elif not isinstance(result, (bool, str, int, float)) and (
                     value["values_allowed"] or value["regex_allowed"] or value["ranges_allowed"]):
-                brex_violations[value["Brex"]]['2'].extend(self._check_object_values(value, result))
+                brex_violations[value["Brex"]]['2'].extend(
+                    self._check_object_values(value, result, nodes, deep_copy_nodes))
         return brex_violations
 
-    def _check_object_values(self, value: any, elements: any) -> list:
+    def _check_object_values(self, value: any, elements: any, nodes: any = None,
+                              deep_copy_nodes: bool = False) -> list:
         """Check a set of matched nodes against a rule's `objectValue` children.
 
         Shared by any flag whose matched nodes must additionally satisfy a value
@@ -527,13 +896,18 @@ class BrexChecker():
             value (any): rule dict from `_show_rules`, carrying `values_allowed`
                 / `regex_allowed` / `ranges_allowed`
             elements (any): node-set matched by `value['xpath']`
+            nodes (any): raw XPath nodes aligned with `elements`, from
+                `_select_with_nodes`, used to compute `NodeXpath`/`Object`
+                (categories D2/D3); `None` when no such alignment is available
+            deep_copy_nodes (bool): copy the full subtree instead of just the
+                element's own tag and attributes, see `_node_xpath_and_copy`
 
         Returns:
             list: one violation dict per element whose value matches none of the
                 allowed values, patterns or ranges
         """
         violations = []
-        for element in elements:
+        for idx, element in enumerate(elements):
             valid_elem = False
             if isinstance(element, etree._Element):
                 element_value = element.text or ""
@@ -563,10 +937,14 @@ class BrexChecker():
                                     line_no = ind + 1
                         else:
                             line_no = "x"
+                node = nodes[idx] if nodes else None
+                node_xpath, node_copy = self._node_xpath_and_copy(node, deep_copy_nodes)
                 violations.append({
                     'Line': line_no,
                     'Description': f'Element/Attribute ({element_value}) did not match the object values.',
                     'Xpath': value['xpath'],
+                    'NodeXpath': node_xpath,
+                    'Object': node_copy,
                     'Single Values': [value["values_allowed"]],
                     'Pattern Values': [value["regex_allowed"]],
                     'Range Values': [value["ranges_allowed"]],
@@ -576,11 +954,12 @@ class BrexChecker():
                     'Fail': self._is_severity_failure(value.get('brSeverityLevel'))})
         return violations
 
-    def _check_object_flag_2(self, schema: str, brex_violations: dict, root: any, value: any):
+    def _check_object_flag_2(self, schema: str, brex_violations: dict, root: any, value: any,
+                              deep_copy_nodes: bool = False):
         if ('values_allowed' in value or 'regex_allowed' in value or 'ranges_allowed' in value) and (value['contextRules'] == schema or value['contextRules'] == ""):
             try:
-                selector = elementpath.Selector(value['xpath'], namespaces=NS_DICT)
-                result = selector.select(root)
+                selector = elementpath.Selector(value['xpath'], namespaces=value.get('namespaces', NS_DICT))
+                result, nodes = self._select_with_nodes(selector, root)
             except elementpath.ElementPathError as e:
                 brex_violations[value["Brex"]]['xpathError'].append({
                     'Description': value["objectUse"],
@@ -590,7 +969,8 @@ class BrexChecker():
                 )
                 return brex_violations
             if type(result) is not bool:
-                brex_violations[value["Brex"]]['2'].extend(self._check_object_values(value, result))
+                brex_violations[value["Brex"]]['2'].extend(
+                    self._check_object_values(value, result, nodes, deep_copy_nodes))
         return brex_violations
 
     def _get_sns_rules_group(self) -> any:
@@ -609,7 +989,7 @@ class BrexChecker():
             with open(clean_path(brex), "r", encoding="utf-8") as _:
                 brex_content = _.read()
             brex_content = delete_first_line(brex_content)
-            brex_tree = etree.parse(StringIO(brex_content))
+            brex_tree = self._parse_xml_text(brex_content)
             sns_rules = brex_tree.find(".//snsRules")
             if sns_rules is not None:
                 group.append(deepcopy(sns_rules))
@@ -718,7 +1098,7 @@ class BrexChecker():
             with open(clean_path(brex), "r", encoding="utf-8") as _:
                 brex_content = _.read()
             brex_content = delete_first_line(brex_content)
-            brex_tree = etree.parse(StringIO(brex_content))
+            brex_tree = self._parse_xml_text(brex_content)
             notation_rule_list = brex_tree.find(".//notationRuleList")
             if notation_rule_list is not None:
                 group.append(deepcopy(notation_rule_list))
@@ -806,7 +1186,31 @@ class BrexChecker():
                 violations.append(violation)
         return violations
 
-    def _check_rules(self, debug: bool = False, include_tqdm: bool = False, sns_mode: str = "normal") -> dict:
+    def _remove_deleted_elements(self, node: any) -> None:
+        """Recursively drop elements marked as deleted from a parsed tree.
+
+        Port of `rem_delete_nodes`/`rem_delete_elems` (`s1kd_tools.c:1054-1088`),
+        `s1kd-brexcheck`'s `-^`/`--remove-deleted` option: an element carrying
+        `@changeType="delete"` (or the legacy `@change="delete"` spelling the C
+        original also checks) is removed along with its whole subtree before any
+        rule is checked, so content staged for deletion in a change-marked
+        revision does not trigger BREX violations. Children are only visited when
+        the element itself is kept, matching the C original.
+
+        Args:
+            node (any): element to inspect, e.g. the checked document's root
+        """
+        change = node.get('change', node.get('changeType'))
+        if change == 'delete':
+            parent = node.getparent()
+            if parent is not None:
+                parent.remove(node)
+            return
+        for child in list(node):
+            self._remove_deleted_elements(child)
+
+    def _check_rules(self, debug: bool = False, include_tqdm: bool = False, sns_mode: str = "normal",
+                      remove_deleted: bool = False, deep_copy_nodes: bool = False) -> dict:
         """Traverses through every node of the brex and checks the rules through the given xpaths.
         For objectFlag 0 we also get the line of the error
         For objectFlag 1 we only get the Description of the rule that was violated
@@ -818,6 +1222,13 @@ class BrexChecker():
             include_tqdm (bool): show a progress bar while checking content rules
             sns_mode (str): one of `SNS_MODES` ("normal", "strict", "unstrict");
                 see `_sns_should_check`
+            remove_deleted (bool): equivalent to `s1kd-brexcheck -^`/`--remove-deleted`;
+                drop elements marked `@changeType="delete"` (see `_remove_deleted_elements`)
+                before every check (content rules, SNS, notations)
+            deep_copy_nodes (bool): equivalent to `-8`/`--deep-copy-nodes`; the `Object`
+                field of every content-rule violation record holds a full recursive copy
+                of the violating element instead of just its own tag and attributes
+                (see `_node_xpath_and_copy`)
 
         Returns:
             any: Dictionary with all errors
@@ -832,7 +1243,12 @@ class BrexChecker():
                 'xpathError': []
             }
         brex_violations_dict["brexFallback"] = list(self._brex_fallbacks)
-        root = etree.parse(self._xml_path)
+        root = self._parse_xml_file(self._xml_path)
+
+        xml_text = None
+        if remove_deleted:
+            self._remove_deleted_elements(root.getroot())
+            xml_text = etree.tostring(root, encoding="unicode")
 
         dmod_root = root.getroot()
         if dmod_root.tag == "dmodule":
@@ -849,7 +1265,7 @@ class BrexChecker():
 
         all_content_rules = []
         for brex in self._brex_list[0]:
-            content_rules = self._show_rules(brex, debug=debug)
+            content_rules = self._show_rules(brex, schema=schema, debug=debug)
             all_content_rules += content_rules
 
         if debug:
@@ -859,12 +1275,18 @@ class BrexChecker():
         container = tqdm(all_content_rules) if include_tqdm else all_content_rules
         for value in container:
             if value["ObjectFlag"] == '0':
-                brex_violations_dict |= self._check_object_flag_0(schema, brex_violations_dict, root, value)
+                brex_violations_dict |= self._check_object_flag_0(
+                    schema, brex_violations_dict, root, value, xml_text, deep_copy_nodes)
             if value["ObjectFlag"] == '1':
-                brex_violations_dict |= self._check_object_flag_1(schema, brex_violations_dict, root, value)
-            if value["ObjectFlag"] == '2':
-                if value["values_allowed"] != [] or value["regex_allowed"] != [] or value["ranges_allowed"] != []:
-                    brex_violations_dict |= self._check_object_flag_2(schema, brex_violations_dict, root, value)
+                brex_violations_dict |= self._check_object_flag_1(
+                    schema, brex_violations_dict, root, value, deep_copy_nodes)
+            has_values = value["values_allowed"] != [] or value["regex_allowed"] != [] or value["ranges_allowed"] != []
+            # S1000D <= 3.0 rules commonly omit @objappl entirely for a
+            # value-only constraint (no presence/absence semantics); s1kd's
+            # is_invalid falls through to the value check in that case too.
+            if has_values and value["ObjectFlag"] in ('2', None):
+                brex_violations_dict |= self._check_object_flag_2(
+                    schema, brex_violations_dict, root, value, deep_copy_nodes)
         return brex_violations_dict
 
     def _append_summary(self, object_flag_dict: dict) -> str:
@@ -905,7 +1327,8 @@ class BrexChecker():
             return f"{error_count} Errors, {warning_count} Warnings"
         return f"{error_count} Errors"
     
-    def validate(self, debug: bool = False, include_tqdm: bool = False, sns_mode: str = "normal") -> dict:
+    def validate(self, debug: bool = False, include_tqdm: bool = False, sns_mode: str = "normal",
+                 remove_deleted: bool = False, deep_copy_nodes: bool = False) -> dict:
         """Check xml against all brexes and dump the results into a JSon file
 
         Args:
@@ -921,6 +1344,13 @@ class BrexChecker():
                   `snsCode` defined by the BREX, including placeholders.
                 - `"unstrict"`: any code is valid at a level the BREX defines
                   no rules for, whether or not it looks like a placeholder.
+            remove_deleted (bool): equivalent to `s1kd-brexcheck -^`/`--remove-deleted`;
+                drop elements marked `@changeType="delete"` before checking. See
+                `_remove_deleted_elements`.
+            deep_copy_nodes (bool): equivalent to `-8`/`--deep-copy-nodes`; every
+                content-rule violation's `Object` field holds a full recursive
+                copy of the violating element (all descendants) instead of just
+                its own tag and attributes. See `_node_xpath_and_copy`.
 
         Raises:
             ValueError: if `sns_mode` is not one of `SNS_MODES`
@@ -936,9 +1366,13 @@ class BrexChecker():
             results = {}
             container = tqdm(files) if include_tqdm else files
             for _xml in container:
-                self.set_xml(join(self._xml_dir, _xml))
+                xml_path = join(self._xml_dir, _xml)
+                if self._ignore_empty and not self._is_valid_xml_file(xml_path):
+                    continue
+                self.set_xml(xml_path)
                 self._init_brex_list()
-                result = self._check_rules(debug=debug, include_tqdm=include_tqdm, sns_mode=sns_mode)
+                result = self._check_rules(debug=debug, include_tqdm=include_tqdm, sns_mode=sns_mode,
+                                            remove_deleted=remove_deleted, deep_copy_nodes=deep_copy_nodes)
                 result["Summary"] = self._append_summary(result)
                 results[_xml] = result
                 self._brex_list = initial_brex_list if had_explicit_brex_list else (None, None)
@@ -948,8 +1382,15 @@ class BrexChecker():
                     dump(results, _, indent=4)
             return results
         else:
+            if self._ignore_empty and not self._is_valid_xml_file(self._xml_path):
+                result = {"Skipped": True, "Summary": "Skipped (empty or non-XML file)"}
+                if debug:
+                    with open(clean_path(join(expanduser("~/Desktop"), f'Errors_{basename(self._xml_path)}.json')), 'w', encoding="utf-8") as _:
+                        dump(result, _, indent=4)
+                return result
             self._init_brex_list()
-            result = self._check_rules(debug=debug, sns_mode=sns_mode)
+            result = self._check_rules(debug=debug, sns_mode=sns_mode, remove_deleted=remove_deleted,
+                                        deep_copy_nodes=deep_copy_nodes)
             summary = self._append_summary(result)
             result["Summary"] = summary
             if debug:

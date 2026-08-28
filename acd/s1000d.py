@@ -270,21 +270,36 @@ def ref_dict_to_str(ref: dict) -> str:
 
     return str_ref
 
-def find_document_by_reference(filename_part: str, directory: str, extension: str = ".xml") -> str:
+def find_document_by_reference(filename_part: str, directory: str, extension: str = ".xml",
+                                recursive: bool = True) -> str:
     """Finds the full path of a document based on a filename part and the extension
 
     Args:
         filename_part (str): Filename part
         directory (str): Directory to search in
         extension (str): extension
+        recursive (bool): search subdirectories of `directory` as well
+            (equivalent to `s1kd-brexcheck`'s `-r`/`--recursive`). Defaults to
+            True. When False, only files directly inside `directory` are
+            considered.
 
     Returns:
         str: Full path to document
     """
-    for root, _, files in walk(directory):
-        for file_ in files:
-            if filename_part in file_ and file_.lower().endswith(extension.lower()):
-                return join(root, file_)
+    if recursive:
+        for root, _, files in walk(directory):
+            for file_ in files:
+                if filename_part in file_ and file_.lower().endswith(extension.lower()):
+                    return join(root, file_)
+        return None
+
+    if not isdir(directory):
+        return None
+    for file_ in listdir(directory):
+        full_path = join(directory, file_)
+        if isfile(full_path) and filename_part in file_ and file_.lower().endswith(extension.lower()):
+            return full_path
+    return None
 
 def get_dm_codes_from_dir(directory: str, json_dump: bool = False) -> dict:
     dm_codes = {}
