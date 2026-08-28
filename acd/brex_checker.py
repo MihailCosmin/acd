@@ -1353,7 +1353,167 @@ class BrexChecker():
         if warning_count:
             return f"{error_count} Errors, {warning_count} Warnings"
         return f"{error_count} Errors"
-    
+
+    def _is_single_object_result(self, result: dict) -> bool:
+        """Distinguish a single-object `validate()` result from a directory-mode
+        result (a mapping of `{filename: single-object result}`).
+
+        A single-object result always carries a top-level `Summary` string
+        (see `validate`/`_append_summary`); a directory-mode result does not,
+        since `Summary` only appears nested inside each per-file result.
+
+        Args:
+            result (dict): a `validate()` return value
+
+        Returns:
+            bool: True if `result` is a single-object result
+        """
+        return isinstance(result.get("Summary"), str)
+
+    def _append_sns_notation_nodes(self, document_node: any, result: dict) -> None:
+        """Append the `sns` and `notations` nodes of one `document` node, port of
+        the corresponding fragments of `check_brex_sns_rules`
+        (`s1kd-brexcheck.c:1077-1134`) and `check_brex_notation_rules`
+        (`s1kd-brexcheck.c:1213-1224`): an empty `<noErrors/>` child when the
+        object was checked and passed, one `<error>` per violation otherwise,
+        and no `sns`/`notations` node at all when that check did not run
+        (`result` has no `'sns'`/`'notations'` key -- not a data module, or no
+        BREX in the chain defines the relevant rules).
+
+        Args:
+            document_node (any): the `document` element to append to
+            result (dict): single-object `validate()` result
+        """
+        sns_violations = result.get("sns")
+        if sns_violations is not None:
+            sns_node = etree.SubElement(document_node, "sns")
+            if sns_violations:
+                for sns_error in sns_violations:
+                    error_node = etree.SubElement(sns_node, "error")
+                    etree.SubElement(error_node, "code").text = sns_error.get("code")
+                    etree.SubElement(error_node, "invalidValue").text = sns_error.get("invalidValue")
+            else:
+                etree.SubElement(sns_node, "noErrors")
+
+        notation_violations = result.get("notations")
+        if notation_violations is not None:
+            notations_node = etree.SubElement(document_node, "notations")
+            if notation_violations:
+                for notation_error in notation_violations:
+                    error_node = etree.SubElement(notations_node, "error")
+                    etree.SubElement(error_node, "invalidNotation").text = notation_error.get("Notation")
+                    etree.SubElement(error_node, "objectUse").text = notation_error.get("Description")
+            else:
+                etree.SubElement(notations_node, "noErrors")
+
+    def _append_error_node(self, brex_node: any, violation: dict, allowed_object_flag: str) -> None:
+        """Append one `error` node for a content-rule violation, port of the
+        `<error>` construction in `check_brex_rules` (`s1kd-brexcheck.c:900-938`).
+
+        Unlike the C original, where one `<error>` can hold several `<object>`
+        children (every node matched by the same rule), each of our violation
+        records already corresponds to a single matched node (see
+        `_check_object_flag_0`/`_check_object_values`), so this emits at most
+        one `<object>` child per `<error>`.
+
+        Args:
+            brex_node (any): the `brex` element to append to
+            violation (dict): one violation record from `brex_result['0'/'1'/'2']`
+            allowed_object_flag (str): the `allowedObjectFlag` this violation was
+                recorded under (`'0'`, `'1'` or `'2'`), reported as an attribute
+                on `objectPath` same as the C original's `@allowedObjectFlag`
+        """
+        error_node = etree.SubElement(brex_node, "error")
+
+        severity = violation.get("BrSeverityLevel")
+        if severity:
+            error_node.set("brSeverityLevel", severity)
+            if not violation.get("Fail", True):
+                error_node.set("fail", "no")
+        else:
+            error_node.set("fail", "yes")
+
+        br_decision_ident_number = violation.get("BrDecisionIdentNumber")
+        if br_decision_ident_number is not None:
+            etree.SubElement(error_node, "brDecisionRef", brDecisionIdentNumber=br_decision_ident_number)
+
+        object_path_node = etree.SubElement(error_node, "objectPath", allowedObjectFlag=allowed_object_flag)
+        object_path_node.text = violation.get("Xpath")
+
+        etree.SubElement(error_node, "objectUse").text = violation.get("ObjectUse", violation.get("Description"))
+
+        if violation.get("Object") is not None:
+            object_node = etree.SubElement(error_node, "object")
+            line = violation.get("Line")
+            if line is not None:
+                object_node.set("line", str(line))
+            node_xpath = violation.get("NodeXpath")
+            if node_xpath is not None:
+                object_node.set("xpath", node_xpath)
+            object_node.append(etree.fromstring(violation["Object"].encode("utf-8")))
+
+    def _build_document_node(self, result: dict, docname: str) -> any:
+        """Build one `document` node (a single checked object's report), port of
+        the `documentNode` built in `check_brex`/`check_brex_rules`
+        (`s1kd-brexcheck.c:1373-1374`, `827-965`).
+
+        Args:
+            result (dict): single-object `validate()` result
+            docname (str): path of the checked object, reported as `document/@path`
+
+        Returns:
+            any: `document` lxml element
+        """
+        document_node = etree.Element("document")
+        document_node.set("path", docname)
+
+        self._append_sns_notation_nodes(document_node, result)
+
+        for brex_path, brex_result in result.items():
+            if brex_path in ("sns", "notations", "brexFallback", "Summary", "Skipped"):
+                continue
+            if not isinstance(brex_result, dict):
+                continue
+            brex_node = etree.SubElement(document_node, "brex")
+            brex_node.set("path", brex_path)
+            for flag in ('0', '1', '2'):
+                for violation in brex_result.get(flag, []):
+                    self._append_error_node(brex_node, violation, flag)
+            for xpath_error in brex_result.get("xpathError", []):
+                error_node = etree.SubElement(brex_node, "xpathError")
+                error_node.text = xpath_error.get("Xpath")
+                if xpath_error.get("Error") is not None:
+                    error_node.set("error", xpath_error["Error"])
+
+        return document_node
+
+    def to_xml_report(self, result: dict) -> str:
+        """Convert a `validate()` result into an XML report compatible with the
+        `s1kd-brexcheck -x` shape:
+        `brexCheck/document/{sns,notations,brex/{error/{brDecisionRef,objectPath,
+        objectUse,object},xpathError}}`.
+
+        Accepts either a single-object result (`validate()` after `set_xml`) or
+        a directory-mode result (`validate()` after `set_xml_dir`, a mapping of
+        `{filename: single-object result}`), distinguished the same way
+        `_is_single_object_result` does.
+
+        Args:
+            result (dict): a `validate()` return value
+
+        Returns:
+            str: serialised `<brexCheck>` XML document
+        """
+        root = etree.Element("brexCheck")
+        if self._is_single_object_result(result):
+            root.append(self._build_document_node(result, self._xml_path or ""))
+        else:
+            for filename, file_result in result.items():
+                if not isinstance(file_result, dict):
+                    continue
+                root.append(self._build_document_node(file_result, filename))
+        return etree.tostring(root, encoding="unicode", pretty_print=True)
+
     def validate(self, debug: bool = False, include_tqdm: bool = False, sns_mode: str = "normal",
                  remove_deleted: bool = False, deep_copy_nodes: bool = False) -> dict:
         """Check xml against all brexes and dump the results into a JSon file
