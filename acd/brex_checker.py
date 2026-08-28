@@ -22,7 +22,6 @@ import elementpath
 
 from regex import search
 from regex import fullmatch
-from re import findall
 from regex import V1
 
 from lxml import etree
@@ -37,6 +36,7 @@ from saxonche import PyXdmNode
 from .xml_processing import get_schema_from_xml
 from .xml_processing import delete_first_line
 from .xml_processing import translate_xsd_regex_to_python
+from .xml_processing import is_in_set
 from .s1000d import get_brex_ref
 from .s1000d import ref_dict_to_str
 from .s1000d import find_document_by_reference
@@ -186,6 +186,7 @@ class BrexChecker():
         for counter, x in enumerate(nodes_to_check):
             values_allowed = []
             regex_allowed = []
+            ranges_allowed = []
             for objectValue in x.getparent().xpath('objectValue'):
                 for key, value in objectValue.attrib.items():
                     if key == "valueForm" and value == "single":
@@ -195,21 +196,7 @@ class BrexChecker():
                         regex_allowed.append(translate_xsd_regex_to_python(objectValue.attrib["valueAllowed"]))
                         break
                     elif key == "valueForm" and value == "range":
-                        values_range = objectValue.attrib["valueAllowed"]
-                        values_range = findall(r"([a-z]*)(\d+)", values_range)
-                        if len(values_range[0]) == 2:
-                            name = values_range[0][0]
-                            list_start = int(values_range[0][1])
-                            list_end = int(values_range[1][1])
-                        else:
-                            name = ""
-                            list_start = int(values_range[0])
-                            list_end = int(values_range[1])
-                        range_list = []
-                        while(list_start <= list_end):
-                            range_list.append(f"{name}{str(list_start)}")
-                            list_start += 1
-                        values_allowed += range_list
+                        ranges_allowed.append(objectValue.attrib["valueAllowed"])
                         break
             try:
                 context_rules = x.getparent().getparent().getparent().attrib['rulesContext']
@@ -222,7 +209,8 @@ class BrexChecker():
                     'objectUse': str(x.getparent().xpath('objectUse')[0].text),
                     'contextRules': context_rules,
                     'values_allowed': values_allowed,
-                    'regex_allowed': regex_allowed
+                    'regex_allowed': regex_allowed,
+                    'ranges_allowed': ranges_allowed
                 }
             )
         if debug:
@@ -277,8 +265,16 @@ class BrexChecker():
                                         )
                     proc.exception_clear()
             else:
-                selector = elementpath.Selector(value['xpath'], namespaces=NS_DICT)
-                result = selector.select(root)
+                try:
+                    selector = elementpath.Selector(value['xpath'], namespaces=NS_DICT)
+                    result = selector.select(root)
+                except elementpath.ElementPathError as e:
+                    brex_violations[value["Brex"]]['xpathError'].append({
+                        'Description': value["objectUse"],
+                        'Xpath': value['xpath'],
+                        'Error': str(e)}
+                    )
+                    return brex_violations
                 if isinstance(result, bool):
                     if result:
                         brex_violations[value["Brex"]]['0'].append({
@@ -311,8 +307,16 @@ class BrexChecker():
 
     def _check_object_flag_1(self, schema: str, brex_violations: dict, root: any, value: any):
         if value['contextRules'] == schema or value['contextRules'] == "":
-            selector = elementpath.Selector(value['xpath'], namespaces=NS_DICT)
-            result = selector.select(root)
+            try:
+                selector = elementpath.Selector(value['xpath'], namespaces=NS_DICT)
+                result = selector.select(root)
+            except elementpath.ElementPathError as e:
+                brex_violations[value["Brex"]]['xpathError'].append({
+                    'Description': value["objectUse"],
+                    'Xpath': value['xpath'],
+                    'Error': str(e)}
+                )
+                return brex_violations
             if isinstance(result, bool):
                 violation = not result
             elif isinstance(result, (str, int, float)):
@@ -327,20 +331,31 @@ class BrexChecker():
         return brex_violations
 
     def _check_object_flag_2(self, schema: str, brex_violations: dict, root: any, value: any):
-        if ('values_allowed' in value or 'regex_allowed' in value) and (value['contextRules'] == schema or value['contextRules'] == ""):
-            selector = elementpath.Selector(value['xpath'], namespaces=NS_DICT)
-            if type(selector.select(root)) is not bool:
-                for element in selector.select(root):
+        if ('values_allowed' in value or 'regex_allowed' in value or 'ranges_allowed' in value) and (value['contextRules'] == schema or value['contextRules'] == ""):
+            try:
+                selector = elementpath.Selector(value['xpath'], namespaces=NS_DICT)
+                result = selector.select(root)
+            except elementpath.ElementPathError as e:
+                brex_violations[value["Brex"]]['xpathError'].append({
+                    'Description': value["objectUse"],
+                    'Xpath': value['xpath'],
+                    'Error': str(e)}
+                )
+                return brex_violations
+            if type(result) is not bool:
+                for element in result:
                     valid_elem = False
-                    if element not in value["values_allowed"]:
+                    if isinstance(element, etree._Element):
+                        element_value = element.text or ""
+                    else:
+                        element_value = element if isinstance(element, str) else str(element)
+                    if element_value not in value["values_allowed"]:
                         if len(value["regex_allowed"]) > 0:
-                            try:
-                                if any([bool(fullmatch(regex, element, V1)) for regex in value["regex_allowed"]]):
-                                    valid_elem = True
-                            except TypeError:
-                                regex2 = search(r"(@)([a-zA-Z]+)(^[a-zA-Z])", value['xpath'], V1)
-                                if any([bool(fullmatch(regex, element.attrib[regex2.group(2)], V1)) for regex in value["regex_allowed"]]):
-                                    valid_elem = True
+                            if any(bool(fullmatch(regex, element_value, V1)) for regex in value["regex_allowed"]):
+                                valid_elem = True
+                        if not valid_elem and len(value["ranges_allowed"]) > 0:
+                            if any(is_in_set(element_value, value_range) for value_range in value["ranges_allowed"]):
+                                valid_elem = True
                     else:
                         valid_elem = True
                     if not valid_elem:
@@ -354,16 +369,17 @@ class BrexChecker():
                                     attrib_name = search(r'(/@)([a-zA-Z]+)', value['xpath'], V1).group(2)
                                     split_xml = self._xml_content.split("\n")
                                     for ind, elem in enumerate(split_xml):
-                                        if attrib_name in elem and element in elem:
+                                        if attrib_name in elem and element_value in elem:
                                             line_no = ind + 1
                                 else:
                                     line_no = "x"
                         brex_violations[value["Brex"]]['2'].append({
                             'Line': line_no,
-                            'Description': f'Element/Attribute ({element}) did not match the object values.',
+                            'Description': f'Element/Attribute ({element_value}) did not match the object values.',
                             'Xpath': value['xpath'],
                             'Single Values': [value["values_allowed"]],
                             'Pattern Values': [value["regex_allowed"]],
+                            'Range Values': [value["ranges_allowed"]],
                             'ObjectUse': value["objectUse"]})
         return brex_violations
 
@@ -377,15 +393,14 @@ class BrexChecker():
         Returns:
             any: Dictionary with all errors
         """
-        with open(clean_path(self._xml_path), "r", encoding="utf-8") as _:
-            self.xml_content = _.read()
-        schema = get_schema_from_xml(self.xml_content)
+        schema = get_schema_from_xml(self._xml_content)
         brex_violations_dict = {}
         for brex in self._brex_list[0]:
             brex_violations_dict[brex] = {
                 '0': [],
                 '1': [],
-                '2': []
+                '2': [],
+                'xpathError': []
             }
         root = etree.parse(self._xml_path)
         all_content_rules = []
@@ -400,57 +415,54 @@ class BrexChecker():
         container = tqdm(all_content_rules) if include_tqdm else all_content_rules
         for value in container:
             if value["ObjectFlag"] == '0':
-                if schema != "http://www.s1000d.org/S1000D_4-2/xml_schema_flat/ddn.xsd":
-                    brex_violations_dict |= self._check_object_flag_0(schema, brex_violations_dict, root, value)
+                brex_violations_dict |= self._check_object_flag_0(schema, brex_violations_dict, root, value)
             if value["ObjectFlag"] == '1':
-                if schema != "http://www.s1000d.org/S1000D_4-2/xml_schema_flat/ddn.xsd":
-                    brex_violations_dict |= self._check_object_flag_1(schema, brex_violations_dict, root, value)
+                brex_violations_dict |= self._check_object_flag_1(schema, brex_violations_dict, root, value)
             if value["ObjectFlag"] == '2':
-                if value["values_allowed"] != [] or value["regex_allowed"] != []:
-                    if schema != "http://www.s1000d.org/S1000D_4-2/xml_schema_flat/ddn.xsd":
-                        brex_violations_dict |= self._check_object_flag_2(schema, brex_violations_dict, root, value)
+                if value["values_allowed"] != [] or value["regex_allowed"] != [] or value["ranges_allowed"] != []:
+                    brex_violations_dict |= self._check_object_flag_2(schema, brex_violations_dict, root, value)
         return brex_violations_dict
 
-    def _append_summary(self, object_flag_dict: dict) -> dict:
-        """Counts the number of Brex Errors for a xml and appends this
-        information as another key-value-pair into the dictionary
+    def _append_summary(self, object_flag_dict: dict) -> str:
+        """Counts the number of actual Brex violations (flags 0, 1 and 2) for a xml.
+        `xpathError` entries are diagnostics about a rule that could not be evaluated,
+        not violations, and are excluded from the count.
 
         Args:
-            object_flag_dict (dict): _description_
+            object_flag_dict (dict): mapping of brex path to its '0'/'1'/'2'/'xpathError' violation lists
 
         Returns:
-            dict: _description_
+            str: human-readable violation count, e.g. "3 Errors"
         """
         error_count = 0
-        for x, values in object_flag_dict.items():
-            values_length = 0
-            for value in values.values():
-                values_length += len(value)
-            error_count += values_length
+        for brex_result in object_flag_dict.values():
+            for flag in ('0', '1', '2'):
+                error_count += len(brex_result[flag])
         return f"{error_count} Errors"
     
     def validate(self, debug: bool = False, include_tqdm: bool = False) -> dict:
         """Check xml against all brexes and dump the results into a JSon file
         """
         if self._xml_dir:
-            if debug:
-                with open(clean_path(join(expanduser("~/Desktop"), f'Errors_{basename(self._xml_dir)}.json')), 'w', encoding="utf-8") as _:
-                    _.write("{")
-            files = [_ for _ in listdir(self._xml_dir) if ".xml" in _.lower() and "-022a-" not in _.lower() ]
+            files = [_ for _ in listdir(self._xml_dir) if ".xml" in _.lower() and "-022a-" not in _.lower()]
+            had_explicit_brex_list = self._brex_list[0] is not None
+            had_explicit_brex_dir_path = self._brex_dir_path[1] is True
+            initial_brex_list = self._brex_list
+            initial_brex_dir_path = self._brex_dir_path
+            results = {}
             container = tqdm(files) if include_tqdm else files
             for _xml in container:
                 self.set_xml(join(self._xml_dir, _xml))
                 self._init_brex_list()
                 result = self._check_rules(debug=debug, include_tqdm=include_tqdm)
-                summary = self._append_summary(result)
-                if debug:
-                    with open(clean_path(join(expanduser("~/Desktop"), f'Errors_{basename(self._xml_dir)}.json')), 'a', encoding="utf-8") as _:
-                        dump({_xml: result, "Summary": summary}, _, indent=4)
-                self._brex_list = (None, None)
-                self._brex_dir_path = (None, None)
+                result["Summary"] = self._append_summary(result)
+                results[_xml] = result
+                self._brex_list = initial_brex_list if had_explicit_brex_list else (None, None)
+                self._brex_dir_path = initial_brex_dir_path if had_explicit_brex_dir_path else (None, None)
             if debug:
-                with open(clean_path(join(expanduser("~/Desktop"), f'Errors_{basename(self._xml_dir)}.json')), 'a', encoding="utf-8") as _:
-                    _.write("}")
+                with open(clean_path(join(expanduser("~/Desktop"), f'Errors_{basename(self._xml_dir)}.json')), 'w', encoding="utf-8") as _:
+                    dump(results, _, indent=4)
+            return results
         else:
             self._init_brex_list()
             result = self._check_rules(debug=debug)
@@ -459,5 +471,5 @@ class BrexChecker():
             if debug:
                 with open(clean_path(join(expanduser("~/Desktop"), f'Errors_{basename(self._xml_path)}.json')), 'w', encoding="utf-8") as _:
                     dump(result, _, indent=4)
-        return result
+            return result
 

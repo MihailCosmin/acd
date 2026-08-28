@@ -240,14 +240,14 @@ Latent in these three BREX: all 18 element-returning flag-2 rules happen to have
 - [x] **Make `pattern` matching whole-value.** Use `regex.fullmatch`, or wrap the pattern as `^(?:…)$`. Ref §3.4.
 - [x] **Translate XSD regex syntax to Python before compiling.** At minimum character-class subtraction `[A-Z-[IO]]` → `[A-Z--[IO]]` (regex `V1` set operations), plus `\i`, `\c`, `\I`, `\C` and XSD block/category escapes. Both ATABREX modules use subtraction today. Ref §3.4.
 - [x] **Add a test** covering `00[A-Z-[IO]]{1,3}|00[0]{1}` accepting `00ABC` and rejecting `00IOI`, and `[0-9]{2}` rejecting `XX12XX`.
-- [ ] **Reimplement `range` as `is_in_set` / `is_in_range`** (port `s1kd_tools.c:378-434`): split on `|`, then on `~`, compare numerically when both bounds and the value are numeric, otherwise lexicographically. Stop enumerating values. Ref §3.5.
-- [ ] **Add a test matrix for range/set values**: `a~c`, `A|B|C`, `01|02`, `aa01~aa09`, `0001~0099`, `20~100` (numeric vs lexicographic), `accpnl51~accpnl99`.
-- [ ] **Normalise flag-2 result items to their string value** before comparison (element → text content; attribute → value), removing the broken `TypeError` fallback and the unreachable `(@)([a-zA-Z]+)(^[a-zA-Z])` regex. Ref §3.9.
-- [ ] **Wrap `elementpath.Selector` construction and evaluation in `try/except`**, record the failure as an `xpathError` entry against that rule, and continue with the remaining rules. Ref §3.12.
-- [ ] **Remove the hard-coded DDN exclusion** and let `rulesContext` matching decide; the three BREX contain 22 DDN rules that currently never run. Ref §3.10.
-- [ ] **Fix directory mode**: return a mapping of `{filename: result}`, handle the empty-directory case, emit valid JSON in `debug` mode, and stop wiping an explicit `override_brex_list()`. Ref §3.11.
-- [ ] **Fix `_append_summary`** to count actual violations (it currently measures the collapsed dict). Ref §3.1, §3.11.
-- [ ] **Resolve `self.xml_content` vs `self._xml_content`** to a single attribute. Ref §3.12.
+- [x] **Reimplement `range` as `is_in_set` / `is_in_range`** (port `s1kd_tools.c:378-434`): split on `|`, then on `~`, compare numerically when both bounds and the value are numeric, otherwise lexicographically. Stop enumerating values. Ref §3.5.
+- [x] **Add a test matrix for range/set values**: `a~c`, `A|B|C`, `01|02`, `aa01~aa09`, `0001~0099`, `20~100` (numeric vs lexicographic), `accpnl51~accpnl99`.
+- [x] **Normalise flag-2 result items to their string value** before comparison (element → text content; attribute → value), removing the broken `TypeError` fallback and the unreachable `(@)([a-zA-Z]+)(^[a-zA-Z])` regex. Ref §3.9.
+- [x] **Wrap `elementpath.Selector` construction and evaluation in `try/except`**, record the failure as an `xpathError` entry against that rule, and continue with the remaining rules. Ref §3.12.
+- [x] **Remove the hard-coded DDN exclusion** and let `rulesContext` matching decide; the three BREX contain 22 DDN rules that currently never run. Ref §3.10.
+- [x] **Fix directory mode**: return a mapping of `{filename: result}`, handle the empty-directory case, emit valid JSON in `debug` mode, and stop wiping an explicit `override_brex_list()`. Ref §3.11.
+- [x] **Fix `_append_summary`** to count actual violations (it currently measures the collapsed dict). Ref §3.1, §3.11.
+- [x] **Resolve `self.xml_content` vs `self._xml_content`** to a single attribute. Ref §3.12.
 
 ### 4.2 P1 — Rule categories we do not check but `s1kd-brexcheck` does
 

@@ -83,6 +83,62 @@ def translate_xsd_regex_to_python(pattern: str) -> str:
         i += 1
     return "".join(out)
 
+def _as_float(value: str):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+def is_in_range(value: str, value_range: str) -> bool:
+    """
+    Tests whether `value` falls in an S1000D `objectValue` range (`first~last`),
+    port of `s1kd_tools.c` `is_in_range` (`tools/common/s1kd_tools.c:378-407`).
+
+    A range with no `~` is a single literal, matched by exact equality. Otherwise
+    the range is split on `~` (only the first two tokens are used, matching the
+    reference `strtok` behaviour), and the bounds are compared against `value`
+    numerically when `value` and both bounds parse as numbers, lexicographically
+    otherwise (e.g. `20~100` must be numeric, since `100` sorts before `20`
+    lexicographically).
+
+    Args:
+        value (str): The value being checked
+        value_range (str): A single `first~last` range, or a plain literal
+
+    Returns:
+        bool: True if `value` is in the range (or equals the literal)
+
+    """
+
+    if "~" not in value_range:
+        return value == value_range
+
+    first, last = value_range.split("~")[:2]
+    f, l, v = _as_float(first), _as_float(last), _as_float(value)
+    if f is not None and l is not None and v is not None:
+        return f <= v <= l
+    return first <= value <= last
+
+def is_in_set(value: str, value_set: str) -> bool:
+    """
+    Tests whether `value` is in an S1000D `objectValue` set (`a|b|c`, where each
+    member may itself be a range), port of `s1kd_tools.c` `is_in_set`
+    (`tools/common/s1kd_tools.c:409-434`).
+
+    Args:
+        value (str): The value being checked
+        value_set (str): The `valueAllowed` of a `range`-form `objectValue`,
+            e.g. `a~c`, `A|B|C`, `01|02`, `aa01~aa09`
+
+    Returns:
+        bool: True if `value` matches any member of the set
+
+    """
+
+    if "|" not in value_set:
+        return is_in_range(value, value_set)
+    return any(is_in_range(value, member) for member in value_set.split("|"))
+
 def delete_first_line(xml_content: str, overwrite: bool = False) -> str:
     """
     If the first line of the schema matches the regular expression, it is removed
