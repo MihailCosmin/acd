@@ -585,6 +585,7 @@ class BrexChecker():
             values_allowed = []
             regex_allowed = []
             ranges_allowed = []
+            value_tailoring = []
             for objectValue in x.getparent().xpath('objectValue|objval'):
                 # S1000D <= 3.0 spells these @valtype and @val1[~@val2] instead
                 # of @valueForm and @valueAllowed (a range is written as two
@@ -602,6 +603,19 @@ class BrexChecker():
                     regex_allowed.append(translate_xsd_regex_to_python(value_allowed))
                 elif value_form == "range":
                     ranges_allowed.append(value_allowed)
+                # Category C4: @valueTailoring distinguishes "lexical" (a project
+                # may extend this allowed-value set) from "restrictable" (a
+                # project may only narrow it). Absent on S1000D <= 3.0's @val1/
+                # @val2 spelling and on plenty of 4.x rules too (193 of 2462 in
+                # the evidence base), so only recorded per objectValue when the
+                # BREX actually declares it -- nothing to distinguish otherwise.
+                tailoring = objectValue.get('valueTailoring')
+                if tailoring is not None:
+                    value_tailoring.append({
+                        'valueForm': value_form,
+                        'valueAllowed': value_allowed,
+                        'valueTailoring': tailoring,
+                    })
             context_group = next(x.iterancestors('contextRules', 'contextrules'), None)
             context_rules = (
                 context_group.get('rulesContext', context_group.get('context', ''))
@@ -631,6 +645,7 @@ class BrexChecker():
                     'values_allowed': values_allowed,
                     'regex_allowed': regex_allowed,
                     'ranges_allowed': ranges_allowed,
+                    'value_tailoring': value_tailoring,
                     'brDecisionIdentNumber': br_decision_ident_number,
                     'brSeverityLevel': br_severity_level,
                     'namespaces': namespaces
@@ -929,7 +944,7 @@ class BrexChecker():
 
         Args:
             value (any): rule dict from `_show_rules`, carrying `values_allowed`
-                / `regex_allowed` / `ranges_allowed`
+                / `regex_allowed` / `ranges_allowed` / `value_tailoring`
             elements (any): node-set matched by `value['xpath']`
             nodes (any): raw XPath nodes aligned with `elements`, from
                 `_select_with_nodes`, used to compute `NodeXpath`/`Object`
@@ -975,6 +990,7 @@ class BrexChecker():
                     'Single Values': [value["values_allowed"]],
                     'Pattern Values': [value["regex_allowed"]],
                     'Range Values': [value["ranges_allowed"]],
+                    'ValueTailoring': value.get('value_tailoring', []),
                     'ObjectUse': value["objectUse"],
                     'BrDecisionIdentNumber': value.get('brDecisionIdentNumber'),
                     'BrSeverityLevel': value.get('brSeverityLevel'),
@@ -1213,6 +1229,45 @@ class BrexChecker():
                 violations.append(violation)
         return violations
 
+    def _get_non_context_rules(self) -> list:
+        """Collect `nonContextRules/nonContextRule` entries (category A4) from
+        every BREX in the active chain.
+
+        These are the human-readable business rules a BREX carries with no
+        machine-checkable `objectPath`/`objectValue` form -- S1000D's own escape
+        hatch for BRs that can't be expressed as a rule (e.g. "deletion of data
+        modules is treated as a special case of update"). Neither
+        `s1kd-brexcheck` nor our own checker read them before; they are not
+        violations and are never checked, only surfaced, so authors don't lose
+        track of a whole rule class that was previously dropped silently.
+
+        Returns:
+            list: one entry per `nonContextRule`, in BREX-chain then document
+                order: `{"Brex": path, "Text": str or None,
+                "BrDecisionIdentNumber": str or None}`
+        """
+        entries = []
+        for brex in self._brex_list[0]:
+            with open(clean_path(brex), "r", encoding="utf-8") as _:
+                brex_content = _.read()
+            brex_content = delete_first_line(brex_content)
+            brex_tree = self._parse_xml_text(brex_content)
+            for rule in brex_tree.findall(".//nonContextRules/nonContextRule"):
+                br_decision_ref = rule.find("brDecisionRef")
+                br_decision_ident_number = (
+                    br_decision_ref.get("brDecisionIdentNumber") if br_decision_ref is not None else None
+                )
+                text_source = rule.find("simplePara")
+                if text_source is None:
+                    text_source = rule
+                text = "".join(text_source.itertext()).strip() or None
+                entries.append({
+                    "Brex": brex,
+                    "Text": text,
+                    "BrDecisionIdentNumber": br_decision_ident_number,
+                })
+        return entries
+
     def _remove_deleted_elements(self, node: any) -> None:
         """Recursively drop elements marked as deleted from a parsed tree.
 
@@ -1290,6 +1345,8 @@ class BrexChecker():
         notation_rule_group = self._get_notation_rules_group()
         brex_violations_dict["notations"] = self._check_notation_rules(notation_rule_group, root)
 
+        brex_violations_dict["nonContextRules"] = self._get_non_context_rules()
+
         all_content_rules = []
         for brex in self._brex_list[0]:
             content_rules = self._show_rules(brex, schema=schema, debug=debug)
@@ -1316,6 +1373,61 @@ class BrexChecker():
                     schema, brex_violations_dict, root, value, deep_copy_nodes)
         return brex_violations_dict
 
+    def _count_violations(self, object_flag_dict: dict) -> tuple:
+        """Counts the number of actual Brex violations (flags 0, 1 and 2, plus SNS and
+        notation rules) for a xml, and tallies content-rule violations by their
+        resolved `brSeverityLevel`. `xpathError` entries are diagnostics about a rule
+        that could not be evaluated, not violations, and are excluded from the count.
+
+        A content-rule violation whose resolved `brSeverityLevel` is marked `fail="no"`
+        in the `.brseveritylevels` file (see `_is_severity_failure`) is reported as a
+        warning instead of an error and does not count towards the failing total. SNS
+        and notation-rule violations have no associated severity level and always
+        count as errors; they are tallied under the `None` severity key alongside
+        content-rule violations that carry no `brSeverityLevel` at all, since neither
+        case resolved to one.
+
+        Shared by `_append_summary` (per-document "N Errors, M Warnings" string) and
+        `run_summary` (per-run totals, category D7), so both report the same counts.
+        Accepts `object_flag_dict` either before or after `validate()` adds its
+        `Summary` key (and, for a skipped object, `Skipped`) -- both are ignored
+        here alongside `brexFallback` and `nonContextRules`, since none of the
+        three is a violation list.
+
+        Args:
+            object_flag_dict (dict): mapping of brex path to its '0'/'1'/'2'/'xpathError' violation
+                lists, plus optional 'sns' / 'notations' keys holding SNS and notation violations,
+                a 'brexFallback' key listing any built-in BREX substitutions, and a
+                'nonContextRules' key listing informational category-A4 entries (see
+                `_get_non_context_rules`) -- none of these three is itself a violation and
+                none counts towards the total
+
+        Returns:
+            tuple: (error_count: int, warning_count: int, severity_counts: dict) where
+                `severity_counts` maps a `BrSeverityLevel` value (or `None`) to the number
+                of violations resolved at that level, regardless of `Fail`/`Warning` status
+        """
+        error_count = 0
+        warning_count = 0
+        severity_counts = {}
+        for key, brex_result in object_flag_dict.items():
+            if key in ("brexFallback", "Summary", "Skipped", "nonContextRules"):
+                continue
+            if key in ("sns", "notations"):
+                error_count += len(brex_result)
+                if brex_result:
+                    severity_counts[None] = severity_counts.get(None, 0) + len(brex_result)
+                continue
+            for flag in ('0', '1', '2'):
+                for violation in brex_result[flag]:
+                    severity = violation.get('BrSeverityLevel')
+                    severity_counts[severity] = severity_counts.get(severity, 0) + 1
+                    if violation.get('Fail', True):
+                        error_count += 1
+                    else:
+                        warning_count += 1
+        return error_count, warning_count, severity_counts
+
     def _append_summary(self, object_flag_dict: dict) -> str:
         """Counts the number of actual Brex violations (flags 0, 1 and 2, plus SNS and
         notation rules) for a xml. `xpathError` entries are diagnostics about a rule
@@ -1330,26 +1442,14 @@ class BrexChecker():
         Args:
             object_flag_dict (dict): mapping of brex path to its '0'/'1'/'2'/'xpathError' violation
                 lists, plus optional 'sns' / 'notations' keys holding SNS and notation violations,
-                and a 'brexFallback' key listing any built-in BREX substitutions (informational
-                only -- a substitution is not itself a violation and does not count towards the total)
+                a 'brexFallback' key listing any built-in BREX substitutions, and a
+                'nonContextRules' key listing informational category-A4 entries (none of
+                these three is itself a violation and none counts towards the total)
 
         Returns:
             str: human-readable violation count, e.g. "3 Errors" or "3 Errors, 1 Warnings"
         """
-        error_count = 0
-        warning_count = 0
-        for key, brex_result in object_flag_dict.items():
-            if key == "brexFallback":
-                continue
-            if key in ("sns", "notations"):
-                error_count += len(brex_result)
-                continue
-            for flag in ('0', '1', '2'):
-                for violation in brex_result[flag]:
-                    if violation.get('Fail', True):
-                        error_count += 1
-                    else:
-                        warning_count += 1
+        error_count, warning_count, _ = self._count_violations(object_flag_dict)
         if warning_count:
             return f"{error_count} Errors, {warning_count} Warnings"
         return f"{error_count} Errors"
@@ -1369,6 +1469,86 @@ class BrexChecker():
             bool: True if `result` is a single-object result
         """
         return isinstance(result.get("Summary"), str)
+
+    def run_summary(self, result: dict) -> dict:
+        """Build a per-run summary (category D7): how many checked documents passed
+        or failed, and how many violations were recorded at each business-rule
+        severity level, port of `s1kd-brexcheck -T`/`--totals`.
+
+        Unlike `_append_summary` (a per-document string folded into `validate()`
+        itself), this is a separate, opt-in conversion over a finished `validate()`
+        result -- the same pattern `to_xml_report` uses -- so existing callers of
+        `validate()` see no change in its return shape; `to_xml_report` also calls
+        this to embed the same totals as a `<summary>` node.
+
+        Accepts either a single-object result (`validate()` after `set_xml`) or a
+        directory-mode result (`validate()` after `set_xml_dir`, a mapping of
+        `{filename: single-object result}`), distinguished the same way
+        `_is_single_object_result` does.
+
+        A document "passes" when it was checked and its error count (as computed
+        by `_count_violations`, i.e. severity `fail="no"` violations counted as
+        warnings, not errors) is zero; warnings alone do not fail a document. A
+        skipped document (`set_ignore_empty`, category "Skipped") is counted
+        separately and excluded from `DocumentsChecked`/passed/failed, since it was
+        never actually checked. Note directory mode cannot report every skipped
+        document: `validate()` drops a skipped file from its results mapping
+        entirely rather than recording a `Skipped` marker for it (see `validate`),
+        so `DocumentsSkipped` there only ever reflects what a single-object result
+        can carry -- 0 in practice, since directory mode is the only mode that
+        actually skips files today.
+
+        Args:
+            result (dict): a `validate()` return value
+
+        Returns:
+            dict: {
+                "DocumentsChecked": int,   # passed + failed, excludes skipped
+                "DocumentsPassed": int,
+                "DocumentsFailed": int,
+                "DocumentsSkipped": int,
+                "Errors": int,
+                "Warnings": int,
+                "ViolationsBySeverity": dict,  # BrSeverityLevel value (or None) -> count
+            }
+        """
+        if self._is_single_object_result(result):
+            documents = [result]
+        else:
+            documents = [doc for doc in result.values() if isinstance(doc, dict)]
+
+        documents_checked = 0
+        documents_passed = 0
+        documents_failed = 0
+        documents_skipped = 0
+        total_errors = 0
+        total_warnings = 0
+        severity_counts = {}
+
+        for doc_result in documents:
+            if doc_result.get("Skipped"):
+                documents_skipped += 1
+                continue
+            error_count, warning_count, doc_severity_counts = self._count_violations(doc_result)
+            documents_checked += 1
+            total_errors += error_count
+            total_warnings += warning_count
+            for severity, count in doc_severity_counts.items():
+                severity_counts[severity] = severity_counts.get(severity, 0) + count
+            if error_count:
+                documents_failed += 1
+            else:
+                documents_passed += 1
+
+        return {
+            "DocumentsChecked": documents_checked,
+            "DocumentsPassed": documents_passed,
+            "DocumentsFailed": documents_failed,
+            "DocumentsSkipped": documents_skipped,
+            "Errors": total_errors,
+            "Warnings": total_warnings,
+            "ViolationsBySeverity": severity_counts,
+        }
 
     def _append_sns_notation_nodes(self, document_node: any, result: dict) -> None:
         """Append the `sns` and `notations` nodes of one `document` node, port of
@@ -1405,6 +1585,31 @@ class BrexChecker():
                     etree.SubElement(error_node, "objectUse").text = notation_error.get("Description")
             else:
                 etree.SubElement(notations_node, "noErrors")
+
+    def _append_non_context_rules_node(self, document_node: any, result: dict) -> None:
+        """Append the `nonContextRules` node (category A4): one `<nonContextRule>`
+        per human-readable, non-machine-checkable business rule collected from
+        every BREX in the chain (see `_get_non_context_rules`).
+
+        Unlike `sns`/`notations`, these are informational only -- not a check
+        that passed or failed -- so there is no `<noErrors/>` counterpart; the
+        node is simply omitted when the chain defines no `nonContextRule` at all
+        (or `result` has no `'nonContextRules'` key, e.g. a skipped object).
+
+        Args:
+            document_node (any): the `document` element to append to
+            result (dict): single-object `validate()` result
+        """
+        entries = result.get("nonContextRules")
+        if not entries:
+            return
+        container = etree.SubElement(document_node, "nonContextRules")
+        for entry in entries:
+            rule_node = etree.SubElement(container, "nonContextRule")
+            br_decision_ident_number = entry.get("BrDecisionIdentNumber")
+            if br_decision_ident_number is not None:
+                etree.SubElement(rule_node, "brDecisionRef", brDecisionIdentNumber=br_decision_ident_number)
+            etree.SubElement(rule_node, "text").text = entry.get("Text")
 
     def _append_error_node(self, brex_node: any, violation: dict, allowed_object_flag: str) -> None:
         """Append one `error` node for a content-rule violation, port of the
@@ -1468,9 +1673,10 @@ class BrexChecker():
         document_node.set("path", docname)
 
         self._append_sns_notation_nodes(document_node, result)
+        self._append_non_context_rules_node(document_node, result)
 
         for brex_path, brex_result in result.items():
-            if brex_path in ("sns", "notations", "brexFallback", "Summary", "Skipped"):
+            if brex_path in ("sns", "notations", "brexFallback", "Summary", "Skipped", "nonContextRules"):
                 continue
             if not isinstance(brex_result, dict):
                 continue
@@ -1487,11 +1693,38 @@ class BrexChecker():
 
         return document_node
 
+    def _append_run_summary_node(self, root: any, result: dict) -> None:
+        """Append the `<summary>` node (category D7) as the first child of the
+        `<brexCheck>` root, port of `s1kd-brexcheck -T`'s totals line into the
+        `-x` XML report shape. Built from `run_summary`, so the XML report and
+        the `run_summary()` dict always agree on the same counts.
+
+        Args:
+            root (any): the `brexCheck` root element to prepend the summary to
+            result (dict): the same `validate()` result being converted
+        """
+        totals = self.run_summary(result)
+        summary_node = etree.Element("summary")
+        summary_node.set("documentsChecked", str(totals["DocumentsChecked"]))
+        summary_node.set("documentsPassed", str(totals["DocumentsPassed"]))
+        summary_node.set("documentsFailed", str(totals["DocumentsFailed"]))
+        summary_node.set("documentsSkipped", str(totals["DocumentsSkipped"]))
+        summary_node.set("errors", str(totals["Errors"]))
+        summary_node.set("warnings", str(totals["Warnings"]))
+        for severity, count in totals["ViolationsBySeverity"].items():
+            severity_node = etree.SubElement(summary_node, "severity")
+            if severity is not None:
+                severity_node.set("value", severity)
+            severity_node.set("count", str(count))
+        root.insert(0, summary_node)
+
     def to_xml_report(self, result: dict) -> str:
         """Convert a `validate()` result into an XML report compatible with the
         `s1kd-brexcheck -x` shape:
-        `brexCheck/document/{sns,notations,brex/{error/{brDecisionRef,objectPath,
-        objectUse,object},xpathError}}`.
+        `brexCheck/{summary/severity,document/{sns,notations,brex/{error/{brDecisionRef,
+        objectPath,objectUse,object},xpathError}}}`. `summary` (category D7) is our
+        own addition -- not part of `-x`'s shape -- carrying the same per-run totals
+        as `run_summary()`.
 
         Accepts either a single-object result (`validate()` after `set_xml`) or
         a directory-mode result (`validate()` after `set_xml_dir`, a mapping of
@@ -1512,6 +1745,7 @@ class BrexChecker():
                 if not isinstance(file_result, dict):
                     continue
                 root.append(self._build_document_node(file_result, filename))
+        self._append_run_summary_node(root, result)
         return etree.tostring(root, encoding="unicode", pretty_print=True)
 
     def validate(self, debug: bool = False, include_tqdm: bool = False, sns_mode: str = "normal",
