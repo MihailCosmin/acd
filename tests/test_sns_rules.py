@@ -67,7 +67,8 @@ def _validate(tmp_path, brex_path, system_code, sub_system_code, sub_sub_system_
     checker.set_xml(str(xml_path))
     checker.override_brex_list([brex_path])
 
-    return checker.validate(sns_mode=sns_mode)
+    # SNS checking is opt-in (`-S` in s1kd-brexcheck); see `validate(check_sns=...)`.
+    return checker.validate(sns_mode=sns_mode, check_sns=True)
 
 
 def test_sns_valid_code_produces_no_violation(tmp_path, brex_path_with_sns):
@@ -163,7 +164,7 @@ def test_sns_not_checked_for_non_dmodule_objects(tmp_path, brex_path_with_sns):
     checker.set_xml(str(xml_path))
     checker.override_brex_list([brex_path_with_sns])
 
-    result = checker.validate()
+    result = checker.validate(check_sns=True)
 
     assert "sns" not in result
     assert result["Summary"] == "0 Errors"

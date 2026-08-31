@@ -227,7 +227,9 @@ def test_differential_parity_over_the_evidence_folder():
 
     checker = BrexChecker()
     checker.set_xml_dir(EVIDENCE_DIR)
-    results = checker.validate()
+    # `run_s1kd_brexcheck` passes `-S` and `-n`, so opt in on our side too --
+    # both checks are off by default here as they are in the C original.
+    results = checker.validate(check_sns=True, check_notations=True)
     ours = parse_brex_check_xml_report(checker.to_xml_report(results))
 
     diff = diff_violation_sets(ours, theirs)

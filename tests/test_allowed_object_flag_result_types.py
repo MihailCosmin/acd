@@ -61,11 +61,18 @@ def checker():
     ("string(//missing)", NODESET_ROOT, False),  # empty string -> no violation
     ("count(//foo)", NODESET_ROOT, True),    # non-zero number -> violation
     ("count(//missing)", NODESET_ROOT, False),  # zero -> no violation
+    # `elementpath` returns `decimal.Decimal` -- not `float` -- for any XPath
+    # arithmetic or decimal literal, so every flag needs `Decimal` in its
+    # scalar tuple or the result falls through to the node-set branch and
+    # raises `TypeError: object of type 'decimal.Decimal' has no len()`.
+    ("count(//foo) div 4", NODESET_ROOT, True),      # Decimal('0.25') -> violation
+    ("count(//missing) div 4", NODESET_ROOT, False),  # Decimal('0') -> no violation
 ], ids=[
     "nodeset-hit", "nodeset-empty",
     "boolean-true", "boolean-false",
     "string-nonempty", "string-empty",
     "number-nonzero", "number-zero",
+    "decimal-nonzero", "decimal-zero",
 ])
 def test_flag_0_result_types(checker, xpath, root, violated):
     value = make_value(xpath, root, '0')
@@ -99,7 +106,8 @@ def test_flag_0_boolean_violation_has_no_backing_node(checker):
     assert entry['Object'] is None
 
 
-@pytest.mark.parametrize("xpath", ["string(//foo)", "count(//foo)"], ids=["string", "number"])
+@pytest.mark.parametrize("xpath", ["string(//foo)", "count(//foo)", "count(//foo) div 4"],
+                         ids=["string", "number", "decimal"])
 def test_flag_0_scalar_violation_has_no_backing_node(checker, xpath):
     # Ref brex_checker_rework.md §4.5: before this fixture surfaced it, a
     # bare numeric objectPath crashed with TypeError (int has no len()) and
@@ -129,11 +137,16 @@ def test_flag_0_scalar_violation_has_no_backing_node(checker, xpath):
     ("string(//missing)", NODESET_ROOT, True),   # empty string -> violation
     ("count(//foo)", NODESET_ROOT, False),       # non-zero number -> satisfied
     ("count(//missing)", NODESET_ROOT, True),    # zero -> violation
+    # Decimal, as above: `_check_object_flag_1` crashed on these until
+    # `Decimal` joined its scalar tuple.
+    ("count(//foo) div 4", NODESET_ROOT, False),     # Decimal('0.25') -> satisfied
+    ("count(//missing) div 4", NODESET_ROOT, True),  # Decimal('0') -> violation
 ], ids=[
     "nodeset-present", "nodeset-missing",
     "boolean-true", "boolean-false",
     "string-nonempty", "string-empty",
     "number-nonzero", "number-zero",
+    "decimal-nonzero", "decimal-zero",
 ])
 def test_flag_1_result_types(checker, xpath, root, violated):
     value = make_value(xpath, root, '1')
@@ -156,10 +169,14 @@ def test_flag_1_result_types(checker, xpath, root, violated):
     ("string(//foo)", ["nope"], True),  # scalar string, wrong -> violation
     ("count(//foo)", ["1"], False),     # scalar number, matching (stringified) -> ok
     ("count(//foo)", ["9"], True),      # scalar number, wrong -> violation
+    # Decimal, as above.
+    ("count(//foo) div 4", ["0.25"], False),  # scalar Decimal, matching -> ok
+    ("count(//foo) div 4", ["9"], True),      # scalar Decimal, wrong -> violation
 ], ids=[
     "nodeset-matches", "nodeset-mismatches",
     "string-matches", "string-mismatches",
     "number-matches", "number-mismatches",
+    "decimal-matches", "decimal-mismatches",
 ])
 def test_flag_2_result_types(checker, xpath, allowed, violated):
     value = make_value(xpath, NODESET_ROOT, '2', values_allowed=allowed)

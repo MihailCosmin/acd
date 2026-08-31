@@ -45,7 +45,9 @@ def _validate(tmp_path, brex_path, entity_decls):
     checker.set_xml(str(xml_path))
     checker.override_brex_list([brex_path])
 
-    return checker.validate()
+    # Notation checking is opt-in (`-n` in s1kd-brexcheck); see
+    # `validate(check_notations=...)`.
+    return checker.validate(check_notations=True)
 
 
 def test_allowed_notation_produces_no_violation(tmp_path, brex_path_with_notations):
@@ -122,7 +124,7 @@ def test_no_internal_dtd_subset_is_not_checked(tmp_path, brex_path_with_notation
     checker.set_xml(str(xml_path))
     checker.override_brex_list([brex_path_with_notations])
 
-    result = checker.validate()
+    result = checker.validate(check_notations=True)
 
     assert result["notations"] == []
     assert result["Summary"] == "0 Errors"

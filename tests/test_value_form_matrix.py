@@ -40,6 +40,22 @@ BREX_CONTENT = """<brex>
         <objectUse>setAttr/@code must be one of A, B or C.</objectUse>
         <objectValue valueForm="range" valueAllowed="A|B|C"/>
       </structureObjectRule>
+      <structureObjectRule id="SOR-NO-FORM">
+        <objectPath allowedObjectFlag="2">//noFormAttr/@code</objectPath>
+        <objectUse>noFormAttr/@code must be exactly "aa" -- @valueForm omitted, so exact string equality applies.</objectUse>
+        <objectValue valueAllowed="aa"/>
+      </structureObjectRule>
+      <structureObjectRule id="SOR-NO-FORM-MIXED">
+        <objectPath allowedObjectFlag="2">//noFormMixedAttr/@code</objectPath>
+        <objectUse>noFormMixedAttr/@code must be "lit" or two digits.</objectUse>
+        <objectValue valueAllowed="lit"/>
+        <objectValue valueForm="pattern" valueAllowed="[0-9]{2}"/>
+      </structureObjectRule>
+      <structureObjectRule id="SOR-MIXED-CONTENT">
+        <objectPath allowedObjectFlag="2">//title</objectPath>
+        <objectUse>title must read "Some bold text", counting the text of its child elements.</objectUse>
+        <objectValue valueForm="single" valueAllowed="Some bold text"/>
+      </structureObjectRule>
     </structureObjectRuleGroup>
   </contextRules>
 </brex>
@@ -61,6 +77,28 @@ def brex_path(tmp_path):
     path = tmp_path / "brex.xml"
     path.write_text(BREX_CONTENT, encoding="utf-8")
     return str(path)
+
+
+def make_dm_body(body: str) -> str:
+    """Same wrapper as `make_dm`, but with a hand-written element body -- used
+    where the element's *content* (not an attribute) is what the rule checks."""
+    return (
+        '<dmodule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+        f'xsi:noNamespaceSchemaLocation="{DMODULE_SCHEMA}">\n'
+        f"{body}\n"
+        "</dmodule>\n"
+    )
+
+
+def _validate_content(tmp_path, brex_path, content: str):
+    xml_path = tmp_path / "object.xml"
+    xml_path.write_text(make_dm_body(content), encoding="utf-8")
+
+    checker = BrexChecker()
+    checker.set_xml(str(xml_path))
+    checker.override_brex_list([brex_path])
+
+    return checker._check_rules()[brex_path]
 
 
 def _validate(tmp_path, brex_path, **attrs):
@@ -173,3 +211,59 @@ def test_all_forms_checked_together_report_only_the_actual_violations(tmp_path, 
 
     violated_xpaths = {e['Xpath'] for e in result['2']}
     assert violated_xpaths == {'//patternSubtractionAttr/@code', '//rangeAttr/@code'}
+
+
+# ---------------------------------------------------------------------------
+# no @valueForm at all -- exact string equality, as in the C reference's
+# `check_node_values` else branch (`s1kd-brexcheck.c:219-248`). §2.C.
+# ---------------------------------------------------------------------------
+
+def test_form_less_value_matching_produces_no_violation(tmp_path, brex_path):
+    result = _validate(tmp_path, brex_path, noFormAttr="aa")
+    assert all(e['Xpath'] != '//noFormAttr/@code' for e in result['2'])
+
+
+def test_form_less_value_non_matching_is_a_violation(tmp_path, brex_path):
+    # Without the fallback branch the rule would be a silent no-op: its
+    # valueAllowed would land in none of the three lists, so `_check_rules`'s
+    # `has_values` gate would skip the rule entirely.
+    result = _validate(tmp_path, brex_path, noFormAttr="zz")
+    matches = [e for e in result['2'] if e['Xpath'] == '//noFormAttr/@code']
+    assert len(matches) == 1
+    assert matches[0]['Single Values'] == [['aa']]
+
+
+def test_form_less_value_mixed_with_a_pattern_accepts_both(tmp_path, brex_path):
+    # A form-less objectValue alongside a formed one must not turn the
+    # form-less value into a false-positive violation.
+    for accepted in ("lit", "42"):
+        result = _validate(tmp_path, brex_path, noFormMixedAttr=accepted)
+        assert all(e['Xpath'] != '//noFormMixedAttr/@code' for e in result['2']), accepted
+
+
+def test_form_less_value_mixed_with_a_pattern_still_rejects_others(tmp_path, brex_path):
+    result = _validate(tmp_path, brex_path, noFormMixedAttr="zz")
+    matches = [e for e in result['2'] if e['Xpath'] == '//noFormMixedAttr/@code']
+    assert len(matches) == 1
+    assert matches[0]['Single Values'] == [['lit']]
+
+
+# ---------------------------------------------------------------------------
+# Element values are compared as full text content (`xmlNodeGetContent`,
+# `s1kd-brexcheck.c:232`), not `.text`, which stops at the first child. §4.4.
+# ---------------------------------------------------------------------------
+
+def test_mixed_content_element_is_compared_as_its_full_text(tmp_path, brex_path):
+    result = _validate_content(
+        tmp_path, brex_path, "  <title>Some <emphasis>bold</emphasis> text</title>"
+    )
+    assert all(e['Xpath'] != '//title' for e in result['2'])
+
+
+def test_mixed_content_element_with_a_different_full_text_is_a_violation(tmp_path, brex_path):
+    result = _validate_content(
+        tmp_path, brex_path, "  <title>Some <emphasis>italic</emphasis> text</title>"
+    )
+    matches = [e for e in result['2'] if e['Xpath'] == '//title']
+    assert len(matches) == 1
+    assert 'Some italic text' in matches[0]['Description']

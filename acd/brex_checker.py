@@ -25,6 +25,8 @@ from .filepath import clean_path
 
 # from re import search  # To be replaced by regex.search, see below
 
+from html import escape as html_escape
+
 from io import StringIO
 from json import dump
 from json import dumps
@@ -74,6 +76,245 @@ _XPATH1_ONLY_ISSUE_PREFIXES = (
     "http://www.s1000d.org/S1000D_2-3",
     "http://www.s1000d.org/S1000D_3-0",
 )
+
+# Shared look of the two formatted reports (category D6): `to_excel_report`
+# writes these as openpyxl `PatternFill`/`Font` colours (ARGB-style hex with no
+# leading '#'), `to_html_report` mirrors them in `_REPORT_HTML_CSS`, so a
+# workbook and an HTML report of the same run read as the same document.
+_REPORT_PALETTE = {
+    "header": "1F4E79",   # table header band / titles
+    "grid": "D9D9D9",     # cell borders
+    "error": "FCE4E4",    # failing violation rows
+    "warning": "FFF2CC",  # non-failing (severity fail="no") rows
+    "ok": "E2F0D9",       # passing documents
+    "band": "F5F7FA",     # zebra banding
+    "muted": "808080",    # secondary text / informational tabs
+}
+
+# `allowedObjectFlag` spelled out for a human reader of the Excel/HTML reports;
+# the raw '0'/'1'/'2' stays the value in the JSON and XML ones.
+_REPORT_FLAG_LABELS = {
+    '0': "0 - not allowed",
+    '1': "1 - required",
+    '2': "2 - value",
+}
+
+# Column order of the Excel report's Violations sheet, and the keys
+# `_report_violation_rows` builds each row with (the HTML report shows a
+# reader-friendly subset of the same rows).
+_REPORT_VIOLATION_COLUMNS = (
+    "Document", "BREX", "Line", "Flag", "Severity", "Status", "Rule ID",
+    "BR decision", "Context", "Object path", "Object use", "Finding",
+    "Allowed (single)", "Allowed (pattern)", "Allowed (range)",
+    "Node xpath", "Node",
+)
+
+# Inline stylesheet of `to_html_report`. Deliberately self-contained -- no
+# webfont, image or CDN reference -- so the report opens identically off a
+# network share, an e-mail attachment or a `file://` path. The full light
+# palette is defined on bare `:root`; the dark one is redefined twice, once
+# under `prefers-color-scheme` (guarded so an explicit light choice still wins)
+# and once under `[data-theme="dark"]` (so the toggle wins in both directions).
+_REPORT_HTML_CSS = """
+:root {
+  color-scheme: light dark;
+  --bg: #f4f6f8; --panel: #ffffff; --ink: #171a1f; --muted: #5c6672;
+  --line: #e3e7ec; --accent: #1f4e79; --accent-ink: #ffffff;
+  --error-bg: #fdecec; --error-ink: #9d2933;
+  --warn-bg: #fff5df; --warn-ink: #8a6100;
+  --ok-bg: #e7f4ea; --ok-ink: #1d6b34;
+  --code-bg: #f2f4f7;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101319; --panel: #181d25; --ink: #e6eaf0; --muted: #98a2b3;
+    --line: #2a313c; --accent: #7fb3e3; --accent-ink: #0d1117;
+    --error-bg: #3a1e22; --error-ink: #ff9ba2;
+    --warn-bg: #3a2f16; --warn-ink: #f2c66b;
+    --ok-bg: #16301f; --ok-ink: #86d99b;
+    --code-bg: #11151c;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101319; --panel: #181d25; --ink: #e6eaf0; --muted: #98a2b3;
+  --line: #2a313c; --accent: #7fb3e3; --accent-ink: #0d1117;
+  --error-bg: #3a1e22; --error-ink: #ff9ba2;
+  --warn-bg: #3a2f16; --warn-ink: #f2c66b;
+  --ok-bg: #16301f; --ok-ink: #86d99b;
+  --code-bg: #11151c;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 24px; background: var(--bg); color: var(--ink);
+  font: 14px/1.5 "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+}
+h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.01em; }
+p { margin: 0; }
+.muted { color: var(--muted); font-size: 12px; }
+.mono, code, pre {
+  font-family: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+}
+.page-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
+  border-bottom: 3px solid var(--accent); padding-bottom: 12px;
+}
+#theme-toggle {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px;
+}
+#theme-toggle:hover { border-color: var(--accent); }
+.theme-icon { width: 12px; height: 12px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent) 50%, transparent 50%);
+  border: 1px solid var(--accent); }
+.cards { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.card {
+  flex: 1 1 132px; background: var(--panel); border: 1px solid var(--line);
+  border-left: 4px solid var(--muted); border-radius: 8px; padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.card-value { font-size: 26px; font-weight: 650; line-height: 1.1; }
+.card-label { color: var(--muted); font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.04em; }
+.card.error { border-left-color: var(--error-ink); background: var(--error-bg); }
+.card.error .card-value { color: var(--error-ink); }
+.card.warning { border-left-color: var(--warn-ink); background: var(--warn-bg); }
+.card.warning .card-value { color: var(--warn-ink); }
+.card.ok { border-left-color: var(--ok-ink); background: var(--ok-bg); }
+.card.ok .card-value { color: var(--ok-ink); }
+.card.neutral { border-left-color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 8px; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px;
+  font-size: 12px;
+}
+.chip-key { color: var(--muted); }
+.chip-value { font-weight: 650; }
+.section {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  margin-bottom: 16px; overflow: hidden;
+}
+.section > summary {
+  cursor: pointer; padding: 12px 16px; display: flex; align-items: center;
+  gap: 10px; font-weight: 650; list-style: none;
+}
+.section > summary::-webkit-details-marker { display: none; }
+.section > summary::before {
+  content: "\\25B8"; color: var(--muted); transition: transform .15s ease;
+}
+.section[open] > summary::before { transform: rotate(90deg); }
+.section-title { font-size: 15px; }
+.pill {
+  background: var(--accent); color: var(--accent-ink); border-radius: 999px;
+  padding: 1px 9px; font-size: 12px; font-weight: 650;
+}
+.controls {
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  padding: 0 16px 12px;
+}
+.controls input[type="search"] {
+  flex: 1 1 260px; padding: 7px 11px; border-radius: 6px; font: inherit;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+}
+.switch { display: inline-flex; align-items: center; gap: 6px; font-size: 13px;
+  color: var(--muted); cursor: pointer; }
+.table-wrap { overflow-x: auto; border-top: 1px solid var(--line); }
+table.grid { border-collapse: collapse; width: 100%; font-size: 13px; }
+table.grid th {
+  position: sticky; top: 0; z-index: 1; text-align: left; white-space: nowrap;
+  background: var(--accent); color: var(--accent-ink); font-weight: 650;
+  padding: 9px 12px;
+}
+table.grid td {
+  padding: 8px 12px; border-bottom: 1px solid var(--line);
+  vertical-align: top; word-break: break-word;
+}
+table.grid tbody tr:nth-child(even) { background: color-mix(in srgb, var(--bg) 55%, transparent); }
+table.grid td.num { text-align: right; white-space: nowrap; }
+table.grid td.details { min-width: 240px; }
+table.grid td.details p { margin: 0 0 4px; }
+.finding { color: var(--error-ink); }
+.status {
+  display: inline-block; border-radius: 4px; padding: 1px 8px; font-size: 12px;
+  font-weight: 650; white-space: nowrap;
+}
+.status.error, .status.failed { background: var(--error-bg); color: var(--error-ink); }
+.status.warning { background: var(--warn-bg); color: var(--warn-ink); }
+.status.passed { background: var(--ok-bg); color: var(--ok-ink); }
+.status.skipped { background: var(--code-bg); color: var(--muted); }
+code { background: var(--code-bg); border-radius: 4px; padding: 1px 5px; }
+pre {
+  background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px;
+  padding: 10px; overflow-x: auto; margin: 6px 0 0; white-space: pre-wrap;
+}
+.details details > summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.empty {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 32px; text-align: center; color: var(--ok-ink);
+}
+.empty-mark { font-size: 32px; display: block; margin-bottom: 8px; }
+"""
+
+# Inline behaviour of `to_html_report`: the dark/light override on top of the
+# reader's `prefers-color-scheme` (remembered per browser, every storage access
+# guarded so a `file://` document with site data blocked still renders), and a
+# live filter over the violations table.
+_REPORT_HTML_JS = """
+(function () {
+  var root = document.documentElement;
+  var toggle = document.getElementById('theme-toggle');
+  function stored(key, value) {
+    try {
+      if (value === undefined) { return window.localStorage.getItem(key); }
+      window.localStorage.setItem(key, value);
+    } catch (e) { /* private window, file:// with site data blocked, ... */ }
+    return null;
+  }
+  function currentlyDark() {
+    if (root.dataset.theme) { return root.dataset.theme === 'dark'; }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  var saved = stored('brex-report-theme');
+  if (saved === 'dark' || saved === 'light') { root.dataset.theme = saved; }
+  if (toggle) {
+    toggle.addEventListener('click', function () {
+      var next = currentlyDark() ? 'light' : 'dark';
+      root.dataset.theme = next;
+      stored('brex-report-theme', next);
+    });
+  }
+
+  var table = document.getElementById('violations');
+  if (!table) { return; }
+  var filter = document.getElementById('violation-filter');
+  var errorsOnly = document.getElementById('errors-only');
+  var counter = document.getElementById('violation-count');
+  var rows = Array.prototype.slice.call(table.tBodies[0].rows);
+  function apply() {
+    var needle = (filter && filter.value || '').toLowerCase();
+    var only = errorsOnly && errorsOnly.checked;
+    var shown = 0;
+    rows.forEach(function (row) {
+      var hide = (only && row.dataset.status !== 'error') ||
+        (needle && row.textContent.toLowerCase().indexOf(needle) === -1);
+      row.hidden = hide;
+      if (!hide) { shown++; }
+    });
+    if (counter) {
+      counter.textContent = shown === rows.length
+        ? rows.length + ' violations'
+        : shown + ' of ' + rows.length + ' violations';
+    }
+  }
+  if (filter) { filter.addEventListener('input', apply); }
+  if (errorsOnly) { errorsOnly.addEventListener('change', apply); }
+  apply();
+})();
+"""
+
 
 class BrexNotFound(Exception):
     pass
@@ -859,12 +1100,22 @@ class BrexChecker():
                     val2 = objectValue.get('val2')
                     if val2 is not None:
                         value_allowed = f"{value_allowed}~{val2}"
-                if value_form == "single":
-                    values_allowed.append(value_allowed)
-                elif value_form == "pattern":
+                if value_form == "pattern":
                     regex_allowed.append(translate_xsd_regex_to_python(value_allowed))
                 elif value_form == "range":
                     ranges_allowed.append(value_allowed)
+                else:
+                    # "single" -- and anything without a form at all, since
+                    # @valueForm/@valtype is optional in the schema. Exact
+                    # string equality is the fallback branch in the C
+                    # reference too (`check_node_values`,
+                    # `s1kd-brexcheck.c:219-248`, reached whenever `form` is
+                    # NULL). Dispatching only on the three known forms would
+                    # silently drop a form-less valueAllowed, turning a rule
+                    # whose only objectValue omits the form into a no-op and
+                    # making a rule that mixes a form-less objectValue with a
+                    # formed one report false positives. Ref §2.C.
+                    values_allowed.append(value_allowed)
                 # Category C4: @valueTailoring distinguishes "lexical" (a project
                 # may extend this allowed-value set) from "restrictable" (a
                 # project may only narrow it). Absent on S1000D <= 3.0's @val1/
@@ -1203,12 +1454,9 @@ class BrexChecker():
             else:
                 for idx, element in enumerate(result):
                     node = nodes[idx] if nodes else None
-                    if ' and ' in value['xpath']:
-                        line_no = "(Origin traced back to multiple lines -> Interpret XPath)"
-                    else:
-                        line_no = self._node_line_number(node)
-                        if line_no is None:
-                            line_no = "x"
+                    line_no = self._node_line_number(node)
+                    if line_no is None:
+                        line_no = "x"
                     node_xpath, node_copy = self._node_xpath_and_copy(node, deep_copy_nodes)
                     brex_violations[value["Brex"]]['0'].append({
                         'Line': line_no,
@@ -1240,12 +1488,18 @@ class BrexChecker():
                     'BrDecisionIdentNumber': value.get('brDecisionIdentNumber')}
                 )
                 return brex_violations
-            if isinstance(result, bool):
-                violation = not result
-            elif isinstance(result, (str, int, float)):
-                violation = not result
-            else:
-                violation = len(result) == 0
+            # A scalar result (boolean, or a bare number/string function
+            # call with no comparison, e.g. `count(...)`/`string(...)`) has
+            # no node-set to measure, and is evaluated for truthiness the
+            # same way XPath's effective boolean value would be. `Decimal`
+            # belongs in the same tuple as `_check_object_flag_0`/`_2`:
+            # `elementpath` returns `decimal.Decimal` -- not `float` -- for
+            # any XPath arithmetic or decimal literal (`count(//b) div 4`,
+            # `1.5`), which otherwise fell through to `len(result)` and
+            # crashed with `TypeError: object of type 'decimal.Decimal' has
+            # no len()`.
+            is_scalar = isinstance(result, (bool, str, int, float, Decimal))
+            violation = not result if is_scalar else len(result) == 0
             value_violations = []
             if violation:
                 brex_violations[value["Brex"]]['1'].append({
@@ -1259,7 +1513,7 @@ class BrexChecker():
                             'BrSeverityLevel': value.get('brSeverityLevel'),
                             'Fail': self._is_severity_failure(value.get('brSeverityLevel'))}
                             )
-            elif not isinstance(result, (bool, str, int, float)) and (
+            elif not is_scalar and (
                     value["values_allowed"] or value["regex_allowed"] or value["ranges_allowed"]):
                 value_violations = self._check_object_values(value, result, nodes, deep_copy_nodes)
                 brex_violations[value["Brex"]]['2'].extend(value_violations)
@@ -1293,7 +1547,14 @@ class BrexChecker():
         for idx, element in enumerate(elements):
             valid_elem = False
             if isinstance(element, etree._Element):
-                element_value = element.text or ""
+                # Full recursive text content, as `xmlNodeGetContent`
+                # (`s1kd-brexcheck.c:232`) gives the C reference -- `.text`
+                # alone stops at the first child element, so an element with
+                # mixed content (`<title>Some <emphasis>bold</emphasis>
+                # text</title>`) would be compared as just "Some " and
+                # reported as violating a rule it satisfies. Same defect
+                # §4.4 fixed for `objectUse` one level up.
+                element_value = ''.join(element.itertext())
             else:
                 element_value = element if isinstance(element, str) else str(element)
             if element_value not in value["values_allowed"]:
@@ -1307,12 +1568,9 @@ class BrexChecker():
                 valid_elem = True
             if not valid_elem:
                 node = nodes[idx] if nodes else None
-                if (r'] and ' or r'and \[' or r'] and \[' or r'\) and' or r'and \(' or r'\) and \(') in value['xpath']:
-                    line_no = "(Origin traced back to multiple lines -> Read XPath)"
-                else:
-                    line_no = self._node_line_number(node)
-                    if line_no is None:
-                        line_no = "x"
+                line_no = self._node_line_number(node)
+                if line_no is None:
+                    line_no = "x"
                 node_xpath, node_copy = self._node_xpath_and_copy(node, deep_copy_nodes)
                 violations.append({
                     'Line': line_no,
@@ -1753,7 +2011,8 @@ class BrexChecker():
 
     def _check_rules(self, debug: bool = False, progress_callback: Callable[[int, int, str], None] = None,
                       sns_mode: str = "normal", remove_deleted: bool = False,
-                      deep_copy_nodes: bool = False) -> dict:
+                      deep_copy_nodes: bool = False, check_sns: bool = False,
+                      check_notations: bool = False) -> dict:
         """Traverses through every node of the brex and checks the rules through the given xpaths.
         For objectFlag 0 we also get the line of the error
         For objectFlag 1 we only get the Description of the rule that was violated
@@ -1777,6 +2036,15 @@ class BrexChecker():
                 field of every content-rule violation record holds a full recursive copy
                 of the violating element instead of just its own tag and attributes
                 (see `_node_xpath_and_copy`)
+            check_sns (bool): equivalent to `s1kd-brexcheck -S`/`--sns`; opt in to
+                checking the object's SNS against the BREX `snsRules` (see
+                `_check_sns_rules`). Off by default, matching `opts->check_sns` in
+                the C original. When off, the result has no `'sns'` key at all.
+            check_notations (bool): equivalent to `s1kd-brexcheck -n`/`--notations`;
+                opt in to checking the object's unparsed entity notations against the
+                BREX `notationRuleList` (see `_check_notation_rules`). Off by default,
+                matching `opts->check_notations` in the C original. When off, the
+                result has no `'notations'` key at all.
 
         Raises:
             NoSchemaDeclared: if `set_require_schema(True)` is active and the checked
@@ -1811,7 +2079,10 @@ class BrexChecker():
             self._remove_deleted_elements(root.getroot())
 
         dmod_root = root.getroot()
-        if dmod_root.tag == "dmodule":
+        # Both checks are opt-in, matching `opts->check_sns` / `opts->check_notations`
+        # in `s1kd-brexcheck.c` (both default to `false` -- `:1994`, `:2084`, `:2091`
+        # -- and the calls are gated at `:1376` and `:1383`).
+        if check_sns and dmod_root.tag == "dmodule":
             sns_rules_group = self._get_sns_rules_group()
             sns_error = self._check_sns_rules(sns_rules_group, dmod_root, sns_mode)
             brex_violations_dict["sns"] = [] if sns_error is None else [{
@@ -1820,8 +2091,9 @@ class BrexChecker():
                 "Description": f"{sns_error['code']} is not valid according to the SNS rules.",
             }]
 
-        notation_rule_group = self._get_notation_rules_group()
-        brex_violations_dict["notations"] = self._check_notation_rules(notation_rule_group, root)
+        if check_notations:
+            notation_rule_group = self._get_notation_rules_group()
+            brex_violations_dict["notations"] = self._check_notation_rules(notation_rule_group, root)
 
         brex_violations_dict["nonContextRules"] = self._get_non_context_rules()
 
@@ -2141,6 +2413,26 @@ class BrexChecker():
             duplicate=bool(violation.get('Duplicate')),
         )
 
+    def _result_documents(self, result: dict) -> dict:
+        """Normalise either `validate()` result shape into a
+        `{document path: single-object result}` mapping, so everything that
+        walks a result per document (`violations`,
+        `_json_document_sections`) names its documents the same way
+        `to_xml_report` does when it builds one `document` node per object.
+
+        Args:
+            result (dict): a `validate()` return value, single-object
+                (after `set_xml`) or directory-mode (after `set_xml_dir`),
+                distinguished the same way `_is_single_object_result` does
+
+        Returns:
+            dict: one entry keyed by `self._xml_path` for a single-object
+                result, one per filename key for a directory-mode result
+        """
+        if self._is_single_object_result(result):
+            return {(self._xml_path or ""): result}
+        return {name: doc for name, doc in result.items() if isinstance(doc, dict)}
+
     def violations(self, result: dict) -> list:
         """Flatten a `validate()`/`_check_rules()` result into a list of
         structured `BrexViolation` records -- the canonical, typed form
@@ -2172,24 +2464,87 @@ class BrexChecker():
                 if only the reportable set is wanted, the way
                 `to_json_report`/`to_xml_report` do
         """
-        if self._is_single_object_result(result):
-            documents = {(self._xml_path or ""): result}
-        else:
-            documents = {name: doc for name, doc in result.items() if isinstance(doc, dict)}
+        return [violation for violation, _raw in self._violation_records(result)]
 
-        records = []
-        for docname, doc_result in documents.items():
+    def _json_document_sections(self, result: dict) -> dict:
+        """Flatten everything a report carries that `violations()` deliberately
+        leaves out -- SNS (category A2) and notation (A3) violations, plus the
+        informational `nonContextRules` (A4) and `brexFallback` entries --
+        into flat lists for `to_json_report`, the JSON counterpart of the
+        `sns`/`notations`/`nonContextRules` nodes `_append_sns_notation_nodes`
+        and `_append_non_context_rules_node` put inside each XML `document`
+        node.
+
+        Without these, `to_json_report` contradicted itself on any object
+        whose only findings were SNS or notation ones: its `summary` counted
+        them (`_count_violations` does), while its `violations` list -- which
+        by design only holds content-rule violations, the only kind
+        `BrexViolation`'s `objectPath`/`objectUse`/allowed-values shape fits
+        -- came back empty, with no way for a consumer to learn what had been
+        counted.
+
+        Flat lists, each entry tagged with its own `document` path, rather
+        than a per-document nesting: the report's `violations` list is flat
+        the same way, with `BrexViolation.document` identifying the object.
+        Key names mirror the XML report's element names (`invalidValue`,
+        `invalidNotation`, `objectUse`), so a consumer of either report reads
+        the same vocabulary. A document that was checked and passed simply
+        contributes no entry -- the JSON equivalent of the XML report's
+        `<noErrors/>` child -- as does a skipped one (`set_ignore_empty`),
+        which was never checked at all, matching `violations()`.
+
+        `brexFallback` has no counterpart in `to_xml_report`'s
+        `-x`-compatible shape; it is carried by the `validate()` result and,
+        now, this report.
+
+        Args:
+            result (dict): a `validate()` return value
+
+        Returns:
+            dict: `{"sns": [...], "notations": [...], "nonContextRules": [...],
+                "brexFallback": [...]}`, ready to merge into the report payload
+        """
+        sns_entries = []
+        notation_entries = []
+        non_context_entries = []
+        fallback_entries = []
+        for docname, doc_result in self._result_documents(result).items():
             if doc_result.get("Skipped"):
                 continue
-            for brex_path, brex_result in doc_result.items():
-                if brex_path in ("sns", "notations", "brexFallback", "Summary", "Skipped", "nonContextRules"):
-                    continue
-                if not isinstance(brex_result, dict):
-                    continue
-                for flag in ('0', '1', '2'):
-                    for violation in brex_result.get(flag, []):
-                        records.append(self._violation_from_dict(docname, brex_path, flag, violation))
-        return records
+            for sns_error in doc_result.get("sns") or []:
+                sns_entries.append({
+                    "document": docname,
+                    "code": sns_error.get("code"),
+                    "invalidValue": sns_error.get("invalidValue"),
+                    "objectUse": sns_error.get("Description"),
+                })
+            for notation_error in doc_result.get("notations") or []:
+                notation_entries.append({
+                    "document": docname,
+                    "entity": notation_error.get("Entity"),
+                    "invalidNotation": notation_error.get("Notation"),
+                    "objectUse": notation_error.get("Description"),
+                })
+            for non_context_rule in doc_result.get("nonContextRules") or []:
+                non_context_entries.append({
+                    "document": docname,
+                    "brex": non_context_rule.get("Brex"),
+                    "brDecisionIdentNumber": non_context_rule.get("BrDecisionIdentNumber"),
+                    "text": non_context_rule.get("Text"),
+                })
+            for fallback in doc_result.get("brexFallback") or []:
+                fallback_entries.append({
+                    "document": docname,
+                    "reference": fallback.get("Reference"),
+                    "usedBuiltinBrex": fallback.get("UsedBuiltinBrex"),
+                    "builtinBrexPath": fallback.get("BuiltinBrexPath"),
+                })
+        return {
+            "sns": sns_entries,
+            "notations": notation_entries,
+            "nonContextRules": non_context_entries,
+            "brexFallback": fallback_entries,
+        }
 
     def to_json_report(self, result: dict, indent: int = 2) -> str:
         """Convert a `validate()` result into a JSON report derived from the
@@ -2202,18 +2557,29 @@ class BrexChecker():
         A `duplicate=True` violation (see `_deduplicate_violations`) is left
         out, matching `to_xml_report` and `_count_violations`/`run_summary`.
 
+        Alongside `violations` (content-rule violations only, the only kind
+        `BrexViolation` can represent) the report carries the same SNS,
+        notation and `nonContextRules` content `to_xml_report` emits per
+        `document` node, plus `brexFallback` -- see `_json_document_sections`.
+        Every count in `summary` is therefore backed by something the report
+        itself lists.
+
         Args:
             result (dict): a `validate()` return value
             indent (int): `json.dumps` indent; `None` for compact output
 
         Returns:
-            str: `{"summary": run_summary(result), "violations": [...]}`, each
-                violation the `dataclasses.asdict()` form of one `BrexViolation`
+            str: `{"summary": run_summary(result), "violations": [...],
+                "sns": [...], "notations": [...], "nonContextRules": [...],
+                "brexFallback": [...]}` -- each `violations` entry the
+                `dataclasses.asdict()` form of one `BrexViolation`, the rest
+                flat `document`-tagged dicts
         """
         payload = {
             "summary": self.run_summary(result),
             "violations": [v.to_dict() for v in self.violations(result) if not v.duplicate],
         }
+        payload.update(self._json_document_sections(result))
         return dumps(payload, indent=indent, ensure_ascii=False)
 
     def _append_sns_notation_nodes(self, document_node: any, result: dict) -> None:
@@ -2413,6 +2779,729 @@ class BrexChecker():
                 root.append(self._build_document_node(file_result, filename))
         self._append_run_summary_node(root, result)
         return etree.tostring(root, encoding="unicode", pretty_print=True)
+
+    def _violation_records(self, result: dict) -> list:
+        """Walk a `validate()` result once and pair every content-rule
+        violation with the raw record it was built from.
+
+        `violations()` exposes only the structured half; the formatted
+        reports (`to_excel_report`/`to_html_report`) additionally want the
+        raw record's `'Description'`, which is the only place the *found*
+        value of a flag-2 violation is carried ("Element/Attribute (X) did
+        not match the object values.") and which `BrexViolation` deliberately
+        drops in favour of the rule's own `objectUse` (see
+        `_violation_from_dict`). Keeping the walk here means all four report
+        formats share one traversal and one set of skip rules.
+
+        Args:
+            result (dict): a `validate()` return value, single-object or
+                directory-mode
+
+        Returns:
+            list: `(BrexViolation, raw record dict)` tuples, in document,
+                then BREX, then flag ('0'/'1'/'2') order, including
+                `duplicate=True` entries
+        """
+        records = []
+        for docname, doc_result in self._result_documents(result).items():
+            if doc_result.get("Skipped"):
+                continue
+            for brex_path, brex_result in doc_result.items():
+                if brex_path in ("sns", "notations", "brexFallback", "Summary", "Skipped", "nonContextRules"):
+                    continue
+                if not isinstance(brex_result, dict):
+                    continue
+                for flag in ('0', '1', '2'):
+                    for violation in brex_result.get(flag, []):
+                        records.append(
+                            (self._violation_from_dict(docname, brex_path, flag, violation), violation)
+                        )
+        return records
+
+    def _document_stats(self, result: dict) -> list:
+        """Per-document error/warning tallies, the batch-mode counterpart of
+        `run_summary`'s run-wide totals: one row per checked object, so a
+        directory run's report can show which files failed instead of only a
+        grand total. Shared by `to_excel_report` and `to_html_report`.
+
+        A document "passes" when its error count is zero, the same rule
+        `run_summary` applies -- warnings alone do not fail it, they are
+        reported in their own column.
+
+        Args:
+            result (dict): a `validate()` return value
+
+        Returns:
+            list: `{"document", "errors", "warnings", "severities", "status"}`
+                dicts, one per document, in result order; `status` is one of
+                `"Passed"`, `"Failed"` or `"Skipped"`
+        """
+        rows = []
+        for docname, doc_result in self._result_documents(result).items():
+            if doc_result.get("Skipped"):
+                rows.append({
+                    "document": docname,
+                    "errors": 0,
+                    "warnings": 0,
+                    "severities": {},
+                    "status": "Skipped",
+                })
+                continue
+            errors, warnings, severities = self._count_violations(doc_result)
+            rows.append({
+                "document": docname,
+                "errors": errors,
+                "warnings": warnings,
+                "severities": severities,
+                "status": "Failed" if errors else "Passed",
+            })
+        return rows
+
+    def _xpath_error_rows(self, result: dict) -> list:
+        """Flatten the `xpathError` diagnostics (a rule whose `objectPath`
+        could not be compiled or evaluated, see `_resolve_selector`) of every
+        document into `document`-tagged rows.
+
+        These are not violations -- `_count_violations` excludes them and
+        `violations()` does not represent them -- but they mean a rule was
+        silently *not* checked, which a report reader needs to see. The XML
+        report already emits them as `xpathError` nodes; this is the same
+        content for the Excel and HTML reports.
+
+        Args:
+            result (dict): a `validate()` return value
+
+        Returns:
+            list: `{"document", "brex", "objectPath", "objectUse", "error",
+                "brDecisionIdentNumber"}` dicts
+        """
+        rows = []
+        for docname, doc_result in self._result_documents(result).items():
+            if doc_result.get("Skipped"):
+                continue
+            for brex_path, brex_result in doc_result.items():
+                if not isinstance(brex_result, dict):
+                    continue
+                for xpath_error in brex_result.get('xpathError', []):
+                    rows.append({
+                        "document": docname,
+                        "brex": brex_path,
+                        "objectPath": xpath_error.get('Xpath'),
+                        "objectUse": xpath_error.get('Description'),
+                        "error": xpath_error.get('Error'),
+                        "brDecisionIdentNumber": xpath_error.get('BrDecisionIdentNumber'),
+                    })
+        return rows
+
+    def _report_source(self) -> str:
+        """What was checked, for a report header: the directory in batch mode
+        (`set_xml_dir`), otherwise the single object's path."""
+        return self._xml_dir or self._xml_path or ""
+
+    def _report_violation_rows(self, result: dict) -> list:
+        """Render-ready violation rows shared by `to_excel_report` and
+        `to_html_report`, so both reports carry the same columns in the same
+        order and stay consistent with the JSON/XML ones.
+
+        `duplicate=True` violations are left out, matching every other report
+        and `run_summary`'s counts.
+
+        Args:
+            result (dict): a `validate()` return value
+
+        Returns:
+            list: one dict per reportable violation, keyed by the column
+                labels in `_REPORT_VIOLATION_COLUMNS`
+        """
+        rows = []
+        for violation, raw in self._violation_records(result):
+            if violation.duplicate:
+                continue
+            allowed = violation.allowed_values or {}
+            # 'Description' is the rule's objectUse for a flag-0/1 record and
+            # the "Element/Attribute (X) did not match the object values."
+            # message for a value one -- only worth a column in the latter
+            # case, where it is the only carrier of the value actually found.
+            message = raw.get('Description')
+            if message == violation.object_use:
+                message = None
+            rows.append({
+                "Document": basename(str(violation.document)) or str(violation.document),
+                "BREX": basename(str(violation.brex)) or str(violation.brex),
+                "Line": violation.line,
+                "Flag": _REPORT_FLAG_LABELS.get(violation.flag, violation.flag),
+                "Severity": violation.severity,
+                "Status": "Error" if violation.fail else "Warning",
+                "Rule ID": violation.rule_id,
+                "BR decision": violation.br_decision_ident_number,
+                "Context": violation.rules_context,
+                "Object path": violation.object_path,
+                "Object use": violation.object_use,
+                "Finding": message,
+                "Allowed (single)": ", ".join(str(_) for _ in allowed.get('single') or []),
+                "Allowed (pattern)": ", ".join(str(_) for _ in allowed.get('pattern') or []),
+                "Allowed (range)": ", ".join(str(_) for _ in allowed.get('range') or []),
+                "Node xpath": violation.node_xpath,
+                "Node": violation.node_snippet,
+            })
+        return rows
+
+    def to_excel_report(self, result: dict, path: str) -> str:
+        """Convert a `validate()` result into a formatted Excel workbook --
+        the fourth report format alongside `to_json_report` (machine-readable),
+        `to_xml_report` (`s1kd-brexcheck -x` compatible) and the raw result
+        dict, and the one meant to be read by a human reviewer or handed to a
+        customer.
+
+        Accepts either a single-object result (`validate()` after `set_xml`)
+        or a batch/directory-mode one (`validate()` after `set_xml_dir`, a
+        mapping of `{filename: single-object result}`), distinguished the same
+        way `_is_single_object_result` does. In batch mode the *Summary* sheet
+        gains a per-document pass/fail table (`_document_stats`) and every
+        other sheet's `Document` column identifies the object a row came from,
+        so one workbook covers a whole folder run.
+
+        Sheets, in order (a sheet whose content is empty is omitted, except
+        the always-present first two):
+
+        - **Summary** -- run totals (`run_summary`), violations by
+          `brSeverityLevel`, and the per-document table
+        - **Violations** -- one row per reportable content-rule violation
+          (`_report_violation_rows`); `duplicate=True` entries are excluded,
+          matching the other reports
+        - **SNS**, **Notations** -- category A2/A3 violations
+          (`_json_document_sections`)
+        - **XPath errors** -- rules that could not be evaluated
+          (`_xpath_error_rows`); not violations, but rules that were silently
+          not checked
+        - **Non-context rules**, **BREX fallback** -- informational
+
+        Formatting: a coloured, bold, frozen header row with autofilter,
+        borders on every cell, tuned column widths, wrapped text, and rows
+        tinted by outcome (red for an error, amber for a warning, green for a
+        passing document).
+
+        Args:
+            result (dict): a `validate()` return value
+            path (str): destination `.xlsx` path; parent directory must exist
+
+        Raises:
+            ImportError: if `openpyxl` is not installed
+
+        Returns:
+            str: `path`, for convenience
+        """
+        try:
+            # Imported here rather than at module scope: openpyxl is only
+            # needed by this one report format, and importing brex_checker
+            # itself must stay cheap (see the lazy `acd/__init__.py`).
+            from openpyxl import Workbook
+            from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+            from openpyxl.utils import get_column_letter
+        except ImportError as exc:  # pragma: no cover - depends on the environment
+            raise ImportError(
+                "to_excel_report needs openpyxl (pip install openpyxl); "
+                "use to_json_report/to_xml_report/to_html_report otherwise."
+            ) from exc
+
+        def excel_value(value):
+            """Excel-safe cell value: control characters openpyxl refuses are
+            stripped, and an over-long node snippet is truncated well inside
+            the 32767-character cell limit."""
+            if value is None or isinstance(value, (int, float, bool)):
+                return value
+            text = str(value)
+            text = ''.join(
+                char for char in text
+                if char in '\t\n\r' or ord(char) >= 32
+            )
+            if len(text) > 2000:
+                text = text[:2000] + ' [...]'
+            return text
+
+        palette = _REPORT_PALETTE
+        thin = Side(style="thin", color=palette["grid"])
+        cell_border = Border(left=thin, right=thin, top=thin, bottom=thin)
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        header_fill = PatternFill("solid", fgColor=palette["header"])
+        title_font = Font(bold=True, size=16, color=palette["header"])
+        muted_font = Font(size=9, color=palette["muted"])
+        label_font = Font(bold=True, size=11, color=palette["header"])
+        top_left = Alignment(horizontal="left", vertical="top", wrap_text=True)
+        header_align = Alignment(horizontal="left", vertical="center", wrap_text=True)
+        fills = {
+            key: PatternFill("solid", fgColor=palette[key])
+            for key in ("error", "warning", "ok", "band")
+        }
+
+        def write_table(worksheet, headers, rows, widths, tint=None, start_row=1,
+                        autofilter=True, freeze=True):
+            """Header + body of one table, styled; returns the next free row."""
+            for column, header in enumerate(headers, start=1):
+                cell = worksheet.cell(row=start_row, column=column, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.border = cell_border
+                cell.alignment = header_align
+            worksheet.row_dimensions[start_row].height = 26
+            for offset, row in enumerate(rows):
+                row_number = start_row + 1 + offset
+                fill = fills.get(tint(row)) if tint else None
+                if fill is None and offset % 2:
+                    fill = fills["band"]
+                for column, header in enumerate(headers, start=1):
+                    cell = worksheet.cell(
+                        row=row_number, column=column, value=excel_value(row.get(header))
+                    )
+                    cell.border = cell_border
+                    cell.alignment = top_left
+                    if fill is not None:
+                        cell.fill = fill
+            for column, width in enumerate(widths, start=1):
+                worksheet.column_dimensions[get_column_letter(column)].width = width
+            last_row = start_row + len(rows)
+            if autofilter:
+                worksheet.auto_filter.ref = (
+                    f"A{start_row}:{get_column_letter(len(headers))}{max(last_row, start_row)}"
+                )
+            if freeze:
+                worksheet.freeze_panes = worksheet.cell(row=start_row + 1, column=1)
+            return last_row + 2
+
+        def add_sheet(name, tab_color):
+            worksheet = workbook.create_sheet(name)
+            worksheet.sheet_properties.tabColor = tab_color
+            return worksheet
+
+        workbook = Workbook()
+        summary = workbook.active
+        summary.title = "Summary"
+        summary.sheet_properties.tabColor = palette["header"]
+        summary.sheet_view.showGridLines = False
+
+        totals = self.run_summary(result)
+        document_rows = self._document_stats(result)
+        violation_rows = self._report_violation_rows(result)
+        sections = self._json_document_sections(result)
+        xpath_error_rows = self._xpath_error_rows(result)
+
+        summary.merge_cells("A1:D1")
+        summary["A1"] = "BREX check report"
+        summary["A1"].font = title_font
+        summary.merge_cells("A2:D2")
+        summary["A2"] = (
+            f"{self._report_source()}  --  generated "
+            f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        summary["A2"].font = muted_font
+        summary.column_dimensions["A"].width = 34
+        summary.column_dimensions["B"].width = 16
+
+        row = 4
+        summary.cell(row=row, column=1, value="Run totals").font = label_font
+        row += 1
+        totals_start = row
+        for label, key in (
+            ("Documents checked", "DocumentsChecked"),
+            ("Documents passed", "DocumentsPassed"),
+            ("Documents failed", "DocumentsFailed"),
+            ("Documents skipped", "DocumentsSkipped"),
+            ("Errors", "Errors"),
+            ("Warnings", "Warnings"),
+        ):
+            label_cell = summary.cell(row=row, column=1, value=label)
+            value_cell = summary.cell(row=row, column=2, value=totals[key])
+            for cell in (label_cell, value_cell):
+                cell.border = cell_border
+            value_cell.font = Font(bold=True)
+            if totals[key]:
+                if key in ("DocumentsFailed", "Errors"):
+                    for cell in (label_cell, value_cell):
+                        cell.fill = fills["error"]
+                elif key == "Warnings":
+                    for cell in (label_cell, value_cell):
+                        cell.fill = fills["warning"]
+                elif key == "DocumentsPassed":
+                    for cell in (label_cell, value_cell):
+                        cell.fill = fills["ok"]
+            row += 1
+        summary.row_dimensions[totals_start].height = 18
+
+        row += 1
+        summary.cell(row=row, column=1, value="Violations by severity").font = label_font
+        row += 1
+        severity_rows = [
+            {"Severity": severity if severity is not None else "(none declared)", "Count": count}
+            for severity, count in sorted(
+                totals["ViolationsBySeverity"].items(), key=lambda item: str(item[0])
+            )
+        ] or [{"Severity": "(none)", "Count": 0}]
+        # No freeze pane on this sheet: its tables start well down the page,
+        # and freezing there would pin the whole block above them. The
+        # documents table below carries the autofilter instead -- it is the
+        # one worth filtering on a folder run.
+        row = write_table(summary, ["Severity", "Count"], severity_rows, [34, 16],
+                          start_row=row, autofilter=False, freeze=False)
+
+        summary.cell(row=row, column=1, value="Documents").font = label_font
+        row += 1
+        write_table(
+            summary,
+            ["Document", "Status", "Errors", "Warnings"],
+            [
+                {
+                    "Document": basename(str(entry["document"])) or str(entry["document"]),
+                    "Status": entry["status"],
+                    "Errors": entry["errors"],
+                    "Warnings": entry["warnings"],
+                }
+                for entry in document_rows
+            ],
+            [52, 14, 12, 12],
+            tint=lambda entry: (
+                "error" if entry["Status"] == "Failed"
+                else "warning" if entry["Warnings"] else "ok" if entry["Status"] == "Passed" else None
+            ),
+            start_row=row,
+            freeze=False,
+        )
+
+        violations_sheet = add_sheet("Violations", palette["error"])
+        write_table(
+            violations_sheet,
+            list(_REPORT_VIOLATION_COLUMNS),
+            violation_rows,
+            [26, 22, 8, 22, 14, 10, 16, 16, 16, 46, 46, 34, 26, 26, 26, 34, 40],
+            tint=lambda entry: "error" if entry["Status"] == "Error" else "warning",
+        )
+
+        if sections["sns"]:
+            write_table(
+                add_sheet("SNS", palette["error"]),
+                ["Document", "Code", "Invalid value", "Object use"],
+                [
+                    {
+                        "Document": basename(str(entry["document"])) or str(entry["document"]),
+                        "Code": entry["code"],
+                        "Invalid value": entry["invalidValue"],
+                        "Object use": entry["objectUse"],
+                    }
+                    for entry in sections["sns"]
+                ],
+                [26, 22, 22, 60],
+                tint=lambda entry: "error",
+            )
+        if sections["notations"]:
+            write_table(
+                add_sheet("Notations", palette["error"]),
+                ["Document", "Entity", "Invalid notation", "Object use"],
+                [
+                    {
+                        "Document": basename(str(entry["document"])) or str(entry["document"]),
+                        "Entity": entry["entity"],
+                        "Invalid notation": entry["invalidNotation"],
+                        "Object use": entry["objectUse"],
+                    }
+                    for entry in sections["notations"]
+                ],
+                [26, 22, 22, 60],
+                tint=lambda entry: "error",
+            )
+        if xpath_error_rows:
+            write_table(
+                add_sheet("XPath errors", palette["warning"]),
+                ["Document", "BREX", "Object path", "Object use", "Error"],
+                [
+                    {
+                        "Document": basename(str(entry["document"])) or str(entry["document"]),
+                        "BREX": basename(str(entry["brex"])) or str(entry["brex"]),
+                        "Object path": entry["objectPath"],
+                        "Object use": entry["objectUse"],
+                        "Error": entry["error"],
+                    }
+                    for entry in xpath_error_rows
+                ],
+                [26, 22, 46, 46, 46],
+                tint=lambda entry: "warning",
+            )
+        if sections["nonContextRules"]:
+            write_table(
+                add_sheet("Non-context rules", palette["muted"]),
+                ["Document", "BREX", "BR decision", "Text"],
+                [
+                    {
+                        "Document": basename(str(entry["document"])) or str(entry["document"]),
+                        "BREX": basename(str(entry["brex"] or "")) or str(entry["brex"]),
+                        "BR decision": entry["brDecisionIdentNumber"],
+                        "Text": entry["text"],
+                    }
+                    for entry in sections["nonContextRules"]
+                ],
+                [26, 22, 20, 80],
+            )
+        if sections["brexFallback"]:
+            write_table(
+                add_sheet("BREX fallback", palette["muted"]),
+                ["Document", "Reference", "Used built-in BREX", "Built-in BREX path"],
+                [
+                    {
+                        "Document": basename(str(entry["document"])) or str(entry["document"]),
+                        "Reference": entry["reference"],
+                        "Used built-in BREX": entry["usedBuiltinBrex"],
+                        "Built-in BREX path": entry["builtinBrexPath"],
+                    }
+                    for entry in sections["brexFallback"]
+                ],
+                [26, 40, 20, 60],
+            )
+
+        workbook.save(clean_path(path))
+        return path
+
+    def to_html_report(self, result: dict, path: str = None,
+                       title: str = "BREX check report") -> str:
+        """Convert a `validate()` result into a self-contained, formatted HTML
+        report -- the browser-readable counterpart of `to_excel_report`,
+        carrying the same content and built from the same shared row helpers.
+
+        Accepts either a single-object result or a batch/directory-mode one,
+        distinguished the same way `_is_single_object_result` does; in batch
+        mode the report gains a per-document pass/fail table
+        (`_document_stats`) and every table's `Document` column names the
+        object a row came from.
+
+        The output is one HTML document with no external requests at all --
+        CSS and JS inline, no fonts, images or CDN links -- so it can be
+        e-mailed or opened straight off a network share. It follows the
+        reader's `prefers-color-scheme` for dark/light and carries a toggle
+        that overrides it (remembered in `localStorage`, guarded so a
+        `file://` document with site data blocked still renders), plus a live
+        text filter and an errors-only switch over the violations table.
+
+        Args:
+            result (dict): a `validate()` return value
+            path (str): optional destination; the report is written there
+                (UTF-8) as well as returned
+            title (str): heading shown at the top of the report
+
+        Returns:
+            str: the complete HTML document
+        """
+        totals = self.run_summary(result)
+        document_rows = self._document_stats(result)
+        violation_rows = self._report_violation_rows(result)
+        sections = self._json_document_sections(result)
+        xpath_error_rows = self._xpath_error_rows(result)
+
+        def cell(value, css_class=None, mono=False):
+            text = "" if value is None else str(value)
+            classes = " ".join(_ for _ in (css_class, "mono" if mono else None) if _)
+            attr = f' class="{classes}"' if classes else ""
+            return f"<td{attr}>{html_escape(text)}</td>"
+
+        def table(headers, body_rows, css_class="grid"):
+            head = "".join(f"<th>{html_escape(_)}</th>" for _ in headers)
+            body = "".join(f"<tr>{row}</tr>" for row in body_rows)
+            return (
+                f'<div class="table-wrap"><table class="{css_class}">'
+                f"<thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>"
+            )
+
+        def section(heading, count, content, open_by_default=True):
+            return (
+                f'<details class="section"{" open" if open_by_default else ""}>'
+                f'<summary><span class="section-title">{html_escape(heading)}</span>'
+                f'<span class="pill">{count}</span></summary>{content}</details>'
+            )
+
+        parts = [
+            "<!doctype html>",
+            '<html lang="en"><head><meta charset="utf-8">',
+            '<meta name="viewport" content="width=device-width, initial-scale=1">',
+            f"<title>{html_escape(title)}</title>",
+            f"<style>{_REPORT_HTML_CSS}</style>",
+            "</head><body>",
+            '<header class="page-head"><div>',
+            f"<h1>{html_escape(title)}</h1>",
+            f'<p class="muted">{html_escape(self._report_source())} &middot; generated '
+            f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>",
+            "</div>",
+            '<button id="theme-toggle" type="button" aria-label="Toggle dark mode">'
+            '<span class="theme-icon"></span><span class="theme-label">Theme</span></button>',
+            "</header>",
+        ]
+
+        cards = [
+            ("Documents checked", totals["DocumentsChecked"], "neutral"),
+            ("Passed", totals["DocumentsPassed"], "ok" if totals["DocumentsPassed"] else "neutral"),
+            ("Failed", totals["DocumentsFailed"], "error" if totals["DocumentsFailed"] else "neutral"),
+            ("Errors", totals["Errors"], "error" if totals["Errors"] else "ok"),
+            ("Warnings", totals["Warnings"], "warning" if totals["Warnings"] else "neutral"),
+        ]
+        if totals["DocumentsSkipped"]:
+            cards.append(("Skipped", totals["DocumentsSkipped"], "neutral"))
+        parts.append('<section class="cards">')
+        for label, value, tone in cards:
+            parts.append(
+                f'<div class="card {tone}"><span class="card-value">{value}</span>'
+                f'<span class="card-label">{html_escape(label)}</span></div>'
+            )
+        parts.append("</section>")
+
+        if totals["ViolationsBySeverity"]:
+            chips = "".join(
+                f'<span class="chip"><span class="chip-key">'
+                f'{html_escape(str(severity) if severity is not None else "no severity")}'
+                f'</span><span class="chip-value">{count}</span></span>'
+                for severity, count in sorted(
+                    totals["ViolationsBySeverity"].items(), key=lambda item: str(item[0])
+                )
+            )
+            parts.append(f'<section class="chips">{chips}</section>')
+
+        if len(document_rows) > 1:
+            parts.append(section(
+                "Documents",
+                len(document_rows),
+                table(
+                    ["Document", "Status", "Errors", "Warnings"],
+                    [
+                        cell(basename(str(entry["document"])) or entry["document"], mono=True)
+                        + f'<td><span class="status {entry["status"].lower()}">'
+                        f"{html_escape(entry['status'])}</span></td>"
+                        + cell(entry["errors"], "num")
+                        + cell(entry["warnings"], "num")
+                        for entry in document_rows
+                    ],
+                ),
+            ))
+
+        if violation_rows:
+            controls = (
+                '<div class="controls">'
+                '<input id="violation-filter" type="search" '
+                'placeholder="Filter violations (document, rule, xpath, text...)">'
+                '<label class="switch"><input id="errors-only" type="checkbox">'
+                "<span>Errors only</span></label>"
+                '<span id="violation-count" class="muted"></span></div>'
+            )
+            body_rows = []
+            for entry in violation_rows:
+                details = []
+                if entry["Finding"]:
+                    details.append(f'<p class="finding">{html_escape(entry["Finding"])}</p>')
+                for label in ("Allowed (single)", "Allowed (pattern)", "Allowed (range)"):
+                    if entry[label]:
+                        details.append(
+                            f'<p><span class="muted">{html_escape(label)}:</span> '
+                            f'<code>{html_escape(entry[label])}</code></p>'
+                        )
+                if entry["Node xpath"]:
+                    details.append(
+                        f'<p><span class="muted">node:</span> '
+                        f'<code>{html_escape(str(entry["Node xpath"]))}</code></p>'
+                    )
+                if entry["Node"]:
+                    details.append(
+                        "<details><summary>node source</summary>"
+                        f'<pre>{html_escape(str(entry["Node"]))}</pre></details>'
+                    )
+                status = entry["Status"].lower()
+                body_rows.append(
+                    f'<tr data-status="{status}">'
+                    + cell(entry["Document"], mono=True)
+                    + cell(entry["Line"], "num")
+                    + f'<td><span class="status {status}">{html_escape(entry["Status"])}</span></td>'
+                    + cell(entry["Severity"])
+                    + cell(entry["Flag"])
+                    + cell(entry["Rule ID"] or entry["BR decision"], mono=True)
+                    + cell(entry["Object path"], mono=True)
+                    + cell(entry["Object use"])
+                    + f'<td class="details">{"".join(details)}</td>'
+                    + "</tr>"
+                )
+            head = "".join(
+                f"<th>{_}</th>"
+                for _ in ("Document", "Line", "Status", "Severity", "Flag", "Rule",
+                          "Object path", "Object use", "Details")
+            )
+            parts.append(section(
+                "Violations",
+                len(violation_rows),
+                controls
+                + '<div class="table-wrap"><table class="grid" id="violations">'
+                f"<thead><tr>{head}</tr></thead><tbody>{''.join(body_rows)}</tbody></table></div>",
+            ))
+        else:
+            parts.append(
+                '<section class="empty"><span class="empty-mark">&#10003;</span>'
+                "<p>No BREX violations found.</p></section>"
+            )
+
+        if sections["sns"]:
+            parts.append(section("SNS violations", len(sections["sns"]), table(
+                ["Document", "Code", "Invalid value", "Object use"],
+                [
+                    cell(basename(str(entry["document"])) or entry["document"], mono=True)
+                    + cell(entry["code"], mono=True)
+                    + cell(entry["invalidValue"], mono=True)
+                    + cell(entry["objectUse"])
+                    for entry in sections["sns"]
+                ],
+            )))
+        if sections["notations"]:
+            parts.append(section("Notation violations", len(sections["notations"]), table(
+                ["Document", "Entity", "Invalid notation", "Object use"],
+                [
+                    cell(basename(str(entry["document"])) or entry["document"], mono=True)
+                    + cell(entry["entity"], mono=True)
+                    + cell(entry["invalidNotation"], mono=True)
+                    + cell(entry["objectUse"])
+                    for entry in sections["notations"]
+                ],
+            )))
+        if xpath_error_rows:
+            parts.append(section("XPath errors", len(xpath_error_rows), table(
+                ["Document", "BREX", "Object path", "Object use", "Error"],
+                [
+                    cell(basename(str(entry["document"])) or entry["document"], mono=True)
+                    + cell(basename(str(entry["brex"])) or entry["brex"], mono=True)
+                    + cell(entry["objectPath"], mono=True)
+                    + cell(entry["objectUse"])
+                    + cell(entry["error"])
+                    for entry in xpath_error_rows
+                ],
+            )))
+        if sections["nonContextRules"]:
+            parts.append(section("Non-context rules", len(sections["nonContextRules"]), table(
+                ["Document", "BREX", "BR decision", "Text"],
+                [
+                    cell(basename(str(entry["document"])) or entry["document"], mono=True)
+                    + cell(basename(str(entry["brex"] or "")) or entry["brex"], mono=True)
+                    + cell(entry["brDecisionIdentNumber"], mono=True)
+                    + cell(entry["text"])
+                    for entry in sections["nonContextRules"]
+                ],
+            ), open_by_default=False))
+        if sections["brexFallback"]:
+            parts.append(section("BREX fallback", len(sections["brexFallback"]), table(
+                ["Document", "Reference", "Used built-in BREX", "Built-in BREX path"],
+                [
+                    cell(basename(str(entry["document"])) or entry["document"], mono=True)
+                    + cell(entry["reference"], mono=True)
+                    + cell(entry["usedBuiltinBrex"])
+                    + cell(entry["builtinBrexPath"], mono=True)
+                    for entry in sections["brexFallback"]
+                ],
+            ), open_by_default=False))
+
+        parts.append(f"<script>{_REPORT_HTML_JS}</script>")
+        parts.append("</body></html>")
+        html = "\n".join(parts)
+        if path:
+            with open(clean_path(path), "w", encoding="utf-8") as report_file:
+                report_file.write(html)
+        return html
 
     def lint_brex(self, brex_path: str, csdb_schemas: any = None) -> list:
         """Self-consistency lint pass over a single BREX file, meant to be run
@@ -2934,7 +4023,8 @@ class BrexChecker():
         return findings
 
     def validate(self, debug: bool = False, progress_callback: Callable[[int, int, str], None] = None,
-                 sns_mode: str = "normal", remove_deleted: bool = False, deep_copy_nodes: bool = False) -> dict:
+                 sns_mode: str = "normal", remove_deleted: bool = False, deep_copy_nodes: bool = False,
+                 check_sns: bool = False, check_notations: bool = False) -> dict:
         """Check xml against all brexes and dump the results into a JSon file
 
         Args:
@@ -2948,8 +4038,9 @@ class BrexChecker():
                 the library no longer imports `tqdm` at all, and a caller who wants
                 a `tqdm` bar can drive one from the callback themselves, e.g.
                 `lambda current, total, stage: bars[stage].update(1)`.
-            sns_mode (str): SNS shorthand mode, one of `SNS_MODES`. Port of
-                `should_check` (`s1kd-brexcheck.c:1038`):
+            sns_mode (str): SNS shorthand mode, one of `SNS_MODES`. Only has an
+                effect when `check_sns=True`. Port of `should_check`
+                (`s1kd-brexcheck.c:1038`):
 
                 - `"normal"` (default): optional levels default to `0` / `00` /
                   `0000`, i.e. a placeholder code is only checked if the BREX
@@ -2965,6 +4056,20 @@ class BrexChecker():
                 content-rule violation's `Object` field holds a full recursive
                 copy of the violating element (all descendants) instead of just
                 its own tag and attributes. See `_node_xpath_and_copy`.
+            check_sns (bool): equivalent to `s1kd-brexcheck -S`/`--sns`; check the
+                object's SNS against the BREX `snsRules`. **Off by default**, matching
+                `opts->check_sns` in the C original (`s1kd-brexcheck.c:1994`, gated at
+                `:1376`), which reports no SNS violations for a plain invocation. When
+                off, the result has no `'sns'` key at all, so `Summary`/`run_summary`
+                counts and the XML report's `<sns>` node are unaffected.
+            check_notations (bool): equivalent to `s1kd-brexcheck -n`/`--notations`;
+                check the object's unparsed entity notations against the BREX
+                `notationRuleList`. **Off by default**, matching `opts->check_notations`
+                in the C original (`s1kd-brexcheck.c:2084`, `:2091`, gated at `:1383`).
+                Note that when the resolved BREX chain declares no `notationRule` at
+                all, opting in reports *every* unparsed entity as disallowed -- that is
+                the C tool's own behaviour, which is only ever reached under `-n`.
+                When off, the result has no `'notations'` key at all.
 
         Raises:
             ValueError: if `sns_mode` is not one of `SNS_MODES`
@@ -2996,7 +4101,8 @@ class BrexChecker():
                 self.set_xml(xml_path)
                 self._init_brex_list()
                 result = self._check_rules(debug=debug, progress_callback=progress_callback, sns_mode=sns_mode,
-                                            remove_deleted=remove_deleted, deep_copy_nodes=deep_copy_nodes)
+                                            remove_deleted=remove_deleted, deep_copy_nodes=deep_copy_nodes,
+                                            check_sns=check_sns, check_notations=check_notations)
                 result["Summary"] = self._append_summary(result)
                 results[_xml] = result
                 self._brex_list = initial_brex_list if had_explicit_brex_list else (None, None)
@@ -3016,7 +4122,8 @@ class BrexChecker():
                 return result
             self._init_brex_list()
             result = self._check_rules(debug=debug, progress_callback=progress_callback, sns_mode=sns_mode,
-                                        remove_deleted=remove_deleted, deep_copy_nodes=deep_copy_nodes)
+                                        remove_deleted=remove_deleted, deep_copy_nodes=deep_copy_nodes,
+                                        check_sns=check_sns, check_notations=check_notations)
             summary = self._append_summary(result)
             result["Summary"] = summary
             if debug:

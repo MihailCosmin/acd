@@ -145,7 +145,8 @@ def test_sns_and_notation_violations_counted_as_errors_with_no_severity(tmp_path
         "</dmodule>\n"
     )
     checker = _checker(tmp_path, str(brex_path), xml_content)
-    result = checker.validate()
+    # Both checks are opt-in (`-S` / `-n` in s1kd-brexcheck).
+    result = checker.validate(check_sns=True, check_notations=True)
 
     totals = checker.run_summary(result)
     assert totals["DocumentsFailed"] == 1

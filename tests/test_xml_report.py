@@ -195,7 +195,7 @@ def test_sns_no_errors_node(tmp_path):
         "</dmodule>\n"
     )
     checker = _checker(tmp_path, str(brex_path), xml_content=xml_content)
-    result = checker.validate()
+    result = checker.validate(check_sns=True)
 
     root = etree.fromstring(checker.to_xml_report(result).encode("utf-8"))
     sns_node = root.find(".//document/sns")
@@ -235,7 +235,7 @@ def test_sns_error_reported(tmp_path):
         "</dmodule>\n"
     )
     checker = _checker(tmp_path, str(brex_path), xml_content=xml_content)
-    result = checker.validate()
+    result = checker.validate(check_sns=True)
 
     root = etree.fromstring(checker.to_xml_report(result).encode("utf-8"))
     sns_error = root.find(".//document/sns/error")
@@ -266,7 +266,7 @@ def test_notation_error_reported(tmp_path):
         "</dmodule>\n"
     )
     checker = _checker(tmp_path, str(brex_path), xml_content=xml_content)
-    result = checker.validate()
+    result = checker.validate(check_notations=True)
 
     root = etree.fromstring(checker.to_xml_report(result).encode("utf-8"))
     notation_error = root.find(".//document/notations/error")

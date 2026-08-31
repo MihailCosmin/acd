@@ -66,7 +66,8 @@ def _validate(tmp_path, system_code, sub_system_code, sub_sub_system_code, assy_
     checker.set_xml(str(xml_path))
     checker.override_brex_list([ATABREX_01A])
 
-    return checker.validate(sns_mode=sns_mode)
+    # SNS checking is opt-in (`-S` in s1kd-brexcheck); see `validate(check_sns=...)`.
+    return checker.validate(sns_mode=sns_mode, check_sns=True)
 
 
 def test_normal_mode_accepts_a_fully_placeholder_code(tmp_path):
