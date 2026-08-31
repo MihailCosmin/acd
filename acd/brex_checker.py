@@ -55,6 +55,21 @@ NS_DICT = {'rdf': r'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
 
 SNS_MODES = ("normal", "strict", "unstrict")
 
+XPATH_VERSIONS = ("1.0", "2.0")
+
+# S1000D issues whose BREX rules are only guaranteed safe under XPath 1.0
+# semantics (e.g. `=` comparison on node-sets) -- port of the version table
+# in s1kd-brexcheck's `brex_requires_xpath2` (s1kd-brexcheck.c:1296-1322).
+# Everything else (4.0+, or a BREX with no/unrecognised
+# xsi:noNamespaceSchemaLocation) defaults to XPath 2.0.
+_XPATH1_ONLY_ISSUE_PREFIXES = (
+    "http://www.s1000d.org/S1000D_2-0",
+    "http://www.s1000d.org/S1000D_2-1",
+    "http://www.s1000d.org/S1000D_2-2",
+    "http://www.s1000d.org/S1000D_2-3",
+    "http://www.s1000d.org/S1000D_3-0",
+)
+
 class BrexNotFound(Exception):
     pass
 
@@ -90,6 +105,7 @@ class BrexChecker():
         self._load_external_dtd = False
         self._allow_network = False
         self._ignore_empty = False
+        self._xpath_version = None
 
         self._rule_stats = {}
         # Cache of `_show_rules` output keyed by (brex path, schema), so a
@@ -180,6 +196,22 @@ class BrexChecker():
                 break
             brex_ref = ref_dict_to_str(brex_ref_dict)
             if brex_ref in xml:
+                # A BREX that references itself terminates the layering walk.
+                # When this is the *first* reference in the walk -- i.e.
+                # `xml_start` itself is the self-referencing BREX, as when a
+                # master/default BREX shipped in a CSDB is checked directly
+                # (Ref §3.11: BREX data modules are checked like any other
+                # object) -- it is its own sole applicable BREX rather than
+                # an empty, unresolved chain. Mirrors s1kd's `main()`, where
+                # `strcmp(brex_fnames[0], dmod_fnames[i]) == 0` for exactly
+                # this case because `find_brex_fname_from_doc` already
+                # resolved the self-reference to the file itself. A
+                # self-reference reached on a *later* iteration (walking a
+                # referenced BREX's own chain) needs no such fixup: that
+                # BREX is already in `brex_list` from the previous
+                # iteration's `.append(resolved)`.
+                if xml == xml_start:
+                    brex_list.append(xml)
                 break
             resolved = find_document_by_reference(brex_ref, search_dir,
                                                    recursive=self._brex_recursive_search)
@@ -484,6 +516,57 @@ class BrexChecker():
         """
         self._ignore_empty = enabled
 
+    def set_xpath_version(self, version: str = None) -> None:
+        """Force the XPath version used to compile every BREX content rule's
+        `objectPath`, equivalent to `s1kd-brexcheck`'s `-X`/`--xpath-version`.
+
+        By default (`version=None`) the version is chosen per BREX file the
+        way s1kd's `DYNAMIC` mode does -- see `_brex_requires_xpath2`: XPath
+        1.0 for a BREX declaring S1000D issue 2.0-3.0 (matching what those
+        issues were written/validated against, including reliance on XPath
+        1.0's `=`-on-node-set semantics), XPath 2.0 for 4.0+ or a BREX with
+        no/unrecognised declared schema. Pass `"1.0"` or `"2.0"` to force
+        that version for every BREX regardless of its declared issue.
+
+        Args:
+            version (str): `"1.0"`, `"2.0"`, or `None` to restore dynamic
+                per-BREX selection
+
+        Raises:
+            ValueError: if `version` is not one of `XPATH_VERSIONS` or `None`
+        """
+        if version is not None and version not in XPATH_VERSIONS:
+            raise ValueError(
+                f"xpath_version must be one of {XPATH_VERSIONS} or None, got {version!r}"
+            )
+        self._xpath_version = version
+
+    def _brex_requires_xpath2(self, brex_schema: str) -> bool:
+        """Decide whether a BREX's content rules should be compiled with
+        `elementpath.XPath2Parser` (True) or `elementpath.XPath1Parser`
+        (False). Port of `brex_requires_xpath2` (s1kd-brexcheck.c:1296-1322):
+        an explicit `set_xpath_version` override always wins; otherwise a
+        BREX declaring S1000D issue 2.0-3.0 gets XPath 1.0 and everything
+        else -- 4.0+, or no/unrecognised `xsi:noNamespaceSchemaLocation` --
+        gets XPath 2.0. Decided from the *BREX's own* declared schema, not
+        the checked object's, matching the C original
+        (`xmlDocGetRootElement(brex)` rather than the dmod being checked).
+
+        Args:
+            brex_schema (str): the BREX's own declared schema URI (its root
+                element's `xsi:noNamespaceSchemaLocation`), or `None` if absent
+
+        Returns:
+            bool: `True` to use XPath 2.0, `False` to use XPath 1.0
+        """
+        if self._xpath_version == "1.0":
+            return False
+        if self._xpath_version == "2.0":
+            return True
+        if brex_schema is None:
+            return True
+        return not brex_schema.startswith(_XPATH1_ONLY_ISSUE_PREFIXES)
+
     def _build_xml_parser(self) -> etree.XMLParser:
         """Build the lxml parser used for both the checked object and every
         BREX file, honouring the parser options set via `set_resolve_entities`
@@ -629,8 +712,17 @@ class BrexChecker():
         """
         nodes_to_check = self._get_object_rule_nodes(brex, schema)
         default_br_severity_level = None
+        # XPath version (category: XPath selection) is a property of this
+        # BREX file's own declared S1000D issue, decided once per file --
+        # see `_brex_requires_xpath2`. Irrelevant when there are no rules to
+        # compile a selector for.
+        xpath_parser = elementpath.XPath2Parser
         if len(nodes_to_check) > 0:
-            default_br_severity_level = nodes_to_check[0].getroottree().getroot().get('defaultBrSeverityLevel')
+            brex_root = nodes_to_check[0].getroottree().getroot()
+            default_br_severity_level = brex_root.get('defaultBrSeverityLevel')
+            brex_schema = brex_root.get(f'{{{NS_DICT["xsi"]}}}noNamespaceSchemaLocation')
+            if not self._brex_requires_xpath2(brex_schema):
+                xpath_parser = elementpath.XPath1Parser
         allowed_object_flag_dict = []
         for counter, x in enumerate(nodes_to_check):
             values_allowed = []
@@ -708,7 +800,7 @@ class BrexChecker():
             # the rule is used, matching prior per-document behaviour. Ref
             # §3.12.
             try:
-                selector = elementpath.Selector(xpath_text, namespaces=namespaces)
+                selector = elementpath.Selector(xpath_text, namespaces=namespaces, parser=xpath_parser)
                 selector_error = None
             except elementpath.ElementPathError as e:
                 selector = None
@@ -2035,8 +2127,17 @@ class BrexChecker():
         nodes_to_check = self._get_object_rule_nodes(brex_path, schema=None)
 
         default_br_severity_level = None
+        # Compile with the same XPath version `_show_rules` would actually
+        # use for this BREX (see `_brex_requires_xpath2`), so InvalidXPath
+        # findings reflect real checking behaviour rather than always
+        # assuming XPath 2.0.
+        xpath_parser = elementpath.XPath2Parser
         if len(nodes_to_check) > 0:
-            default_br_severity_level = nodes_to_check[0].getroottree().getroot().get('defaultBrSeverityLevel')
+            brex_root = nodes_to_check[0].getroottree().getroot()
+            default_br_severity_level = brex_root.get('defaultBrSeverityLevel')
+            brex_schema = brex_root.get(f'{{{NS_DICT["xsi"]}}}noNamespaceSchemaLocation')
+            if not self._brex_requires_xpath2(brex_schema):
+                xpath_parser = elementpath.XPath1Parser
 
         severity_levels = self._get_severity_levels()
 
@@ -2069,7 +2170,7 @@ class BrexChecker():
             namespaces = dict(NS_DICT)
             namespaces.update({(prefix or ''): uri for prefix, uri in object_path.nsmap.items()})
             try:
-                elementpath.Selector(xpath_text, namespaces=namespaces)
+                elementpath.Selector(xpath_text, namespaces=namespaces, parser=xpath_parser)
             except elementpath.ElementPathError as e:
                 findings.append({
                     'Category': 'InvalidXPath',
@@ -2505,7 +2606,15 @@ class BrexChecker():
         if sns_mode not in SNS_MODES:
             raise ValueError(f"sns_mode must be one of {SNS_MODES}, got {sns_mode!r}")
         if self._xml_dir:
-            files = [_ for _ in listdir(self._xml_dir) if ".xml" in _.lower() and "-022a-" not in _.lower()]
+            # Real extension test (was `.xml" in name`, which also matched
+            # e.g. "foo.xml.bak") and no exclusion of BREX data modules --
+            # s1kd-brexcheck validates BREX objects like any other, including
+            # against themselves via their own `brexDmRef`/`brexref` chain.
+            # Ref §3.11.
+            files = [
+                _ for _ in listdir(self._xml_dir)
+                if _.lower().endswith(".xml") and isfile(join(self._xml_dir, _))
+            ]
             had_explicit_brex_list = self._brex_list[0] is not None
             had_explicit_brex_dir_path = self._brex_dir_path[1] is True
             initial_brex_list = self._brex_list

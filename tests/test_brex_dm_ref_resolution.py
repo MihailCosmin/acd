@@ -133,6 +133,39 @@ def test_init_brex_list_resolves_the_real_brex_ignoring_the_decoy_dmref(tmp_path
     assert result[brex_path]['0'][0]['Xpath'] == '//forbiddenReal'
 
 
+def test_init_brex_list_resolves_self_referencing_brex_checked_directly(brex_dir_with_self_referencing_brex):
+    # Ref §3.11: once BREX data modules are checked like any other object
+    # (no longer excluded from directory mode's file filter), a
+    # self-referencing master/default BREX can itself be the primary
+    # checked object. Its own brexDmRef resolves to itself on the very
+    # first lookup in the walk, which must resolve to "check it against
+    # itself" (mirrors s1kd's `strcmp(brex_fnames[0], dmod_fnames[i]) == 0`
+    # case in `main()`) rather than an empty, unresolved chain -- which
+    # would raise NoBrexDefined for every self-referencing BREX in a CSDB.
+    brex_dir, brex_path = brex_dir_with_self_referencing_brex
+
+    checker = BrexChecker()
+    checker.set_xml(brex_path)
+    checker.set_brex_path(brex_dir)
+    checker._init_brex_list()
+
+    assert checker._brex_list[0] == [brex_path]
+
+
+def test_validate_checks_a_self_referencing_brex_against_itself_without_raising(brex_dir_with_self_referencing_brex):
+    brex_dir, brex_path = brex_dir_with_self_referencing_brex
+
+    checker = BrexChecker()
+    checker.set_xml(brex_path)
+    checker.set_brex_path(brex_dir)
+    result = checker.validate()
+
+    # //forbiddenReal is the BREX's own rule; the BREX document itself (a
+    # <brex> root, not <dmodule>) contains no such element, so it passes.
+    assert result[brex_path]['0'] == []
+    assert result["Summary"] == "0 Errors"
+
+
 def _dm_code(model_ident_code: str) -> str:
     return (
         f'<dmCode modelIdentCode="{model_ident_code}" systemDiffCode="A" systemCode="00" '
