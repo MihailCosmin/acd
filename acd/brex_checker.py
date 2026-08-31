@@ -1171,12 +1171,25 @@ class BrexChecker():
                     'BrDecisionIdentNumber': value.get('brDecisionIdentNumber')}
                 )
                 return brex_violations
-            is_hit = result if isinstance(result, bool) else len(result) > 0
+            # A scalar result (boolean, or a bare number/string function call
+            # with no comparison, e.g. `count(...)`/`string(...)`) has no
+            # node of its own to report against, and is evaluated for
+            # truthiness the same way XPath's effective boolean value would
+            # (non-empty string, non-zero number, or the boolean itself) --
+            # mirroring how `_check_object_flag_1` already treats these same
+            # three scalar types. Only `bool` was handled here before: a
+            # bare number result crashed on `len(result)` (`count(...)`
+            # returning `0` or `1`), and a bare string result was silently
+            # miscounted as a node-set, iterating over its characters.
+            is_scalar = isinstance(result, (bool, str, int, float, Decimal))
+            is_hit = bool(result) if is_scalar else len(result) > 0
             self._record_rule_hit(value, matched=is_hit, violated=is_hit)
-            if isinstance(result, bool):
+            if is_scalar:
                 if result:
+                    line_label = ("(Boolean condition -> Interpret XPath)" if isinstance(result, bool)
+                                  else "(Scalar condition -> Interpret XPath)")
                     brex_violations[value["Brex"]]['0'].append({
-                        'Line': "(Boolean condition -> Interpret XPath)",
+                        'Line': line_label,
                         'Description': value["objectUse"],
                         'Xpath': value['xpath'],
                         'NodeXpath': None,
@@ -1336,9 +1349,19 @@ class BrexChecker():
                 )
                 return brex_violations
             if type(result) is not bool:
-                value_violations = self._check_object_values(value, result, nodes, deep_copy_nodes)
+                # A bare number/string function result (e.g. `count(...)`,
+                # `string(...)` with no comparison) is itself the value to
+                # check, not a node-set to iterate -- wrap it as the sole
+                # item of a one-element list instead of passing a raw
+                # scalar straight to `_check_object_values`, which
+                # previously crashed on a number (not iterable at all) and
+                # silently iterated a string character by character.
+                is_scalar = isinstance(result, (str, int, float, Decimal))
+                elements = [result] if is_scalar else result
+                elements_nodes = [None] if is_scalar else nodes
+                value_violations = self._check_object_values(value, elements, elements_nodes, deep_copy_nodes)
                 brex_violations[value["Brex"]]['2'].extend(value_violations)
-                self._record_rule_hit(value, matched=len(result) > 0, violated=bool(value_violations))
+                self._record_rule_hit(value, matched=len(elements) > 0, violated=bool(value_violations))
             else:
                 self._record_rule_hit(value, matched=bool(result), violated=False)
         return brex_violations

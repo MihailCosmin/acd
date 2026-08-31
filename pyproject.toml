@@ -54,3 +54,6 @@ acd = "acd.cli:main"
 [tool.pytest.ini_options]
 minversion = "3"
 addopts = "--strict-markers"
+markers = [
+    "evidence: needs the real CMP 21-77-05 evidence corpus (brex_checker_rework.md §1); skips cleanly when absent, but can run to a minute or more when present -- deselect with -m \"not evidence\" for a fast local loop.",
+]
