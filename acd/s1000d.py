@@ -321,6 +321,42 @@ def get_dm_codes_from_dir(directory: str, json_dump: bool = False) -> dict:
 
     return dm_codes
 
+def collect_csdb_schemas(directory: str, recursive: bool = True) -> set:
+    """Scan a CSDB directory for every distinct schema declared by the XML
+    objects it contains (`xsi:noNamespaceSchemaLocation` on the root
+    element, via `get_schema_from_xml`).
+
+    Meant to feed `BrexChecker.lint_brex`'s `csdb_schemas` parameter: a
+    `rulesContext` naming a schema absent from this set can never match any
+    object actually in the CSDB, so every rule under it is unreachable.
+
+    Args:
+        directory (str): CSDB directory to scan
+        recursive (bool): scan subdirectories as well, matching
+            `find_document_by_reference`'s `recursive` option. Defaults to True.
+
+    Returns:
+        set: distinct schema URI strings found; a file that is missing,
+            empty, not well-formed, or declares no schema contributes nothing
+    """
+    schemas = set()
+    if recursive:
+        paths = (join(root, file_) for root, _, files in walk(directory) for file_ in files)
+    else:
+        paths = (join(directory, file_) for file_ in listdir(directory))
+    for path in paths:
+        if not path.lower().endswith(".xml") or not isfile(path):
+            continue
+        try:
+            with open(clean_path(path), "r", encoding="utf-8") as _:
+                content = _.read()
+        except OSError:
+            continue
+        schema = get_schema_from_xml(content)
+        if schema is not None:
+            schemas.add(schema)
+    return schemas
+
 def get_dm_code_from_filename(filename: str) -> dict:
     """Get code (dmCode / pmCode / ddnCode) from filename (without path)
 

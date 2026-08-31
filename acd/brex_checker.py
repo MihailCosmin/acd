@@ -28,6 +28,8 @@ import elementpath
 from regex import search
 from regex import fullmatch
 from regex import V1
+from regex import compile as regex_compile
+from regex import error as RegexError
 
 from lxml import etree
 from tqdm import tqdm
@@ -45,6 +47,7 @@ from .xml_processing import is_in_set
 from .s1000d import get_brex_ref
 from .s1000d import ref_dict_to_str
 from .s1000d import find_document_by_reference
+from .s1000d import collect_csdb_schemas
 from .default_brex import default_brex_dmc
 from .default_brex import default_brex_path
 from .default_brex import find_default_brex_fallback
@@ -98,6 +101,8 @@ class BrexChecker():
         self._allow_network = False
         self._ignore_empty = False
 
+        self._rule_stats = {}
+
     def set_xml_dir(self, dir_path: str) -> None:
         """_summary_
 
@@ -127,10 +132,53 @@ class BrexChecker():
             self._brex_list = ([default_brex_path(default_brex_dmc(schema))], True)
             return
 
-        self._brex_list = ([], True)
-        xml = self._xml_path
-        visited = {xml}
+        chain, fallbacks = self._walk_brex_chain(self._xml_path, self._brex_dir_path[0])
+        self._brex_list = (chain, True)
+        self._brex_fallbacks = fallbacks
+
+        if len(self._brex_list[0]) == 0:
+            raise NoBrexDefined(f"Brex files couldn't be found\n\
+                    Please use set_brex_path method to input the directory containing ALL brex data modules or \
+                    use override_brex_list if the brex data modules are in different directories.\
+                    expected brex: {ref_dict_to_str(get_brex_ref(self._xml_path))}".replace("                ", ""))
+        else:
+            for brex in self._brex_list[0]:
+                if not isfile(brex):
+                    raise BrexNotFound(f"Referenced Brex: {brex} is not in {self._brex_dir_path[0]}.\n\
+                    Please use set_brex_path method to input the directory containing ALL brex data modules or \
+                    use override_brex_list if the brex data modules are in different directories.".replace("                ", ""))
+
+    def _walk_brex_chain(self, xml_start: str, search_dir: str) -> tuple:
+        """Walk the `brexDmRef`/`brexref` layering chain starting from
+        `xml_start`, resolving each reference to a file on disk: `search_dir`
+        first, then every path added via `add_brex_search_path`, then falling
+        back to a built-in default BREX when the reference names one
+        (`find_default_brex_fallback`) -- same resolution order
+        `_init_brex_list` has always used. A visited-set cycle guard stops
+        the walk if a reference resolves back to a file already seen
+        (including a BREX that self-references to terminate the chain).
+
+        Extracted from `_init_brex_list` so `lint_brex_layers` can resolve
+        the same layer chain starting from a BREX file directly, independent
+        of any checked object.
+
+        Args:
+            xml_start (str): path of the document to read the first
+                `brexDmRef`/`brexref` from (the checked object for
+                `_init_brex_list`; a BREX file itself for `lint_brex_layers`)
+            search_dir (str): primary directory to resolve references
+                against
+
+        Returns:
+            tuple: `(brex_list, fallbacks)` -- `brex_list` is the resolved
+                chain in walk order (nearest reference first); `fallbacks`
+                lists any built-in BREX substitutions, same shape as
+                `self._brex_fallbacks`
+        """
+        brex_list = []
         fallbacks = []
+        xml = xml_start
+        visited = {xml}
         while True:
             brex_ref_dict = get_brex_ref(xml)
             if brex_ref_dict is None:
@@ -138,7 +186,7 @@ class BrexChecker():
             brex_ref = ref_dict_to_str(brex_ref_dict)
             if brex_ref in xml:
                 break
-            resolved = find_document_by_reference(brex_ref, self._brex_dir_path[0],
+            resolved = find_document_by_reference(brex_ref, search_dir,
                                                    recursive=self._brex_recursive_search)
             if resolved is None:
                 for search_path in self._brex_search_paths:
@@ -162,21 +210,9 @@ class BrexChecker():
             if resolved in visited:
                 break
             visited.add(resolved)
-            self._brex_list[0].append(resolved)
+            brex_list.append(resolved)
             xml = resolved
-        self._brex_fallbacks = fallbacks
-
-        if len(self._brex_list[0]) == 0:
-            raise NoBrexDefined(f"Brex files couldn't be found\n\
-                    Please use set_brex_path method to input the directory containing ALL brex data modules or \
-                    use override_brex_list if the brex data modules are in different directories.\
-                    expected brex: {ref_dict_to_str(get_brex_ref(self._xml_path))}".replace("                ", ""))
-        else:
-            for brex in self._brex_list[0]:
-                if not isfile(brex):
-                    raise BrexNotFound(f"Referenced Brex: {brex} is not in {self._brex_dir_path[0]}.\n\
-                    Please use set_brex_path method to input the directory containing ALL brex data modules or \
-                    use override_brex_list if the brex data modules are in different directories.".replace("                ", ""))
+        return brex_list, fallbacks
 
     def set_brex_path(self, brex_path: str):
         """Function with which the user can set a path where the brex files are
@@ -526,6 +562,26 @@ class BrexChecker():
         except (etree.XMLSyntaxError, OSError):
             return False
 
+    def _parse_brex_root(self, brex_path: str) -> any:
+        """Parse a BREX file into its root element, same read-strip-parse
+        steps `_get_object_rule_nodes`/`_get_sns_rules_group`/
+        `_get_notation_rules_group` each perform inline. Used by the lint
+        checks that need the whole BREX tree (`snsRules`, `contextRules`
+        groups) rather than just the `objectPath` nodes
+        `_get_object_rule_nodes` returns -- which can be empty for a BREX
+        that carries no content rules at all, e.g. an SNS-table-only BREX.
+
+        Args:
+            brex_path (str): path to the BREX file
+
+        Returns:
+            any: root `lxml.etree._Element`
+        """
+        with open(clean_path(brex_path), "r", encoding="utf-8") as _:
+            brex_content = _.read()
+        brex_content = delete_first_line(brex_content)
+        return self._parse_xml_text(brex_content).getroot()
+
     def _get_object_rule_nodes(self, brex: str, schema: str = None) -> any:
         """Return all `objectPath` nodes whose enclosing `contextRules` is
         unqualified or targets the given schema, selected with the descendant
@@ -850,6 +906,7 @@ class BrexChecker():
                                             'BrSeverityLevel': value.get('brSeverityLevel'),
                                             'Fail': self._is_severity_failure(value.get('brSeverityLevel'))}
                                         )
+                    self._record_rule_hit(value, matched=bool(items), violated=bool(items))
                     proc.exception_clear()
             else:
                 try:
@@ -863,6 +920,8 @@ class BrexChecker():
                         'BrDecisionIdentNumber': value.get('brDecisionIdentNumber')}
                     )
                     return brex_violations
+                is_hit = result if isinstance(result, bool) else len(result) > 0
+                self._record_rule_hit(value, matched=is_hit, violated=is_hit)
                 if isinstance(result, bool):
                     if result:
                         brex_violations[value["Brex"]]['0'].append({
@@ -917,6 +976,7 @@ class BrexChecker():
                 violation = not result
             else:
                 violation = len(result) == 0
+            value_violations = []
             if violation:
                 brex_violations[value["Brex"]]['1'].append({
                             'Description': value["objectUse"],
@@ -929,8 +989,9 @@ class BrexChecker():
                             )
             elif not isinstance(result, (bool, str, int, float)) and (
                     value["values_allowed"] or value["regex_allowed"] or value["ranges_allowed"]):
-                brex_violations[value["Brex"]]['2'].extend(
-                    self._check_object_values(value, result, nodes, deep_copy_nodes))
+                value_violations = self._check_object_values(value, result, nodes, deep_copy_nodes)
+                brex_violations[value["Brex"]]['2'].extend(value_violations)
+            self._record_rule_hit(value, matched=not violation, violated=violation or bool(value_violations))
         return brex_violations
 
     def _check_object_values(self, value: any, elements: any, nodes: any = None,
@@ -1012,9 +1073,122 @@ class BrexChecker():
                 )
                 return brex_violations
             if type(result) is not bool:
-                brex_violations[value["Brex"]]['2'].extend(
-                    self._check_object_values(value, result, nodes, deep_copy_nodes))
+                value_violations = self._check_object_values(value, result, nodes, deep_copy_nodes)
+                brex_violations[value["Brex"]]['2'].extend(value_violations)
+                self._record_rule_hit(value, matched=len(result) > 0, violated=bool(value_violations))
+            else:
+                self._record_rule_hit(value, matched=bool(result), violated=False)
         return brex_violations
+
+    def _rule_stat_key(self, value: dict) -> tuple:
+        """Stable key identifying "the same rule" for `rule_hit_statistics`
+        across every document checked: the BREX file it came from, its
+        `rulesContext`/`context` qualifier, and its `objectPath`/`objpath`
+        text. Two rules with identical text under the same qualifier in the
+        same file are indistinguishable for statistics purposes, same as
+        `lint_brex`'s duplicate-id/duplicate-decision-number checks already
+        treat them as interchangeable.
+
+        Args:
+            value (dict): rule dict from `_show_rules`
+
+        Returns:
+            tuple: `(Brex, contextRules, xpath)`
+        """
+        return (value['Brex'], value['contextRules'], value['xpath'])
+
+    def _record_rule_evaluated(self, value: dict) -> None:
+        """Record that a content rule was in scope and considered for the
+        document currently being checked (per-rule hit statistics, P2
+        differentiator). Called once per rule per document from
+        `_check_rules`, before dispatching to `_check_object_flag_0/1/2`,
+        regardless of whether that dispatch goes on to find a match, a
+        violation, or nothing at all -- including an `allowedObjectFlag="2"`
+        rule with no `objectValue` children, which never reaches any check
+        function (the same silent no-op `lint_brex`'s `EmptyValueFlag2`
+        finding flags statically; here it shows up at runtime as a rule
+        stuck at 0 matched / 0 violated across the whole data set).
+
+        Args:
+            value (dict): rule dict from `_show_rules`
+        """
+        key = self._rule_stat_key(value)
+        stat = self._rule_stats.get(key)
+        if stat is None:
+            stat = {
+                'Brex': value['Brex'],
+                'ContextRules': value['contextRules'],
+                'Xpath': value['xpath'],
+                'ObjectFlag': value.get('ObjectFlag'),
+                'ObjectUse': value.get('objectUse'),
+                'BrDecisionIdentNumber': value.get('brDecisionIdentNumber'),
+                'Evaluated': 0,
+                'Matched': 0,
+                'Violated': 0,
+            }
+            self._rule_stats[key] = stat
+        stat['Evaluated'] += 1
+
+    def _record_rule_hit(self, value: dict, matched: bool, violated: bool) -> None:
+        """Record the outcome of actually checking a rule against the
+        current document (per-rule hit statistics): whether its `objectPath`
+        located something (`matched` -- a non-empty node-set or a true
+        boolean result, independent of what `allowedObjectFlag` does with
+        that outcome: a found forbidden node for flag `0`, a found required
+        node for flag `1`, or a found value-constrained node for flag `2`)
+        and whether that evaluation produced a violation (`violated`). Not
+        called at all when the rule's selector raised (`xpathError`), since
+        neither can be determined for that document; `_record_rule_evaluated`
+        alone still counts the attempt.
+
+        Args:
+            value (dict): rule dict from `_show_rules`
+            matched (bool): whether `value['xpath']` located something in
+                this document
+            violated (bool): whether this evaluation produced a violation
+        """
+        key = self._rule_stat_key(value)
+        stat = self._rule_stats.get(key)
+        if stat is None:
+            self._record_rule_evaluated(value)
+            stat = self._rule_stats[key]
+        if matched:
+            stat['Matched'] += 1
+        if violated:
+            stat['Violated'] += 1
+
+    def reset_rule_statistics(self) -> None:
+        """Clear the per-rule hit statistics accumulated so far (see
+        `rule_hit_statistics`). Statistics accumulate across every call to
+        `_check_rules` -- i.e. across an entire `validate()` directory-mode
+        run, or across as many single-object `validate()` calls as the
+        caller makes -- since the point of the feature is to see which rules
+        never fire across a whole data set, not a single document. Call this
+        to start a fresh data set.
+        """
+        self._rule_stats = {}
+
+    def rule_hit_statistics(self) -> list:
+        """Per-rule hit statistics accumulated across every check performed
+        so far (P2 differentiator: "which BREX rules never fire against its
+        data set"). Scoped to content rules (`structureObjectRule`/
+        `objrule`); SNS and notation rules are checked as a single pass per
+        document rather than rule-by-rule, so they have no per-rule
+        breakdown here.
+
+        Returns:
+            list: one entry per distinct rule (see `_rule_stat_key`):
+                `{"Brex", "ContextRules", "Xpath", "ObjectFlag", "ObjectUse",
+                "BrDecisionIdentNumber", "Evaluated", "Matched", "Violated"}`.
+                `Evaluated` counts every document the rule was in scope for;
+                `Matched` counts documents where `Xpath` located something;
+                `Violated` counts documents where that rule produced a
+                violation. A rule with `Evaluated > 0` and `Matched == 0`
+                never found its target anywhere in the data set checked so
+                far; one with `Matched > 0` and `Violated == 0` always found
+                a conforming target.
+        """
+        return [dict(stat) for stat in self._rule_stats.values()]
 
     def _get_sns_rules_group(self) -> any:
         """Merge the `snsRules` element from every active BREX into one root.
@@ -1358,6 +1532,7 @@ class BrexChecker():
                     _.write(str(rule) + "\n")
         container = tqdm(all_content_rules) if include_tqdm else all_content_rules
         for value in container:
+            self._record_rule_evaluated(value)
             if value["ObjectFlag"] == '0':
                 brex_violations_dict |= self._check_object_flag_0(
                     schema, brex_violations_dict, root, value, xml_text, deep_copy_nodes)
@@ -1747,6 +1922,516 @@ class BrexChecker():
                 root.append(self._build_document_node(file_result, filename))
         self._append_run_summary_node(root, result)
         return etree.tostring(root, encoding="unicode", pretty_print=True)
+
+    def lint_brex(self, brex_path: str, csdb_schemas: any = None) -> list:
+        """Self-consistency lint pass over a single BREX file, meant to be run
+        before that BREX is used to check anything (e.g. before passing it to
+        `override_brex_list`/`set_brex_path`), so authoring defects surface on
+        their own instead of silently under-checking every object validated
+        against it.
+
+        Unlike `_show_rules`/`_check_rules`, this is not tied to any checked
+        object: it inspects every `structureObjectRule` in the file
+        regardless of `rulesContext`/`allowedObjectFlag`, and has no
+        equivalent in `s1kd-brexcheck` -- it is our own addition, reusing the
+        same rule-selection (`_get_object_rule_nodes`) and value-parsing
+        (`translate_xsd_regex_to_python`, the `~`/`|` range-and-set grammar
+        `is_in_set` relies on) building blocks the checker itself uses.
+
+        Checks performed, one finding per issue found:
+
+        - every `objectPath`/`objpath` compiles as an XPath expression;
+        - every `structureObjectRule`/`objrule` has an `objectUse`/`objuse`
+          child (a missing one is what `_show_rules`'s `...[0].text` would
+          raise `IndexError` on);
+        - an `allowedObjectFlag="2"`/`objappl="2"` rule carries at least one
+          `objectValue`/`objval` child -- otherwise it is a silent no-op,
+          since `_check_object_flag_2` only ever checks a rule that declares
+          `values_allowed`/`regex_allowed`/`ranges_allowed`;
+        - every `valueForm="pattern"`/`valtype="pattern"` value is a valid
+          XSD regular expression once translated
+          (`translate_xsd_regex_to_python`) and compiled (`regex` `V1`);
+        - every `valueForm="range"`/`valtype="range"` value parses as a
+          `~`-range or `|`-set, i.e. no empty member and no empty range
+          bound (`is_in_set`/`is_in_range` do not raise on these, they just
+          silently mis-compare, so a bad range is otherwise invisible);
+        - a rule's resolved `brSeverityLevel` (its own, or the BREX root's
+          `defaultBrSeverityLevel`) exists in the currently configured
+          `.brseveritylevels` file (see `set_severity_levels_path`/
+          `set_severity_levels_search`); skipped entirely when no severity
+          levels are configured/discoverable, since there is nothing to
+          check against;
+        - duplicate `structureObjectRule/@id` values;
+        - duplicate `brDecisionIdentNumber` values (via `brDecisionRef`);
+        - when `csdb_schemas` is given, a `contextRules`/`contextrules` group
+          whose `rulesContext`/`context` names a schema absent from it (see
+          `_lint_unreachable_rules_context`);
+        - the `snsRules` table itself, if the BREX declares one (see
+          `_lint_sns_rules_table`): duplicate `snsCode` among sibling
+          elements at the same level, a level element with no `snsTitle`,
+          and an `snsCode` that does not match a `valueForm="pattern"`
+          content rule declared elsewhere in the same file for the
+          corresponding `dmCode` attribute (`systemCode`/`subSystemCode`/
+          `subSubSystemCode`/`assyCode`).
+
+        Args:
+            brex_path (str): path to the BREX file to lint
+            csdb_schemas (any): optional iterable of schema URI strings
+                actually used by objects in the target CSDB (see
+                `s1000d.collect_csdb_schemas`). When given, enables the
+                unreachable-`rulesContext` check; `None` (the default) skips
+                it, since without a CSDB to compare against there is no way
+                to tell a legitimately-unused-yet schema from a typo.
+
+        Returns:
+            list: finding dicts, each carrying at least `Category` and
+                `Description`, plus whichever of `Xpath`/`Id`/
+                `BrDecisionIdentNumber`/`Line`/`ValueAllowed`/`RulesContext`/
+                `Level`/`SnsCode` apply to that finding; empty if the BREX
+                has no self-consistency issues
+        """
+        findings = []
+        nodes_to_check = self._get_object_rule_nodes(brex_path, schema=None)
+
+        default_br_severity_level = None
+        if len(nodes_to_check) > 0:
+            default_br_severity_level = nodes_to_check[0].getroottree().getroot().get('defaultBrSeverityLevel')
+
+        severity_levels = self._get_severity_levels()
+
+        seen_ids = {}
+        seen_br_decision_numbers = {}
+
+        for object_path in nodes_to_check:
+            rule = object_path.getparent()
+            xpath_text = str(object_path.text) if object_path.text is not None else ""
+            line = rule.sourceline
+
+            rule_id = rule.get('id')
+            if rule_id:
+                seen_ids.setdefault(rule_id, []).append(line)
+
+            br_decision_ref = rule.find('brDecisionRef')
+            br_decision_ident_number = (
+                br_decision_ref.get('brDecisionIdentNumber') if br_decision_ref is not None else None
+            )
+            if br_decision_ident_number:
+                seen_br_decision_numbers.setdefault(br_decision_ident_number, []).append(line)
+
+            base_fields = {
+                'Xpath': xpath_text,
+                'Id': rule_id,
+                'BrDecisionIdentNumber': br_decision_ident_number,
+                'Line': line,
+            }
+
+            namespaces = dict(NS_DICT)
+            namespaces.update({(prefix or ''): uri for prefix, uri in object_path.nsmap.items()})
+            try:
+                elementpath.Selector(xpath_text, namespaces=namespaces)
+            except elementpath.ElementPathError as e:
+                findings.append({
+                    'Category': 'InvalidXPath',
+                    'Description': f"objectPath does not compile: {e}",
+                    **base_fields,
+                })
+
+            if not rule.xpath('objectUse|objuse'):
+                findings.append({
+                    'Category': 'MissingObjectUse',
+                    'Description': "structureObjectRule has no objectUse.",
+                    **base_fields,
+                })
+
+            allowed_object_flag = object_path.get('allowedObjectFlag', object_path.get('objappl'))
+            object_value_nodes = rule.xpath('objectValue|objval')
+
+            if allowed_object_flag == '2' and not object_value_nodes:
+                findings.append({
+                    'Category': 'EmptyValueFlag2',
+                    'Description': (
+                        'allowedObjectFlag="2" rule has no objectValue children '
+                        'and is a silent no-op.'
+                    ),
+                    **base_fields,
+                })
+
+            for object_value in object_value_nodes:
+                value_form = object_value.get('valueForm', object_value.get('valtype'))
+                value_allowed = object_value.get('valueAllowed')
+                if value_allowed is None and object_value.get('val1') is not None:
+                    value_allowed = object_value.get('val1')
+                    val2 = object_value.get('val2')
+                    if val2 is not None:
+                        value_allowed = f"{value_allowed}~{val2}"
+
+                if value_form == 'pattern':
+                    if value_allowed is None:
+                        findings.append({
+                            'Category': 'InvalidPattern',
+                            'Description': 'valueForm="pattern" objectValue has no valueAllowed.',
+                            'ValueAllowed': value_allowed,
+                            **base_fields,
+                        })
+                        continue
+                    try:
+                        regex_compile(translate_xsd_regex_to_python(value_allowed), V1)
+                    except RegexError as e:
+                        findings.append({
+                            'Category': 'InvalidPattern',
+                            'Description': f"pattern is not a valid XSD regular expression: {e}",
+                            'ValueAllowed': value_allowed,
+                            **base_fields,
+                        })
+                elif value_form == 'range':
+                    if value_allowed is None:
+                        findings.append({
+                            'Category': 'InvalidRange',
+                            'Description': 'valueForm="range" objectValue has no valueAllowed.',
+                            'ValueAllowed': value_allowed,
+                            **base_fields,
+                        })
+                        continue
+                    for member in value_allowed.split('|'):
+                        bounds = member.split('~')
+                        if member == '' or any(bound == '' for bound in bounds):
+                            findings.append({
+                                'Category': 'InvalidRange',
+                                'Description': (
+                                    f"range/set member {member!r} of valueAllowed "
+                                    f"{value_allowed!r} does not parse as a range or set."
+                                ),
+                                'ValueAllowed': value_allowed,
+                                **base_fields,
+                            })
+
+            rule_severity = rule.get('brSeverityLevel')
+            effective_severity = rule_severity if rule_severity is not None else default_br_severity_level
+            if effective_severity is not None and severity_levels and effective_severity not in severity_levels:
+                findings.append({
+                    'Category': 'UnknownSeverityLevel',
+                    'Description': (
+                        f"brSeverityLevel {effective_severity!r} is not defined in the "
+                        "configured .brseveritylevels file."
+                    ),
+                    'BrSeverityLevel': effective_severity,
+                    **base_fields,
+                })
+
+        for rule_id, lines in seen_ids.items():
+            if len(lines) > 1:
+                findings.append({
+                    'Category': 'DuplicateId',
+                    'Description': f"structureObjectRule/@id {rule_id!r} is used by {len(lines)} rules.",
+                    'Id': rule_id,
+                    'Lines': lines,
+                })
+
+        for number, lines in seen_br_decision_numbers.items():
+            if len(lines) > 1:
+                findings.append({
+                    'Category': 'DuplicateBrDecisionIdentNumber',
+                    'Description': f"brDecisionIdentNumber {number!r} is used by {len(lines)} rules.",
+                    'BrDecisionIdentNumber': number,
+                    'Lines': lines,
+                })
+
+        if csdb_schemas is not None:
+            findings.extend(self._lint_unreachable_rules_context(brex_path, csdb_schemas))
+
+        findings.extend(self._lint_sns_rules_table(brex_path, nodes_to_check))
+
+        return findings
+
+    def _lint_unreachable_rules_context(self, brex_path: str, csdb_schemas: any) -> list:
+        """Find `contextRules`/`contextrules` groups whose `rulesContext`/
+        `context` names a schema that no object in the given CSDB actually
+        uses -- including a typo'd schema URI, which is indistinguishable
+        from "legitimately unused" without a CSDB to compare against. Every
+        rule nested under such a group can never match any object, since
+        `_get_object_rule_nodes` only ever selects a qualified group when its
+        schema string equals the checked object's schema exactly.
+
+        An unqualified group (no `rulesContext`/`context` at all) always
+        applies to every object and is never flagged.
+
+        Args:
+            brex_path (str): path to the BREX file to lint
+            csdb_schemas (any): iterable of schema URI strings actually used
+                by objects in the target CSDB, e.g. from
+                `s1000d.collect_csdb_schemas`. An empty set means "nothing to
+                compare against" (no valid XML found), not "every qualified
+                group is unreachable" -- the check is skipped entirely.
+
+        Returns:
+            list: one `UnreachableRulesContext` finding per distinct
+                unreachable schema string, carrying `RulesContext` and every
+                `Lines` (the `contextRules`/`contextrules` element's line)
+                it was declared on
+        """
+        schemas = set(csdb_schemas)
+        if not schemas:
+            return []
+
+        root = self._parse_brex_root(brex_path)
+        groups = root.xpath('//contextRules[@rulesContext]|//contextrules[@context]')
+
+        lines_by_schema = {}
+        for group in groups:
+            schema = group.get('rulesContext', group.get('context'))
+            if schema in schemas:
+                continue
+            lines_by_schema.setdefault(schema, []).append(group.sourceline)
+
+        return [
+            {
+                'Category': 'UnreachableRulesContext',
+                'Description': (
+                    f"rulesContext {schema!r} names a schema no object in the given "
+                    "CSDB uses; every rule in this group can never fire."
+                ),
+                'RulesContext': schema,
+                'Lines': lines,
+            }
+            for schema, lines in lines_by_schema.items()
+        ]
+
+    def _lint_sns_rules_table(self, brex_path: str, content_rule_nodes: any) -> list:
+        """Validate the `snsRules` table itself, if the BREX declares one:
+        duplicate `snsCode` among sibling `snsSystem`/`snsSubSystem`/
+        `snsSubSubSystem`/`snsAssy` elements at the same level, a level
+        element with no `snsTitle`, and a `snsCode` that fails every
+        `valueForm="pattern"` content rule declared elsewhere in the same
+        file for the corresponding `dmCode` attribute (a rule whose
+        `objectPath`/`objpath` ends in `@systemCode`, `@subSystemCode`,
+        `@subSubSystemCode` or `@assyCode` -- a heuristic name match, since
+        nothing formally links an `snsRules` level to a content rule).
+
+        Neither `s1kd-brexcheck` nor our own checker validate the SNS table's
+        own structure today -- only a data module's SNS *code* is checked
+        against it (`_check_sns_rules`); a malformed table (a duplicate
+        entry, a missing title, a code that contradicts the BREX's own
+        pattern rule) is otherwise invisible.
+
+        Args:
+            brex_path (str): path to the BREX file to lint
+            content_rule_nodes (any): `objectPath`/`objpath` nodes already
+                selected by `lint_brex` (via `_get_object_rule_nodes`),
+                reused here to build the pattern cross-reference without a
+                second selection pass
+
+        Returns:
+            list: `DuplicateSnsCode` / `MissingSnsTitle` /
+                `SnsCodeOutsidePattern` findings; empty if the BREX declares
+                no `snsRules`, or its table has no such issues
+        """
+        attr_by_tag = {
+            'snsSystem': 'systemCode',
+            'snsSubSystem': 'subSystemCode',
+            'snsSubSubSystem': 'subSubSystemCode',
+            'snsAssy': 'assyCode',
+        }
+
+        patterns_by_attr = {}
+        for object_path in content_rule_nodes:
+            xpath_text = str(object_path.text) if object_path.text is not None else ""
+            attr = xpath_text.rsplit('@', 1)[-1] if '@' in xpath_text else None
+            if attr not in attr_by_tag.values():
+                continue
+            for object_value in object_path.getparent().xpath('objectValue|objval'):
+                if object_value.get('valueForm', object_value.get('valtype')) != 'pattern':
+                    continue
+                value_allowed = object_value.get('valueAllowed', object_value.get('val1'))
+                if value_allowed is None:
+                    continue
+                try:
+                    translated = translate_xsd_regex_to_python(value_allowed)
+                    regex_compile(translated, V1)
+                except RegexError:
+                    continue
+                patterns_by_attr.setdefault(attr, []).append(translated)
+
+        findings = []
+        root = self._parse_brex_root(brex_path)
+        for tag, attr in attr_by_tag.items():
+            codes_by_parent = {}
+            for element in root.xpath(f'.//{tag}'):
+                code_node = element.find('snsCode')
+                code = code_node.text if code_node is not None else None
+                line = element.sourceline
+
+                if element.find('snsTitle') is None:
+                    findings.append({
+                        'Category': 'MissingSnsTitle',
+                        'Description': f"{tag} (snsCode={code!r}) has no snsTitle.",
+                        'Level': tag,
+                        'SnsCode': code,
+                        'Line': line,
+                    })
+
+                if code is None:
+                    continue
+
+                codes_by_parent.setdefault((element.getparent(), code), []).append(line)
+
+                patterns = patterns_by_attr.get(attr)
+                if patterns and not any(bool(fullmatch(pattern, code, V1)) for pattern in patterns):
+                    findings.append({
+                        'Category': 'SnsCodeOutsidePattern',
+                        'Description': (
+                            f"{tag} snsCode {code!r} does not match any valueForm=\"pattern\" "
+                            f"content rule declared for @{attr}."
+                        ),
+                        'Level': tag,
+                        'SnsCode': code,
+                        'Line': line,
+                    })
+
+            for (_parent, code), lines in codes_by_parent.items():
+                if len(lines) > 1:
+                    findings.append({
+                        'Category': 'DuplicateSnsCode',
+                        'Description': f"{tag} snsCode {code!r} is used by {len(lines)} sibling elements.",
+                        'Level': tag,
+                        'SnsCode': code,
+                        'Lines': lines,
+                    })
+
+        return findings
+
+    def lint_brex_layers(self, entry_brex_path: str) -> list:
+        """Cross-BREX conflict detection across a layered BREX chain
+        (category A8), independent of any checked object: resolves the same
+        `brexDmRef`/`brexref` chain `_init_brex_list` would follow, but
+        starting from `entry_brex_path` itself rather than from an object
+        that references it (see `_walk_brex_chain`), then compares every
+        content rule that appears in more than one layer.
+
+        Layer order follows official S1000D `valueTailoring` terminology: a
+        project's own BREX (closer to the object -- `entry_brex_path` is
+        layer 0) is the "lower" layer that may only restrict what a "higher",
+        more general BREX it references (via `brexDmRef`, at a larger layer
+        index -- ultimately a master/default BREX) declares. Two rules are
+        treated as "the same rule" when they share both their `rulesContext`/
+        `context` qualifier and their exact `objectPath`/`objpath` text; this
+        is a simplification (it does not, for example, catch an unqualified
+        rule in one layer conflicting with a schema-qualified rule for the
+        same path in another), but keeps the comparison unambiguous.
+
+        Findings:
+
+        - `ConflictingAllowedObjectFlag`: the same rule is required absent
+          (`"0"`) by one layer and present (`"1"`) by another -- the only
+          `allowedObjectFlag` pair no object could ever satisfy
+          simultaneously. `"2"` (value constrained) is not compared this way:
+          it is compatible with either on its own -- an absent object
+          trivially satisfies a `"2"` rule too (nothing to check), and paired
+          with `"1"` it only adds a value constraint on top of the presence
+          requirement -- so a general layer that merely constrains an
+          attribute's value while a more specific layer forbids it outright
+          is a legitimate narrowing, not a conflict.
+        - `RestrictableValueSetWidened`: the same rule declares a `single`-
+          form `objectValue` with `valueTailoring="restrictable"` in two or
+          more layers, and a lower (more specific) layer's allowed-value set
+          is not a subset of a higher (more general) layer's set for that
+          same rule -- i.e. the specific layer added values the general
+          layer never allowed, which `restrictable` permits narrowing but
+          not widening. `pattern`/`range` value forms are not compared: a
+          general subset relationship between two regular expressions or
+          ranges is not attempted here.
+
+        Args:
+            entry_brex_path (str): path to the BREX file to start the layer
+                walk from (the same file that would be passed to
+                `set_brex_path`/`override_brex_list`, or referenced by an
+                object's own `brexDmRef`)
+
+        Returns:
+            list: finding dicts; empty if the chain resolves to a single
+                BREX (nothing to compare), or every shared rule agrees
+                across all layers that define it
+        """
+        search_dir = self._brex_dir_path[0] if self._brex_dir_path[0] else dirname(entry_brex_path)
+        chain, _ = self._walk_brex_chain(entry_brex_path, search_dir)
+        layers = [entry_brex_path] + chain
+        if len(layers) < 2:
+            return []
+
+        rules_by_key = {}
+        for index, layer in enumerate(layers):
+            for rule in self._show_rules(layer, schema=None):
+                key = (rule['contextRules'], rule['xpath'])
+                rules_by_key.setdefault(key, []).append((index, rule))
+
+        findings = []
+        for (context_rules, xpath), entries in rules_by_key.items():
+            if len(entries) < 2:
+                continue
+
+            flag_entries = [
+                (index, rule['Brex'], rule.get('ObjectFlag'))
+                for index, rule in entries
+                if rule.get('ObjectFlag') is not None
+            ]
+            distinct_flags = {flag for _, _, flag in flag_entries}
+            # "0" (must not be present) and "1" (must be present) are the only
+            # truly irreconcilable pair: no object can satisfy both. "2" (value
+            # constrained) is compatible with either on its own -- an object
+            # that is simply absent trivially satisfies a "2" rule too (nothing
+            # to check), and combined with "1" it just adds a value constraint
+            # on top of the presence requirement. Verified against the real
+            # ATABREX 01A/00A/S1000D-default chain: without this restriction,
+            # a project layer forbidding an attribute ("0") that a more general
+            # layer only value-constrains ("2") -- a legitimate narrowing, not
+            # a conflict -- produced two false positives.
+            if {'0', '1'} <= distinct_flags:
+                findings.append({
+                    'Category': 'ConflictingAllowedObjectFlag',
+                    'Description': (
+                        f"objectPath {xpath!r} is given contradictory allowedObjectFlag "
+                        "values across the layered BREX chain."
+                    ),
+                    'Xpath': xpath,
+                    'ContextRules': context_rules,
+                    'Layers': [
+                        {'LayerIndex': index, 'Brex': brex, 'ObjectFlag': flag}
+                        for index, brex, flag in flag_entries
+                    ],
+                })
+
+            restrictable_by_layer = [
+                (index, rule['Brex'], {
+                    entry['valueAllowed'] for entry in rule.get('value_tailoring', [])
+                    if entry.get('valueForm') == 'single' and entry.get('valueTailoring') == 'restrictable'
+                })
+                for index, rule in entries
+            ]
+            restrictable_by_layer = [item for item in restrictable_by_layer if item[2]]
+
+            for pos_lower in range(len(restrictable_by_layer)):
+                for pos_higher in range(pos_lower + 1, len(restrictable_by_layer)):
+                    lower_index, lower_brex, lower_set = restrictable_by_layer[pos_lower]
+                    higher_index, higher_brex, higher_set = restrictable_by_layer[pos_higher]
+                    extra = lower_set - higher_set
+                    if extra:
+                        findings.append({
+                            'Category': 'RestrictableValueSetWidened',
+                            'Description': (
+                                f"objectPath {xpath!r} restrictable value set in "
+                                f"{lower_brex!r} (layer {lower_index}) allows values not "
+                                f"present in the more general layer {higher_brex!r} "
+                                f"(layer {higher_index}): {sorted(extra)!r}."
+                            ),
+                            'Xpath': xpath,
+                            'ContextRules': context_rules,
+                            'LowerBrex': lower_brex,
+                            'LowerLayerIndex': lower_index,
+                            'HigherBrex': higher_brex,
+                            'HigherLayerIndex': higher_index,
+                            'ExtraValues': sorted(extra),
+                        })
+
+        return findings
 
     def validate(self, debug: bool = False, include_tqdm: bool = False, sns_mode: str = "normal",
                  remove_deleted: bool = False, deep_copy_nodes: bool = False) -> dict:
