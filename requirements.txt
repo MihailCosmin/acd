@@ -6,7 +6,6 @@ pillow
 pikepdf
 pandas
 openpyxl
-saxonche
 keyboard
 clipboard
 pytesseract

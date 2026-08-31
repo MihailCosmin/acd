@@ -25,8 +25,8 @@ from json import dumps
 
 import elementpath
 
-from regex import search
 from regex import fullmatch
+from regex import escape as regex_escape
 from regex import V1
 from regex import compile as regex_compile
 from regex import error as RegexError
@@ -36,9 +36,6 @@ from tqdm import tqdm
 
 from os import environ
 from os import system
-
-from saxonche import PySaxonProcessor
-from saxonche import PyXdmNode
 
 from .xml_processing import get_schema_from_xml
 from .xml_processing import delete_first_line
@@ -72,17 +69,10 @@ def clean_xpath(xpath):
     return xpath
 
 class BrexChecker():
-    def __init__(self, saxon: bool = False):
-        """_summary_
-
-        NOTE: enable optional paramater for saxon
-        Args:
-            saxon (bool, optional): _description_. Defaults to False.
-        """
+    def __init__(self):
         self._xml_path = None
         self._xml_content = None
         self._xml_dir = None
-        self._saxon = saxon
 
         self._brex_list = (None, None)
         self._brex_dir_path = (None, None)
@@ -102,6 +92,11 @@ class BrexChecker():
         self._ignore_empty = False
 
         self._rule_stats = {}
+        # Cache of `_show_rules` output keyed by (brex path, schema), so a
+        # BREX is parsed and its rule list (including compiled selectors)
+        # extracted once per run rather than once per data module checked.
+        # Ref §3.12.
+        self._rule_cache = {}
 
     def set_xml_dir(self, dir_path: str) -> None:
         """_summary_
@@ -692,11 +687,37 @@ class BrexChecker():
             namespaces.update(
                 {(prefix or ''): uri for prefix, uri in x.nsmap.items()}
             )
+            xpath_text = str(nodes_to_check[counter].text)
+            # Read objectUse as its full text content -- a rule description
+            # can carry child markup (e.g. inline formatting), and `.text`
+            # alone silently drops everything after the first child element.
+            # A rule with no objectUse at all (schema allows it; `lint_brex`'s
+            # MissingObjectUse finding flags it separately) is tolerated as
+            # None instead of the old `[0].text` raising IndexError. Ref
+            # §3.12, category D4.
+            object_use_nodes = x.getparent().xpath('objectUse|objuse')
+            object_use = ''.join(object_use_nodes[0].itertext()) if object_use_nodes else None
+            # Compile the objectPath selector once here, when the rule dict
+            # is built, instead of once per (rule, document) pair inside
+            # `_check_object_flag_0/1/2` -- reused unchanged across every
+            # document the checker evaluates it against, since a compiled
+            # `elementpath.Selector` is stateless and only ever combined with
+            # a fresh `XPathContext` per document (see `_select_with_nodes`).
+            # A compile failure is captured here instead of raised, and
+            # reported as an `xpathError` by the flag helpers the first time
+            # the rule is used, matching prior per-document behaviour. Ref
+            # §3.12.
+            try:
+                selector = elementpath.Selector(xpath_text, namespaces=namespaces)
+                selector_error = None
+            except elementpath.ElementPathError as e:
+                selector = None
+                selector_error = str(e)
             allowed_object_flag_dict.append({
-                    'xpath': str(nodes_to_check[counter].text),
+                    'xpath': xpath_text,
                     'Brex': str(brex),
                     'ObjectFlag': x.get('allowedObjectFlag', x.get('objappl')),
-                    'objectUse': str(x.getparent().xpath('objectUse|objuse')[0].text),
+                    'objectUse': object_use,
                     'contextRules': context_rules,
                     'values_allowed': values_allowed,
                     'regex_allowed': regex_allowed,
@@ -704,27 +725,59 @@ class BrexChecker():
                     'value_tailoring': value_tailoring,
                     'brDecisionIdentNumber': br_decision_ident_number,
                     'brSeverityLevel': br_severity_level,
-                    'namespaces': namespaces
+                    'namespaces': namespaces,
+                    'selector': selector,
+                    'selector_error': selector_error,
                 }
             )
         if debug:
             with open(clean_path(join(expanduser("~/Desktop"), f'brex_{basename(brex)}.json')), 'w', encoding="utf-8") as _:
                 for elem in allowed_object_flag_dict:
-                    _.write(dumps(elem, indent=4, ensure_ascii=False))
+                    dumpable = {k: v for k, v in elem.items() if k != 'selector'}
+                    _.write(dumps(dumpable, indent=4, ensure_ascii=False))
         return allowed_object_flag_dict
 
-    def regex_builder(self, attribute_name: str, attribute_value: str, xpath):
-        """If case since there might be cases where attribute_name has no attribute_value
+    def _get_content_rules(self, brex: str, schema: str = None, debug: bool = False) -> list:
+        """Cached wrapper around `_show_rules`: parses a BREX and extracts its
+        rule list (including compiled selectors, see `_show_rules`) once per
+        `(brex, schema)` pair for the lifetime of this checker instance,
+        instead of once per data module checked -- `_check_rules` is called
+        once per document, and a directory-mode `validate()` run checks many
+        documents against the same BREX chain. Ref §3.12.
+
         Args:
-            attribute_name (str): _description_
-            attribute_value (str): _description_
+            brex (str): brex_path
+            schema (str): the object's declared schema
+            debug (bool): forwarded to `_show_rules` on a cache miss
+
         Returns:
-            _type_: _description_
+            list: same shape as `_show_rules`
         """
+        cache_key = (brex, schema)
+        cached = self._rule_cache.get(cache_key)
+        if cached is None:
+            cached = self._show_rules(brex, schema=schema, debug=debug)
+            self._rule_cache[cache_key] = cached
+        return cached
+
+    def regex_builder(self, attribute_name: str, attribute_value: str, xpath):
+        """Build a raw-text search regex for one attribute name/value pair.
+        Both are escaped with `regex.escape` before being embedded (Ref
+        §3.12) -- an attribute name or value containing regex metacharacters
+        (e.g. `.`, `(`, `[`) previously produced a wrong or invalid pattern.
+
+        Args:
+            attribute_name (str): attribute name to search for
+            attribute_value (str): attribute value to search for, or None to
+                match any value
+        Returns:
+            str: regex pattern
+        """
+        escaped_name = regex_escape(str(attribute_name))
         if attribute_value is not None:
-            build_regex = f'({attribute_name})(.*?)("{attribute_value}")'
+            build_regex = f'({escaped_name})(.*?)("{regex_escape(str(attribute_value))}")'
         else:
-            build_regex = f'({attribute_name})(.*?)(")(.*?)(")'
+            build_regex = f'({escaped_name})(.*?)(")(.*?)(")'
         return build_regex
 
     def _select_with_nodes(self, selector: any, root: any) -> tuple:
@@ -866,101 +919,89 @@ class BrexChecker():
 
         return canonical_xpath, xml_snippet
 
-    def _check_object_flag_0(self, schema: str, brex_violations: dict, root: any, value: any, xml_text: str = None,
+    def _resolve_selector(self, brex_violations: dict, value: dict) -> any:
+        """Return a rule's precompiled selector (built once in `_show_rules`
+        and reused unchanged for every document, Ref §3.12), or record an
+        `xpathError` and return `None` when it failed to compile.
+
+        Args:
+            brex_violations (dict): violations accumulator to record a
+                compile failure against
+            value (dict): rule dict from `_show_rules`, carrying `selector`/
+                `selector_error`
+
+        Returns:
+            any: compiled `elementpath.Selector`, or `None` on failure
+        """
+        selector = value.get('selector')
+        if selector is None:
+            brex_violations[value["Brex"]]['xpathError'].append({
+                'Description': value["objectUse"],
+                'Xpath': value['xpath'],
+                'Error': value.get('selector_error') or "Failed to compile objectPath",
+                'BrDecisionIdentNumber': value.get('brDecisionIdentNumber')}
+            )
+        return selector
+
+    def _check_object_flag_0(self, schema: str, brex_violations: dict, root: any, value: any,
                               deep_copy_nodes: bool = False):
         if value['contextRules'] == schema or value['contextRules'] == "":
-            if self._saxon:
-                with PySaxonProcessor(license=False) as proc:
-                    xp = proc.new_xpath_processor()
-                    for prefix, uri in value.get('namespaces', NS_DICT).items():
-                        if prefix:
-                            xp.declare_namespace(prefix, uri)
-                    if xml_text is not None:
-                        node = proc.parse_xml(xml_text=xml_text)
-                    else:
-                        node = proc.parse_xml(xml_file_name=self._xml_path)
-                    xp.set_context(xdm_item=node)
-                    items = xp.evaluate(clean_xpath(value['xpath']))
-                    if items is not None:
-                        for item in items:
-                            if isinstance(item, PyXdmNode):
-                                match_found = search(r'(\[@)(.+?)([^a-z0-9A-Z])', clean_xpath(value['xpath']))
-                                if match_found:
-                                    attribute_name = match_found.group(2)
-                                    attribute_value = item.get_attribute_value(attribute_name)
-                                else:
-                                    attribute_name = ""
-                                    attribute_value = ""
-                                list_xml_content = self._xml_content.split("\n")
-                                build_regex = self.regex_builder(attribute_name, attribute_value, clean_xpath(value['xpath']))
-                                for element in list_xml_content:
-                                    match_found_in_list = search(build_regex, element)
-                                    if match_found_in_list:
-                                        brex_violations[value["Brex"]]['0'].append({
-                                            'Line': list_xml_content.index(element) + 1,
-                                            'Description': value["objectUse"],
-                                            'Xpath': value['xpath'],
-                                            'NodeXpath': None,
-                                            'Object': None,
-                                            'BrDecisionIdentNumber': value.get('brDecisionIdentNumber'),
-                                            'BrSeverityLevel': value.get('brSeverityLevel'),
-                                            'Fail': self._is_severity_failure(value.get('brSeverityLevel'))}
-                                        )
-                    self._record_rule_hit(value, matched=bool(items), violated=bool(items))
-                    proc.exception_clear()
-            else:
-                try:
-                    selector = elementpath.Selector(value['xpath'], namespaces=value.get('namespaces', NS_DICT))
-                    result, nodes = self._select_with_nodes(selector, root)
-                except elementpath.ElementPathError as e:
-                    brex_violations[value["Brex"]]['xpathError'].append({
+            selector = self._resolve_selector(brex_violations, value)
+            if selector is None:
+                return brex_violations
+            try:
+                result, nodes = self._select_with_nodes(selector, root)
+            except elementpath.ElementPathError as e:
+                brex_violations[value["Brex"]]['xpathError'].append({
+                    'Description': value["objectUse"],
+                    'Xpath': value['xpath'],
+                    'Error': str(e),
+                    'BrDecisionIdentNumber': value.get('brDecisionIdentNumber')}
+                )
+                return brex_violations
+            is_hit = result if isinstance(result, bool) else len(result) > 0
+            self._record_rule_hit(value, matched=is_hit, violated=is_hit)
+            if isinstance(result, bool):
+                if result:
+                    brex_violations[value["Brex"]]['0'].append({
+                        'Line': "(Boolean condition -> Interpret XPath)",
                         'Description': value["objectUse"],
                         'Xpath': value['xpath'],
-                        'Error': str(e),
-                        'BrDecisionIdentNumber': value.get('brDecisionIdentNumber')}
+                        'NodeXpath': None,
+                        'Object': None,
+                        'BrDecisionIdentNumber': value.get('brDecisionIdentNumber'),
+                        'BrSeverityLevel': value.get('brSeverityLevel'),
+                        'Fail': self._is_severity_failure(value.get('brSeverityLevel'))}
                     )
-                    return brex_violations
-                is_hit = result if isinstance(result, bool) else len(result) > 0
-                self._record_rule_hit(value, matched=is_hit, violated=is_hit)
-                if isinstance(result, bool):
-                    if result:
-                        brex_violations[value["Brex"]]['0'].append({
-                            'Line': "(Boolean condition -> Interpret XPath)",
-                            'Description': value["objectUse"],
-                            'Xpath': value['xpath'],
-                            'NodeXpath': None,
-                            'Object': None,
-                            'BrDecisionIdentNumber': value.get('brDecisionIdentNumber'),
-                            'BrSeverityLevel': value.get('brSeverityLevel'),
-                            'Fail': self._is_severity_failure(value.get('brSeverityLevel'))}
-                        )
-                else:
-                    for idx, element in enumerate(result):
-                        node = nodes[idx] if nodes else None
-                        if ' and ' in value['xpath']:
-                            line_no = "(Origin traced back to multiple lines -> Interpret XPath)"
-                        else:
-                            line_no = self._node_line_number(node)
-                            if line_no is None:
-                                line_no = "x"
-                        node_xpath, node_copy = self._node_xpath_and_copy(node, deep_copy_nodes)
-                        brex_violations[value["Brex"]]['0'].append({
-                            'Line': line_no,
-                            'Description': value["objectUse"],
-                            'Xpath': value['xpath'],
-                            'NodeXpath': node_xpath,
-                            'Object': node_copy,
-                            'BrDecisionIdentNumber': value.get('brDecisionIdentNumber'),
-                            'BrSeverityLevel': value.get('brSeverityLevel'),
-                            'Fail': self._is_severity_failure(value.get('brSeverityLevel'))}
-                        )
+            else:
+                for idx, element in enumerate(result):
+                    node = nodes[idx] if nodes else None
+                    if ' and ' in value['xpath']:
+                        line_no = "(Origin traced back to multiple lines -> Interpret XPath)"
+                    else:
+                        line_no = self._node_line_number(node)
+                        if line_no is None:
+                            line_no = "x"
+                    node_xpath, node_copy = self._node_xpath_and_copy(node, deep_copy_nodes)
+                    brex_violations[value["Brex"]]['0'].append({
+                        'Line': line_no,
+                        'Description': value["objectUse"],
+                        'Xpath': value['xpath'],
+                        'NodeXpath': node_xpath,
+                        'Object': node_copy,
+                        'BrDecisionIdentNumber': value.get('brDecisionIdentNumber'),
+                        'BrSeverityLevel': value.get('brSeverityLevel'),
+                        'Fail': self._is_severity_failure(value.get('brSeverityLevel'))}
+                    )
         return brex_violations
 
     def _check_object_flag_1(self, schema: str, brex_violations: dict, root: any, value: any,
                               deep_copy_nodes: bool = False):
         if value['contextRules'] == schema or value['contextRules'] == "":
+            selector = self._resolve_selector(brex_violations, value)
+            if selector is None:
+                return brex_violations
             try:
-                selector = elementpath.Selector(value['xpath'], namespaces=value.get('namespaces', NS_DICT))
                 result, nodes = self._select_with_nodes(selector, root)
             except elementpath.ElementPathError as e:
                 brex_violations[value["Brex"]]['xpathError'].append({
@@ -1061,8 +1102,10 @@ class BrexChecker():
     def _check_object_flag_2(self, schema: str, brex_violations: dict, root: any, value: any,
                               deep_copy_nodes: bool = False):
         if ('values_allowed' in value or 'regex_allowed' in value or 'ranges_allowed' in value) and (value['contextRules'] == schema or value['contextRules'] == ""):
+            selector = self._resolve_selector(brex_violations, value)
+            if selector is None:
+                return brex_violations
             try:
-                selector = elementpath.Selector(value['xpath'], namespaces=value.get('namespaces', NS_DICT))
                 result, nodes = self._select_with_nodes(selector, root)
             except elementpath.ElementPathError as e:
                 brex_violations[value["Brex"]]['xpathError'].append({
@@ -1501,10 +1544,8 @@ class BrexChecker():
         brex_violations_dict["brexFallback"] = list(self._brex_fallbacks)
         root = self._parse_xml_file(self._xml_path)
 
-        xml_text = None
         if remove_deleted:
             self._remove_deleted_elements(root.getroot())
-            xml_text = etree.tostring(root, encoding="unicode")
 
         dmod_root = root.getroot()
         if dmod_root.tag == "dmodule":
@@ -1523,7 +1564,7 @@ class BrexChecker():
 
         all_content_rules = []
         for brex in self._brex_list[0]:
-            content_rules = self._show_rules(brex, schema=schema, debug=debug)
+            content_rules = self._get_content_rules(brex, schema=schema, debug=debug)
             all_content_rules += content_rules
 
         if debug:
@@ -1535,7 +1576,7 @@ class BrexChecker():
             self._record_rule_evaluated(value)
             if value["ObjectFlag"] == '0':
                 brex_violations_dict |= self._check_object_flag_0(
-                    schema, brex_violations_dict, root, value, xml_text, deep_copy_nodes)
+                    schema, brex_violations_dict, root, value, deep_copy_nodes)
             if value["ObjectFlag"] == '1':
                 brex_violations_dict |= self._check_object_flag_1(
                     schema, brex_violations_dict, root, value, deep_copy_nodes)
