@@ -2,9 +2,15 @@ from datetime import datetime
 
 from copy import deepcopy
 
+from dataclasses import dataclass
+from dataclasses import asdict
+
 from decimal import Decimal
 
 import sys
+
+from typing import Callable
+from typing import Optional
 
 from os import listdir
 from os.path import join
@@ -32,7 +38,6 @@ from regex import compile as regex_compile
 from regex import error as RegexError
 
 from lxml import etree
-from tqdm import tqdm
 
 from os import environ
 from os import system
@@ -76,12 +81,96 @@ class BrexNotFound(Exception):
 class NoBrexDefined(Exception):
     pass
 
+class NoSchemaDeclared(Exception):
+    """Raised by `_check_rules` (opt-in via `set_require_schema`) when the
+    checked object has no `xsi:noNamespaceSchemaLocation` on its root
+    element. Not raised by default: an S1000D <= 3.0 / DTD-based object
+    legitimately has no such attribute (it is schema-qualified, if at all,
+    through a DOCTYPE-driven mechanism outside `xsi:noNamespaceSchemaLocation`
+    entirely), and `_check_rules` already handles that case correctly --
+    every schema-qualified `contextRules`/`rulesContext` group is skipped and
+    every unqualified one still applies (see `test_legacy_brex_spellings.py`,
+    which depends on exactly this). `set_require_schema` is for a caller who
+    wants to be told loudly, instead of silently under-checking, when an
+    object that was supposed to carry a schema declaration does not."""
+    pass
+
 def clean_xpath(xpath):
     """Clean the xpath extra tabs, spaces and new lines"""
     xpath = xpath.strip().replace("\n", "").replace("\t", "")
     while "  " in xpath:
         xpath = xpath.replace("  ", " ")
     return xpath
+
+
+@dataclass
+class BrexViolation:
+    """Structured record of one BREX content-rule violation (`allowedObjectFlag`
+    `0`/`1`/`2`), the canonical shape violations are reported in once they
+    leave the internal per-BREX `'0'/'1'/'2'` violation lists `_check_rules`
+    still returns (kept for backward compatibility -- existing callers and
+    the test suite key off `result[brex_path]['0']` etc. directly). Built by
+    `BrexChecker.violations()` from a `validate()`/`_check_rules()` result;
+    `to_json_report`/`to_xml_report` both derive their output from this list
+    rather than walking the raw nested dicts a second time.
+
+    Attributes:
+        document (str): path of the checked object this violation was found in
+        brex (str): path of the BREX file the violated rule came from
+        rule_id (Optional[str]): `structureObjectRule`/`objrule` `@id`, when the
+            rule declares one
+        br_decision_ident_number (Optional[str]): `brDecisionRef/@brDecisionIdentNumber`,
+            the business-rule decision customers quote (category A5)
+        flag (str): `allowedObjectFlag`/`@objappl` this violation was recorded
+            under -- `'0'` (must not be present), `'1'` (must be present) or
+            `'2'` (value constrained)
+        rules_context (str): the rule's `rulesContext`/`@context` qualifier,
+            or `''` for an unqualified rule
+        severity (Optional[str]): resolved `brSeverityLevel` (own or
+            `defaultBrSeverityLevel`), `None` when neither is declared
+        fail (bool): whether this violation counts as an error (`True`) or,
+            per a `.brseveritylevels` file marking this severity `fail="no"`,
+            as a non-failing warning (see `_is_severity_failure`)
+        object_path (str): the rule's `objectPath`/`objpath` XPath expression
+        object_use (Optional[str]): the rule's `objectUse`/`objuse` description
+        allowed_values (dict): `{'single': [...], 'pattern': [...], 'range': [...],
+            'tailoring': [...]}` -- empty lists for a flag `0`/`1` violation
+            with no value constraint
+        node_xpath (Optional[str]): canonical XPath of the violating node
+            (category D2), `None` when no node backs the violation (e.g. a
+            boolean flag-0 result or a flag-1 "required but missing" result)
+        line (any): source line number of the violating node, `'x'` when
+            unknown, or a descriptive placeholder for a multi-line-origin
+            boolean result
+        node_snippet (Optional[str]): serialised copy of the violating node
+            (category D3), `None` when no node backs the violation
+        duplicate (bool): `True` when an identical violation (same `flag`,
+            `rules_context`, `object_path` and `node_xpath`) was already
+            reported against an earlier, more specific layer of the same
+            layered-BREX chain -- see `_deduplicate_violations`. Excluded
+            from `_count_violations`/`_append_summary`/`run_summary` and
+            omitted from `to_xml_report`/`to_json_report`, but kept in the
+            raw `result[brex_path]['0'/'1'/'2']` lists for transparency.
+    """
+    document: str
+    brex: str
+    rule_id: Optional[str]
+    br_decision_ident_number: Optional[str]
+    flag: str
+    rules_context: str
+    severity: Optional[str]
+    fail: bool
+    object_path: str
+    object_use: Optional[str]
+    allowed_values: dict
+    node_xpath: Optional[str]
+    line: any
+    node_snippet: Optional[str]
+    duplicate: bool = False
+
+    def to_dict(self) -> dict:
+        """Plain-dict form, e.g. for JSON serialisation."""
+        return asdict(self)
 
 class BrexChecker():
     def __init__(self):
@@ -106,6 +195,7 @@ class BrexChecker():
         self._allow_network = False
         self._ignore_empty = False
         self._xpath_version = None
+        self._require_schema_declaration = False
 
         self._rule_stats = {}
         # Cache of `_show_rules` output keyed by (brex path, schema), so a
@@ -567,6 +657,35 @@ class BrexChecker():
             return True
         return not brex_schema.startswith(_XPATH1_ONLY_ISSUE_PREFIXES)
 
+    def set_require_schema(self, enabled: bool = True) -> None:
+        """Whether `_check_rules` should raise `NoSchemaDeclared` instead of
+        silently proceeding when the checked object's root element has no
+        `xsi:noNamespaceSchemaLocation` attribute.
+
+        Off by default (`enabled=False`), matching `s1kd-brexcheck`, which
+        never errors on a missing schema declaration either: without it,
+        `_check_rules` simply cannot resolve which `contextRules`/`rulesContext`
+        groups apply, so only unqualified rules are checked -- correct,
+        expected behaviour for a genuine S1000D <= 3.0 / DTD-based object,
+        which never carries `xsi:noNamespaceSchemaLocation` in the first
+        place (see the legacy-spelling support in `_show_rules`/
+        `_get_object_rule_nodes`, and `test_legacy_brex_spellings.py`, which
+        depends on this object shape checking cleanly with no error).
+
+        Turn this on when checking objects that are all expected to be
+        XSD/4.0+-based and should always declare a schema: a missing
+        declaration on one of them is then far more likely an authoring
+        mistake (or a caller that forgot to pass the resolved XML at all)
+        than a legitimate DTD-based object, and silently under-checking it
+        against unqualified rules only would hide the mistake instead of
+        surfacing it.
+
+        Args:
+            enabled (bool): raise `NoSchemaDeclared` instead of silently
+                degrading to unqualified-rules-only checking
+        """
+        self._require_schema_declaration = enabled
+
     def _build_xml_parser(self) -> etree.XMLParser:
         """Build the lxml parser used for both the checked object and every
         BREX file, honouring the parser options set via `set_resolve_entities`
@@ -808,6 +927,7 @@ class BrexChecker():
             allowed_object_flag_dict.append({
                     'xpath': xpath_text,
                     'Brex': str(brex),
+                    'ruleId': x.getparent().get('id'),
                     'ObjectFlag': x.get('allowedObjectFlag', x.get('objappl')),
                     'objectUse': object_use,
                     'contextRules': context_rules,
@@ -1061,6 +1181,8 @@ class BrexChecker():
                         'Xpath': value['xpath'],
                         'NodeXpath': None,
                         'Object': None,
+                        'RuleId': value.get('ruleId'),
+                        'RulesContext': value['contextRules'],
                         'BrDecisionIdentNumber': value.get('brDecisionIdentNumber'),
                         'BrSeverityLevel': value.get('brSeverityLevel'),
                         'Fail': self._is_severity_failure(value.get('brSeverityLevel'))}
@@ -1081,6 +1203,8 @@ class BrexChecker():
                         'Xpath': value['xpath'],
                         'NodeXpath': node_xpath,
                         'Object': node_copy,
+                        'RuleId': value.get('ruleId'),
+                        'RulesContext': value['contextRules'],
                         'BrDecisionIdentNumber': value.get('brDecisionIdentNumber'),
                         'BrSeverityLevel': value.get('brSeverityLevel'),
                         'Fail': self._is_severity_failure(value.get('brSeverityLevel'))}
@@ -1116,6 +1240,8 @@ class BrexChecker():
                             'Xpath': value['xpath'],
                             'NodeXpath': None,
                             'Object': None,
+                            'RuleId': value.get('ruleId'),
+                            'RulesContext': value['contextRules'],
                             'BrDecisionIdentNumber': value.get('brDecisionIdentNumber'),
                             'BrSeverityLevel': value.get('brSeverityLevel'),
                             'Fail': self._is_severity_failure(value.get('brSeverityLevel'))}
@@ -1186,6 +1312,8 @@ class BrexChecker():
                     'Range Values': [value["ranges_allowed"]],
                     'ValueTailoring': value.get('value_tailoring', []),
                     'ObjectUse': value["objectUse"],
+                    'RuleId': value.get('ruleId'),
+                    'RulesContext': value['contextRules'],
                     'BrDecisionIdentNumber': value.get('brDecisionIdentNumber'),
                     'BrSeverityLevel': value.get('brSeverityLevel'),
                     'Fail': self._is_severity_failure(value.get('brSeverityLevel'))})
@@ -1600,8 +1728,9 @@ class BrexChecker():
         for child in list(node):
             self._remove_deleted_elements(child)
 
-    def _check_rules(self, debug: bool = False, include_tqdm: bool = False, sns_mode: str = "normal",
-                      remove_deleted: bool = False, deep_copy_nodes: bool = False) -> dict:
+    def _check_rules(self, debug: bool = False, progress_callback: Callable[[int, int, str], None] = None,
+                      sns_mode: str = "normal", remove_deleted: bool = False,
+                      deep_copy_nodes: bool = False) -> dict:
         """Traverses through every node of the brex and checks the rules through the given xpaths.
         For objectFlag 0 we also get the line of the error
         For objectFlag 1 we only get the Description of the rule that was violated
@@ -1610,7 +1739,12 @@ class BrexChecker():
 
         Args:
             debug (bool): dump intermediate rule/error data for inspection
-            include_tqdm (bool): show a progress bar while checking content rules
+            progress_callback (Callable[[int, int, str], None]): optional, called as
+                `progress_callback(current, total, "rules")` after each content rule
+                is checked -- e.g. `lambda current, total, stage: bar.update(1)` if the
+                caller wants a `tqdm` bar of their own. `None` (the default) reports no
+                progress; the library itself no longer depends on `tqdm`. See `validate`,
+                whose directory-mode file loop reports the same way with `stage="files"`.
             sns_mode (str): one of `SNS_MODES` ("normal", "strict", "unstrict");
                 see `_sns_should_check`
             remove_deleted (bool): equivalent to `s1kd-brexcheck -^`/`--remove-deleted`;
@@ -1621,10 +1755,24 @@ class BrexChecker():
                 of the violating element instead of just its own tag and attributes
                 (see `_node_xpath_and_copy`)
 
+        Raises:
+            NoSchemaDeclared: if `set_require_schema(True)` is active and the checked
+                object has no `xsi:noNamespaceSchemaLocation`. Off by default -- see
+                `set_require_schema`.
+
         Returns:
             any: Dictionary with all errors
         """
         schema = get_schema_from_xml(self._xml_content)
+        if schema is None and self._require_schema_declaration:
+            raise NoSchemaDeclared(
+                f"{self._xml_path} has no xsi:noNamespaceSchemaLocation on its root "
+                "element, so schema-qualified BREX rules (rulesContext) cannot be "
+                "selected for it -- only unqualified rules would be checked. If this "
+                "is a genuine S1000D <= 3.0 / DTD-based object, call "
+                "set_require_schema(False) (the default) to check it against "
+                "unqualified rules only, as intended."
+            )
         brex_violations_dict = {}
         for brex in self._brex_list[0]:
             brex_violations_dict[brex] = {
@@ -1663,8 +1811,8 @@ class BrexChecker():
             with open(clean_path(join(expanduser("~/Desktop"), "All_content_rules.txt")), 'w', encoding="utf-8") as _:
                 for rule in all_content_rules:
                     _.write(str(rule) + "\n")
-        container = tqdm(all_content_rules) if include_tqdm else all_content_rules
-        for value in container:
+        total_content_rules = len(all_content_rules)
+        for idx, value in enumerate(all_content_rules):
             self._record_rule_evaluated(value)
             if value["ObjectFlag"] == '0':
                 brex_violations_dict |= self._check_object_flag_0(
@@ -1679,13 +1827,72 @@ class BrexChecker():
             if has_values and value["ObjectFlag"] in ('2', None):
                 brex_violations_dict |= self._check_object_flag_2(
                     schema, brex_violations_dict, root, value, deep_copy_nodes)
+            if progress_callback is not None:
+                progress_callback(idx + 1, total_content_rules, "rules")
+        self._deduplicate_violations(brex_violations_dict)
         return brex_violations_dict
+
+    def _deduplicate_violations(self, brex_violations_dict: dict) -> None:
+        """Mark, but do not remove, a content-rule violation ('0'/'1'/'2') as a
+        duplicate when an earlier, more specific layer of the same layered-BREX
+        chain (`self._brex_list[0]`, walked project-specific-layer first -- see
+        `_walk_brex_chain`/`lint_brex_layers`) already reported the identical
+        violation.
+
+        Layered BREX commonly re-states or inherits the same rule verbatim
+        across layers (a project BREX re-declaring a rule the master BREX
+        already defines, or a project BREX simply not overriding one it
+        inherits): checking the same object against both layers then produces
+        two violation records for what is really one real-world defect, one
+        under each layer's own `Brex` key in the result. `lint_brex_layers`
+        already treats a rule as "the same" across layers when it shares its
+        `rulesContext`/`context` qualifier and exact `objectPath`/`objpath`
+        text (a documented simplification); a violation additionally needs to
+        land on the same node (or, for a flag-1 "required but missing"/boolean
+        flag-0 result with no backing node, `NodeXpath` is `None` for both,
+        which still correctly identifies them as the same violation) to count
+        as the same violation rather than merely the same rule.
+
+        Marks in place via a `'Duplicate'` key on the violation dict, kept in
+        the raw per-BREX lists this method's caller (`_check_rules`) returns
+        (`result[brex_path]['0'/'1'/'2']`) so nothing disappears from that
+        structure or changes its length -- only `_count_violations` (and, in
+        turn, `_append_summary`/`run_summary`) and `to_xml_report`/
+        `to_json_report` skip a `Duplicate: True` entry.
+
+        A violation identity that recurs within a single BREX file (rather
+        than across two files in the chain) is deduplicated the same way:
+        the identity key below intentionally does not include `Brex`, since
+        two rules sharing `rulesContext`+`objectPath`+the same violating node
+        are the same real-world defect regardless of whether they came from
+        one file or two.
+
+        Args:
+            brex_violations_dict (dict): the in-progress result being built by
+                `_check_rules`, mutated in place
+        """
+        seen = set()
+        for brex in self._brex_list[0]:
+            brex_result = brex_violations_dict.get(brex)
+            if not isinstance(brex_result, dict):
+                continue
+            for flag in ('0', '1', '2'):
+                for violation in brex_result.get(flag, []):
+                    key = (flag, violation.get('RulesContext'), violation.get('Xpath'), violation.get('NodeXpath'))
+                    if key in seen:
+                        violation['Duplicate'] = True
+                    else:
+                        seen.add(key)
+                        violation['Duplicate'] = False
 
     def _count_violations(self, object_flag_dict: dict) -> tuple:
         """Counts the number of actual Brex violations (flags 0, 1 and 2, plus SNS and
         notation rules) for a xml, and tallies content-rule violations by their
         resolved `brSeverityLevel`. `xpathError` entries are diagnostics about a rule
         that could not be evaluated, not violations, and are excluded from the count.
+        A content-rule violation marked `'Duplicate': True` (the same violation
+        already reported against an earlier, more specific layer of the same
+        layered-BREX chain -- see `_deduplicate_violations`) is also excluded.
 
         A content-rule violation whose resolved `brSeverityLevel` is marked `fail="no"`
         in the `.brseveritylevels` file (see `_is_severity_failure`) is reported as a
@@ -1728,6 +1935,11 @@ class BrexChecker():
                 continue
             for flag in ('0', '1', '2'):
                 for violation in brex_result[flag]:
+                    if violation.get('Duplicate'):
+                        # Same violation already counted against an earlier,
+                        # more specific layer of the same BREX chain -- see
+                        # `_deduplicate_violations`.
+                        continue
                     severity = violation.get('BrSeverityLevel')
                     severity_counts[severity] = severity_counts.get(severity, 0) + 1
                     if violation.get('Fail', True):
@@ -1858,6 +2070,129 @@ class BrexChecker():
             "ViolationsBySeverity": severity_counts,
         }
 
+    def _violation_from_dict(self, document: str, brex: str, flag: str, violation: dict) -> BrexViolation:
+        """Convert one raw violation record (a `result[brex_path][flag]` list
+        entry, as built by `_check_object_flag_0/1/2`/`_check_object_values`)
+        into a structured `BrexViolation`. The single conversion point both
+        `violations()` and `to_xml_report` (via `_append_error_node`) go
+        through, so the JSON and XML reports are both derived from the same
+        structured shape rather than each walking the raw dict independently.
+
+        Args:
+            document (str): path of the checked object the violation is from
+            brex (str): path of the BREX file the violated rule came from
+            flag (str): `'0'`, `'1'` or `'2'` -- which violation list `violation`
+                came from
+            violation (dict): one raw violation record
+
+        Returns:
+            BrexViolation: the structured equivalent
+        """
+        return BrexViolation(
+            document=document,
+            brex=brex,
+            rule_id=violation.get('RuleId'),
+            br_decision_ident_number=violation.get('BrDecisionIdentNumber'),
+            flag=flag,
+            rules_context=violation.get('RulesContext', ''),
+            severity=violation.get('BrSeverityLevel'),
+            fail=violation.get('Fail', True),
+            object_path=violation.get('Xpath'),
+            # Flag 0/1 records carry the rule's objectUse only under
+            # 'Description'; a value violation (flag 2, or a flag-1 rule's
+            # follow-on value check, §3.8) carries the rule's objectUse
+            # separately under 'ObjectUse' and repurposes 'Description' for
+            # its own "did not match the object values" message -- prefer
+            # 'ObjectUse' so this always ends up being the rule's own
+            # description, matching `BrexViolation.object_use`.
+            object_use=violation.get('ObjectUse', violation.get('Description')),
+            allowed_values={
+                'single': (violation.get('Single Values') or [[]])[0],
+                'pattern': (violation.get('Pattern Values') or [[]])[0],
+                'range': (violation.get('Range Values') or [[]])[0],
+                'tailoring': violation.get('ValueTailoring', []),
+            },
+            node_xpath=violation.get('NodeXpath'),
+            line=violation.get('Line'),
+            node_snippet=violation.get('Object'),
+            duplicate=bool(violation.get('Duplicate')),
+        )
+
+    def violations(self, result: dict) -> list:
+        """Flatten a `validate()`/`_check_rules()` result into a list of
+        structured `BrexViolation` records -- the canonical, typed form
+        `to_json_report` and `to_xml_report` both derive their output from
+        (via `_violation_from_dict`), instead of each re-walking the raw
+        nested `result[brex_path]['0'/'1'/'2']` dicts independently.
+
+        Only content-rule violations (`allowedObjectFlag`/`@objappl` `'0'`,
+        `'1'`, `'2'`) are represented: SNS (category A2) and notation-rule
+        (A3) violations have no `objectPath`/`objectUse`/allowed-values shape
+        to report through `BrexViolation`, and `nonContextRules`/
+        `brexFallback` are informational, not violations -- all three remain
+        available in `result` itself and in `to_xml_report`'s XML.
+
+        Accepts either a single-object result (`validate()` after `set_xml`)
+        or a directory-mode result (`validate()` after `set_xml_dir`, a
+        mapping of `{filename: single-object result}`), distinguished the
+        same way `_is_single_object_result` does. A skipped document
+        (`set_ignore_empty`, category "Skipped") contributes nothing, since
+        it was never actually checked.
+
+        Args:
+            result (dict): a `validate()` return value
+
+        Returns:
+            list: `BrexViolation` records, in document, then BREX, then flag
+                ('0'/'1'/'2') order -- including a `duplicate=True` entry
+                (see `_deduplicate_violations`); filter those out explicitly
+                if only the reportable set is wanted, the way
+                `to_json_report`/`to_xml_report` do
+        """
+        if self._is_single_object_result(result):
+            documents = {(self._xml_path or ""): result}
+        else:
+            documents = {name: doc for name, doc in result.items() if isinstance(doc, dict)}
+
+        records = []
+        for docname, doc_result in documents.items():
+            if doc_result.get("Skipped"):
+                continue
+            for brex_path, brex_result in doc_result.items():
+                if brex_path in ("sns", "notations", "brexFallback", "Summary", "Skipped", "nonContextRules"):
+                    continue
+                if not isinstance(brex_result, dict):
+                    continue
+                for flag in ('0', '1', '2'):
+                    for violation in brex_result.get(flag, []):
+                        records.append(self._violation_from_dict(docname, brex_path, flag, violation))
+        return records
+
+    def to_json_report(self, result: dict, indent: int = 2) -> str:
+        """Convert a `validate()` result into a JSON report derived from the
+        structured `BrexViolation` list (see `violations`), rather than
+        serialising the raw `result` dict verbatim -- the ad-hoc JSON shape
+        category D6 originally flagged as the only report format available.
+        `to_xml_report` is the equivalent for the `-x`-compatible XML shape;
+        both are now derived from the same `_violation_from_dict` conversion.
+
+        A `duplicate=True` violation (see `_deduplicate_violations`) is left
+        out, matching `to_xml_report` and `_count_violations`/`run_summary`.
+
+        Args:
+            result (dict): a `validate()` return value
+            indent (int): `json.dumps` indent; `None` for compact output
+
+        Returns:
+            str: `{"summary": run_summary(result), "violations": [...]}`, each
+                violation the `dataclasses.asdict()` form of one `BrexViolation`
+        """
+        payload = {
+            "summary": self.run_summary(result),
+            "violations": [v.to_dict() for v in self.violations(result) if not v.duplicate],
+        }
+        return dumps(payload, indent=indent, ensure_ascii=False)
+
     def _append_sns_notation_nodes(self, document_node: any, result: dict) -> None:
         """Append the `sns` and `notations` nodes of one `document` node, port of
         the corresponding fragments of `check_brex_sns_rules`
@@ -1919,7 +2254,7 @@ class BrexChecker():
                 etree.SubElement(rule_node, "brDecisionRef", brDecisionIdentNumber=br_decision_ident_number)
             etree.SubElement(rule_node, "text").text = entry.get("Text")
 
-    def _append_error_node(self, brex_node: any, violation: dict, allowed_object_flag: str) -> None:
+    def _append_error_node(self, brex_node: any, violation: BrexViolation) -> None:
         """Append one `error` node for a content-rule violation, port of the
         `<error>` construction in `check_brex_rules` (`s1kd-brexcheck.c:900-938`).
 
@@ -1931,39 +2266,34 @@ class BrexChecker():
 
         Args:
             brex_node (any): the `brex` element to append to
-            violation (dict): one violation record from `brex_result['0'/'1'/'2']`
-            allowed_object_flag (str): the `allowedObjectFlag` this violation was
-                recorded under (`'0'`, `'1'` or `'2'`), reported as an attribute
-                on `objectPath` same as the C original's `@allowedObjectFlag`
+            violation (BrexViolation): the structured violation to render,
+                built by `_violation_from_dict`
         """
         error_node = etree.SubElement(brex_node, "error")
 
-        severity = violation.get("BrSeverityLevel")
-        if severity:
-            error_node.set("brSeverityLevel", severity)
-            if not violation.get("Fail", True):
+        if violation.severity:
+            error_node.set("brSeverityLevel", violation.severity)
+            if not violation.fail:
                 error_node.set("fail", "no")
         else:
             error_node.set("fail", "yes")
 
-        br_decision_ident_number = violation.get("BrDecisionIdentNumber")
-        if br_decision_ident_number is not None:
-            etree.SubElement(error_node, "brDecisionRef", brDecisionIdentNumber=br_decision_ident_number)
+        if violation.br_decision_ident_number is not None:
+            etree.SubElement(error_node, "brDecisionRef",
+                              brDecisionIdentNumber=violation.br_decision_ident_number)
 
-        object_path_node = etree.SubElement(error_node, "objectPath", allowedObjectFlag=allowed_object_flag)
-        object_path_node.text = violation.get("Xpath")
+        object_path_node = etree.SubElement(error_node, "objectPath", allowedObjectFlag=violation.flag)
+        object_path_node.text = violation.object_path
 
-        etree.SubElement(error_node, "objectUse").text = violation.get("ObjectUse", violation.get("Description"))
+        etree.SubElement(error_node, "objectUse").text = violation.object_use
 
-        if violation.get("Object") is not None:
+        if violation.node_snippet is not None:
             object_node = etree.SubElement(error_node, "object")
-            line = violation.get("Line")
-            if line is not None:
-                object_node.set("line", str(line))
-            node_xpath = violation.get("NodeXpath")
-            if node_xpath is not None:
-                object_node.set("xpath", node_xpath)
-            object_node.append(etree.fromstring(violation["Object"].encode("utf-8")))
+            if violation.line is not None:
+                object_node.set("line", str(violation.line))
+            if violation.node_xpath is not None:
+                object_node.set("xpath", violation.node_xpath)
+            object_node.append(etree.fromstring(violation.node_snippet.encode("utf-8")))
 
     def _build_document_node(self, result: dict, docname: str) -> any:
         """Build one `document` node (a single checked object's report), port of
@@ -1992,7 +2322,12 @@ class BrexChecker():
             brex_node.set("path", brex_path)
             for flag in ('0', '1', '2'):
                 for violation in brex_result.get(flag, []):
-                    self._append_error_node(brex_node, violation, flag)
+                    structured = self._violation_from_dict(docname, brex_path, flag, violation)
+                    if structured.duplicate:
+                        # Already reported against an earlier, more specific
+                        # layer of the same chain -- see `_deduplicate_violations`.
+                        continue
+                    self._append_error_node(brex_node, structured)
             for xpath_error in brex_result.get("xpathError", []):
                 error_node = etree.SubElement(brex_node, "xpathError")
                 error_node.text = xpath_error.get("Xpath")
@@ -2575,13 +2910,21 @@ class BrexChecker():
 
         return findings
 
-    def validate(self, debug: bool = False, include_tqdm: bool = False, sns_mode: str = "normal",
-                 remove_deleted: bool = False, deep_copy_nodes: bool = False) -> dict:
+    def validate(self, debug: bool = False, progress_callback: Callable[[int, int, str], None] = None,
+                 sns_mode: str = "normal", remove_deleted: bool = False, deep_copy_nodes: bool = False) -> dict:
         """Check xml against all brexes and dump the results into a JSon file
 
         Args:
             debug (bool): dump intermediate rule/error data for inspection
-            include_tqdm (bool): show a progress bar while checking files/rules
+            progress_callback (Callable[[int, int, str], None]): optional progress
+                reporter, called as `progress_callback(current, total, stage)` --
+                `stage="files"` once per file in directory mode (`set_xml_dir`), and
+                `stage="rules"` once per content rule checked within each document
+                (forwarded to `_check_rules`). `None` (the default) reports no
+                progress. Replaces the old hard `tqdm` dependency (`include_tqdm`):
+                the library no longer imports `tqdm` at all, and a caller who wants
+                a `tqdm` bar can drive one from the callback themselves, e.g.
+                `lambda current, total, stage: bars[stage].update(1)`.
             sns_mode (str): SNS shorthand mode, one of `SNS_MODES`. Port of
                 `should_check` (`s1kd-brexcheck.c:1038`):
 
@@ -2620,19 +2963,23 @@ class BrexChecker():
             initial_brex_list = self._brex_list
             initial_brex_dir_path = self._brex_dir_path
             results = {}
-            container = tqdm(files) if include_tqdm else files
-            for _xml in container:
+            total_files = len(files)
+            for idx, _xml in enumerate(files):
                 xml_path = join(self._xml_dir, _xml)
                 if self._ignore_empty and not self._is_valid_xml_file(xml_path):
+                    if progress_callback is not None:
+                        progress_callback(idx + 1, total_files, "files")
                     continue
                 self.set_xml(xml_path)
                 self._init_brex_list()
-                result = self._check_rules(debug=debug, include_tqdm=include_tqdm, sns_mode=sns_mode,
+                result = self._check_rules(debug=debug, progress_callback=progress_callback, sns_mode=sns_mode,
                                             remove_deleted=remove_deleted, deep_copy_nodes=deep_copy_nodes)
                 result["Summary"] = self._append_summary(result)
                 results[_xml] = result
                 self._brex_list = initial_brex_list if had_explicit_brex_list else (None, None)
                 self._brex_dir_path = initial_brex_dir_path if had_explicit_brex_dir_path else (None, None)
+                if progress_callback is not None:
+                    progress_callback(idx + 1, total_files, "files")
             if debug:
                 with open(clean_path(join(expanduser("~/Desktop"), f'Errors_{basename(self._xml_dir)}.json')), 'w', encoding="utf-8") as _:
                     dump(results, _, indent=4)
@@ -2645,8 +2992,8 @@ class BrexChecker():
                         dump(result, _, indent=4)
                 return result
             self._init_brex_list()
-            result = self._check_rules(debug=debug, sns_mode=sns_mode, remove_deleted=remove_deleted,
-                                        deep_copy_nodes=deep_copy_nodes)
+            result = self._check_rules(debug=debug, progress_callback=progress_callback, sns_mode=sns_mode,
+                                        remove_deleted=remove_deleted, deep_copy_nodes=deep_copy_nodes)
             summary = self._append_summary(result)
             result["Summary"] = summary
             if debug:
