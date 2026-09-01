@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+
+  <!--
+    ASSUMED RUNTIME LAYOUT (PyInstaller ≥6, onedir):
+      dist\<App>\_internal\ent\catalog.xml        <- this file
+      dist\<App>\_internal\ent\2.3\ISOEntities
+      dist\<App>\_internal\ent\2.3.1\ISOEntities
+      dist\<App>\_internal\ent\4.0.1\ISOEntities
+      dist\<App>\_internal\ent\4.0.2\ISOEntities
+      dist\<App>\_internal\ent\4.1\ISOEntities
+      dist\<App>\_internal\ent\4.2\ISOEntities
+
+    Because this catalog sits inside the "ent" folder,
+    rewritePrefix values like "4.0.1/" resolve to:
+      ...\_internal\ent\4.0.1\ISOEntities
+  -->
+
+  <!-- ===== S1000D 2.3 ===== -->
+  <rewriteSystem systemIdStartString="http://www.s1000d.org/S1000D_2-3/ent/"
+                 rewritePrefix="2.3/"/>
+  <rewriteURI    uriStartString="http://www.s1000d.org/S1000D_2-3/ent/"
+                 rewritePrefix="2.3/"/>
+  <!-- harden the common entity by exact map -->
+  <system systemId="http://www.s1000d.org/S1000D_2-3/ent/isoentities"
+          uri="2.3.1/isoentities"/>
+  <system systemId="http://www.s1000d.org/S1000D_2-3/ent/ISOEntities"
+          uri="2.3.1/isoentities"/>
+  <!-- Arbortext emits …/ent/xml/ISOEntities -->
+  <system systemId="http://www.s1000d.org/S1000D_2-3/ent/xml/ISOEntities"
+          uri="2.3.1/isoentities"/>
+  <uri    name="http://www.s1000d.org/S1000D_2-3/ent/xml/ISOEntities"
+          uri="2.3.1/isoentities"/>
+
+  <!-- ===== S1000D 2.3.1 ===== -->
+  <rewriteSystem systemIdStartString="http://www.s1000d.org/S1000D_2-3-1/ent/"
+                 rewritePrefix="2.3.1/"/>
+  <rewriteURI    uriStartString="http://www.s1000d.org/S1000D_2-3-1/ent/"
+                 rewritePrefix="2.3.1/"/>
+  <system systemId="http://www.s1000d.org/S1000D_2-3-1/ent/ISOEntities"
+          uri="2.3.1/isoentities"/>
+  <system systemId="http://www.s1000d.org/S1000D_2-3-1/ent/xml/ISOEntities"
+          uri="2.3.1/isoentities"/>
+  <uri    name="http://www.s1000d.org/S1000D_2-3-1/ent/xml/ISOEntities"
+          uri="2.3.1/isoentities"/>
+
+  <!-- ===== S1000D 4.0.1 ===== -->
+  <rewriteSystem systemIdStartString="http://www.s1000d.org/S1000D_4-0-1/ent/"
+                 rewritePrefix="4.0.1/"/>
+  <rewriteURI    uriStartString="http://www.s1000d.org/S1000D_4-0-1/ent/"
+                 rewritePrefix="4.0.1/"/>
+  <system systemId="http://www.s1000d.org/S1000D_4-0-1/ent/ISOEntities"
+          uri="4.0.1/ISOEntities"/>
+  <system systemId="http://www.s1000d.org/S1000D_4-0-1/ent/xml/ISOEntities"
+          uri="4.0.1/ISOEntities"/>
+  <uri    name="http://www.s1000d.org/S1000D_4-0-1/ent/xml/ISOEntities"
+          uri="4.0.1/ISOEntities"/>
+
+  <!-- ===== S1000D 4.0.2 ===== -->
+  <rewriteSystem systemIdStartString="http://www.s1000d.org/S1000D_4-0-2/ent/"
+                 rewritePrefix="4.0.2/"/>
+  <rewriteURI    uriStartString="http://www.s1000d.org/S1000D_4-0-2/ent/"
+                 rewritePrefix="4.0.2/"/>
+  <system systemId="http://www.s1000d.org/S1000D_4-0-2/ent/ISOEntities"
+          uri="4.0.2/ISOEntities"/>
+  <system systemId="http://www.s1000d.org/S1000D_4-0-2/ent/xml/ISOEntities"
+          uri="4.0.2/ISOEntities"/>
+  <uri    name="http://www.s1000d.org/S1000D_4-0-2/ent/xml/ISOEntities"
+          uri="4.0.2/ISOEntities"/>
+
+  <!-- ===== S1000D 4.1 ===== -->
+  <rewriteSystem systemIdStartString="http://www.s1000d.org/S1000D_4-1/ent/"
+                 rewritePrefix="4.1/"/>
+  <rewriteURI    uriStartString="http://www.s1000d.org/S1000D_4-1/ent/"
+                 rewritePrefix="4.1/"/>
+  <system systemId="http://www.s1000d.org/S1000D_4-1/ent/ISOEntities"
+          uri="4.1/ISOEntities"/>
+  <!-- some authoring tools (Arbortext etc.) emit …/ent/xml/ISOEntities -->
+  <system systemId="http://www.s1000d.org/S1000D_4-1/ent/xml/ISOEntities"
+          uri="4.1/ISOEntities"/>
+  <uri    name="http://www.s1000d.org/S1000D_4-1/ent/xml/ISOEntities"
+          uri="4.1/ISOEntities"/>
+
+  <!-- ===== S1000D 4.2 ===== -->
+  <rewriteSystem systemIdStartString="http://www.s1000d.org/S1000D_4-2/ent/"
+                 rewritePrefix="4.2/"/>
+  <rewriteURI    uriStartString="http://www.s1000d.org/S1000D_4-2/ent/"
+                 rewritePrefix="4.2/"/>
+  <system systemId="http://www.s1000d.org/S1000D_4-2/ent/ISOEntities"
+          uri="4.2/ISOEntities"/>
+  <system systemId="http://www.s1000d.org/S1000D_4-2/ent/xml/ISOEntities"
+          uri="4.2/ISOEntities"/>
+  <uri    name="http://www.s1000d.org/S1000D_4-2/ent/xml/ISOEntities"
+          uri="4.2/ISOEntities"/>
+
+</catalog>

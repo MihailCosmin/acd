@@ -55,6 +55,12 @@ from .s1000d import collect_csdb_schemas
 from .default_brex import default_brex_dmc
 from .default_brex import default_brex_path
 from .default_brex import find_default_brex_fallback
+from .prompt import ask_for_folder
+from .resources import brex_dirs
+from .resources import register_catalog
+from .report import REPORT_PALETTE
+from .report import ExcelReport
+from .report import HtmlReport
 
 
 NS_DICT = {'rdf': r'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
@@ -77,20 +83,6 @@ _XPATH1_ONLY_ISSUE_PREFIXES = (
     "http://www.s1000d.org/S1000D_3-0",
 )
 
-# Shared look of the two formatted reports (category D6): `to_excel_report`
-# writes these as openpyxl `PatternFill`/`Font` colours (ARGB-style hex with no
-# leading '#'), `to_html_report` mirrors them in `_REPORT_HTML_CSS`, so a
-# workbook and an HTML report of the same run read as the same document.
-_REPORT_PALETTE = {
-    "header": "1F4E79",   # table header band / titles
-    "grid": "D9D9D9",     # cell borders
-    "error": "FCE4E4",    # failing violation rows
-    "warning": "FFF2CC",  # non-failing (severity fail="no") rows
-    "ok": "E2F0D9",       # passing documents
-    "band": "F5F7FA",     # zebra banding
-    "muted": "808080",    # secondary text / informational tabs
-}
-
 # `allowedObjectFlag` spelled out for a human reader of the Excel/HTML reports;
 # the raw '0'/'1'/'2' stays the value in the JSON and XML ones.
 _REPORT_FLAG_LABELS = {
@@ -109,211 +101,6 @@ _REPORT_VIOLATION_COLUMNS = (
     "Node xpath", "Node",
 )
 
-# Inline stylesheet of `to_html_report`. Deliberately self-contained -- no
-# webfont, image or CDN reference -- so the report opens identically off a
-# network share, an e-mail attachment or a `file://` path. The full light
-# palette is defined on bare `:root`; the dark one is redefined twice, once
-# under `prefers-color-scheme` (guarded so an explicit light choice still wins)
-# and once under `[data-theme="dark"]` (so the toggle wins in both directions).
-_REPORT_HTML_CSS = """
-:root {
-  color-scheme: light dark;
-  --bg: #f4f6f8; --panel: #ffffff; --ink: #171a1f; --muted: #5c6672;
-  --line: #e3e7ec; --accent: #1f4e79; --accent-ink: #ffffff;
-  --error-bg: #fdecec; --error-ink: #9d2933;
-  --warn-bg: #fff5df; --warn-ink: #8a6100;
-  --ok-bg: #e7f4ea; --ok-ink: #1d6b34;
-  --code-bg: #f2f4f7;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #101319; --panel: #181d25; --ink: #e6eaf0; --muted: #98a2b3;
-    --line: #2a313c; --accent: #7fb3e3; --accent-ink: #0d1117;
-    --error-bg: #3a1e22; --error-ink: #ff9ba2;
-    --warn-bg: #3a2f16; --warn-ink: #f2c66b;
-    --ok-bg: #16301f; --ok-ink: #86d99b;
-    --code-bg: #11151c;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #101319; --panel: #181d25; --ink: #e6eaf0; --muted: #98a2b3;
-  --line: #2a313c; --accent: #7fb3e3; --accent-ink: #0d1117;
-  --error-bg: #3a1e22; --error-ink: #ff9ba2;
-  --warn-bg: #3a2f16; --warn-ink: #f2c66b;
-  --ok-bg: #16301f; --ok-ink: #86d99b;
-  --code-bg: #11151c;
-}
-* { box-sizing: border-box; }
-body {
-  margin: 0; padding: 24px; background: var(--bg); color: var(--ink);
-  font: 14px/1.5 "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
-}
-h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.01em; }
-p { margin: 0; }
-.muted { color: var(--muted); font-size: 12px; }
-.mono, code, pre {
-  font-family: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
-  font-size: 12px;
-}
-.page-head {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
-  border-bottom: 3px solid var(--accent); padding-bottom: 12px;
-}
-#theme-toggle {
-  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
-  background: var(--panel); color: var(--ink); border: 1px solid var(--line);
-  border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px;
-}
-#theme-toggle:hover { border-color: var(--accent); }
-.theme-icon { width: 12px; height: 12px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent) 50%, transparent 50%);
-  border: 1px solid var(--accent); }
-.cards { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
-.card {
-  flex: 1 1 132px; background: var(--panel); border: 1px solid var(--line);
-  border-left: 4px solid var(--muted); border-radius: 8px; padding: 12px 14px;
-  display: flex; flex-direction: column; gap: 2px;
-}
-.card-value { font-size: 26px; font-weight: 650; line-height: 1.1; }
-.card-label { color: var(--muted); font-size: 12px; text-transform: uppercase;
-  letter-spacing: 0.04em; }
-.card.error { border-left-color: var(--error-ink); background: var(--error-bg); }
-.card.error .card-value { color: var(--error-ink); }
-.card.warning { border-left-color: var(--warn-ink); background: var(--warn-bg); }
-.card.warning .card-value { color: var(--warn-ink); }
-.card.ok { border-left-color: var(--ok-ink); background: var(--ok-bg); }
-.card.ok .card-value { color: var(--ok-ink); }
-.card.neutral { border-left-color: var(--accent); }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
-.chip {
-  display: inline-flex; align-items: center; gap: 8px; background: var(--panel);
-  border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px;
-  font-size: 12px;
-}
-.chip-key { color: var(--muted); }
-.chip-value { font-weight: 650; }
-.section {
-  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
-  margin-bottom: 16px; overflow: hidden;
-}
-.section > summary {
-  cursor: pointer; padding: 12px 16px; display: flex; align-items: center;
-  gap: 10px; font-weight: 650; list-style: none;
-}
-.section > summary::-webkit-details-marker { display: none; }
-.section > summary::before {
-  content: "\\25B8"; color: var(--muted); transition: transform .15s ease;
-}
-.section[open] > summary::before { transform: rotate(90deg); }
-.section-title { font-size: 15px; }
-.pill {
-  background: var(--accent); color: var(--accent-ink); border-radius: 999px;
-  padding: 1px 9px; font-size: 12px; font-weight: 650;
-}
-.controls {
-  display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
-  padding: 0 16px 12px;
-}
-.controls input[type="search"] {
-  flex: 1 1 260px; padding: 7px 11px; border-radius: 6px; font: inherit;
-  border: 1px solid var(--line); background: var(--bg); color: var(--ink);
-}
-.switch { display: inline-flex; align-items: center; gap: 6px; font-size: 13px;
-  color: var(--muted); cursor: pointer; }
-.table-wrap { overflow-x: auto; border-top: 1px solid var(--line); }
-table.grid { border-collapse: collapse; width: 100%; font-size: 13px; }
-table.grid th {
-  position: sticky; top: 0; z-index: 1; text-align: left; white-space: nowrap;
-  background: var(--accent); color: var(--accent-ink); font-weight: 650;
-  padding: 9px 12px;
-}
-table.grid td {
-  padding: 8px 12px; border-bottom: 1px solid var(--line);
-  vertical-align: top; word-break: break-word;
-}
-table.grid tbody tr:nth-child(even) { background: color-mix(in srgb, var(--bg) 55%, transparent); }
-table.grid td.num { text-align: right; white-space: nowrap; }
-table.grid td.details { min-width: 240px; }
-table.grid td.details p { margin: 0 0 4px; }
-.finding { color: var(--error-ink); }
-.status {
-  display: inline-block; border-radius: 4px; padding: 1px 8px; font-size: 12px;
-  font-weight: 650; white-space: nowrap;
-}
-.status.error, .status.failed { background: var(--error-bg); color: var(--error-ink); }
-.status.warning { background: var(--warn-bg); color: var(--warn-ink); }
-.status.passed { background: var(--ok-bg); color: var(--ok-ink); }
-.status.skipped { background: var(--code-bg); color: var(--muted); }
-code { background: var(--code-bg); border-radius: 4px; padding: 1px 5px; }
-pre {
-  background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px;
-  padding: 10px; overflow-x: auto; margin: 6px 0 0; white-space: pre-wrap;
-}
-.details details > summary { cursor: pointer; color: var(--muted); font-size: 12px; }
-.empty {
-  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
-  padding: 32px; text-align: center; color: var(--ok-ink);
-}
-.empty-mark { font-size: 32px; display: block; margin-bottom: 8px; }
-"""
-
-# Inline behaviour of `to_html_report`: the dark/light override on top of the
-# reader's `prefers-color-scheme` (remembered per browser, every storage access
-# guarded so a `file://` document with site data blocked still renders), and a
-# live filter over the violations table.
-_REPORT_HTML_JS = """
-(function () {
-  var root = document.documentElement;
-  var toggle = document.getElementById('theme-toggle');
-  function stored(key, value) {
-    try {
-      if (value === undefined) { return window.localStorage.getItem(key); }
-      window.localStorage.setItem(key, value);
-    } catch (e) { /* private window, file:// with site data blocked, ... */ }
-    return null;
-  }
-  function currentlyDark() {
-    if (root.dataset.theme) { return root.dataset.theme === 'dark'; }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  }
-  var saved = stored('brex-report-theme');
-  if (saved === 'dark' || saved === 'light') { root.dataset.theme = saved; }
-  if (toggle) {
-    toggle.addEventListener('click', function () {
-      var next = currentlyDark() ? 'light' : 'dark';
-      root.dataset.theme = next;
-      stored('brex-report-theme', next);
-    });
-  }
-
-  var table = document.getElementById('violations');
-  if (!table) { return; }
-  var filter = document.getElementById('violation-filter');
-  var errorsOnly = document.getElementById('errors-only');
-  var counter = document.getElementById('violation-count');
-  var rows = Array.prototype.slice.call(table.tBodies[0].rows);
-  function apply() {
-    var needle = (filter && filter.value || '').toLowerCase();
-    var only = errorsOnly && errorsOnly.checked;
-    var shown = 0;
-    rows.forEach(function (row) {
-      var hide = (only && row.dataset.status !== 'error') ||
-        (needle && row.textContent.toLowerCase().indexOf(needle) === -1);
-      row.hidden = hide;
-      if (!hide) { shown++; }
-    });
-    if (counter) {
-      counter.textContent = shown === rows.length
-        ? rows.length + ' violations'
-        : shown + ' of ' + rows.length + ' violations';
-    }
-  }
-  if (filter) { filter.addEventListener('input', apply); }
-  if (errorsOnly) { errorsOnly.addEventListener('change', apply); }
-  apply();
-})();
-"""
 
 
 class BrexNotFound(Exception):
@@ -415,6 +202,14 @@ class BrexViolation:
 
 class BrexChecker():
     def __init__(self):
+        # Register the bundled entity catalog before anything parses: libxml2
+        # reads XML_CATALOG_FILES once per process, on its first catalog
+        # lookup, so this has to happen at construction rather than at parse
+        # time. Without it, a data module referencing the ISO character
+        # entities by their s1000d.org URL needs network access to parse.
+        # `set_xml_catalog` still works for registering a further catalog.
+        register_catalog()
+
         self._xml_path = None
         self._xml_content = None
         self._xml_dir = None
@@ -425,6 +220,11 @@ class BrexChecker():
         self._brex_recursive_search = True
         self._use_default_brex = False
         self._brex_fallbacks = []
+        # References `_walk_brex_chain` could not resolve anywhere, and the
+        # ones already put to the user, so a folder run asks once rather than
+        # once per object. See `_prompt_for_missing_brex`.
+        self._missing_brex_refs = []
+        self._asked_brex_refs = set()
 
         self._severity_levels_path = None
         self._severity_levels_search = True
@@ -464,6 +264,42 @@ class BrexChecker():
         if self._brex_dir_path[0] is None and self._brex_dir_path[1] is not True:
             self._brex_dir_path = (dirname(xml), False)
 
+    def _prompt_for_missing_brex(self) -> bool:
+        """Last line of defence for an unresolvable BREX reference: ask for the
+        folder holding it, register that folder, and let the caller retry.
+
+        Reached only after the checked object's own directory, every path
+        added with `add_brex_search_path`, the `res/brex` folders shipped
+        beside the application and the built-in default BREX set have all come
+        up empty -- at which point the alternative is `NoBrexDefined`, and a
+        run that checks nothing.
+
+        Only genuinely new references are ever asked about, so a folder run
+        where ninety objects reference the same missing BREX raises one dialog
+        and resolves the rest from the folder that dialog produced. A prompt
+        that is unavailable (batch job, service, test run) or declined returns
+        False and the caller raises exactly as it did before -- see
+        `prompt.prompting_enabled`.
+
+        Returns:
+            bool: whether a new search path was registered and the resolution
+                is worth retrying
+        """
+        pending = [_ for _ in self._missing_brex_refs if _ not in self._asked_brex_refs]
+        if not pending:
+            return False
+        self._asked_brex_refs.update(pending)
+
+        folder = ask_for_folder("BREX data modules", pending)
+        if not folder:
+            return False
+
+        self.add_brex_search_path(folder)
+        self._missing_brex_refs = [
+            _ for _ in self._missing_brex_refs if _ not in pending
+        ]
+        return True
+
     def _init_brex_list(self):
         if self._brex_list[0] is not None:
             return
@@ -475,6 +311,11 @@ class BrexChecker():
             return
 
         chain, fallbacks = self._walk_brex_chain(self._xml_path, self._brex_dir_path[0])
+        if not chain and self._prompt_for_missing_brex():
+            # A folder was chosen; the reference may resolve from it now.
+            chain, fallbacks = self._walk_brex_chain(
+                self._xml_path, self._brex_dir_path[0]
+            )
         self._brex_list = (chain, True)
         self._brex_fallbacks = fallbacks
 
@@ -553,18 +394,40 @@ class BrexChecker():
                     if resolved is not None:
                         break
             if resolved is None:
-                # The referenced BREX isn't on disk anywhere we looked: fall
-                # back to the built-in default BREX if the reference names
-                # one of them (search_brex_fname_from_default_brex).
+                # The reference isn't in the CSDB. If it names one of the
+                # S1000D master BREX modules, the built-in set answers it --
+                # and this is tried *before* the resource directories below,
+                # deliberately. `find_default_brex_fallback` matches on the
+                # logical DMC and tolerates a different issue/inWork, and it
+                # records the substitution so the report can say a built-in
+                # BREX stood in. The bundled `brex/<issue>/` folders hold
+                # copies of those same master modules (at older issues, in
+                # one case), so letting a plain directory search reach them
+                # first would resolve the reference silently and lose that.
                 fallback_dmc = find_default_brex_fallback(brex_ref_dict)
-                if fallback_dmc is None:
-                    break
-                resolved = default_brex_path(fallback_dmc)
-                fallbacks.append({
-                    'Reference': brex_ref,
-                    'UsedBuiltinBrex': fallback_dmc,
-                    'BuiltinBrexPath': resolved
-                })
+                if fallback_dmc is not None:
+                    resolved = default_brex_path(fallback_dmc)
+                    fallbacks.append({
+                        'Reference': brex_ref,
+                        'UsedBuiltinBrex': fallback_dmc,
+                        'BuiltinBrexPath': resolved
+                    })
+            if resolved is None:
+                # Not a master BREX, so it is a project one: look through the
+                # bundled `acd/brex/<issue>/` folders and any `res/brex` tree
+                # an application ships, found without the caller passing
+                # anything in (see `resources.find_resource_root`).
+                for search_path in brex_dirs(include_default=False):
+                    resolved = find_document_by_reference(brex_ref, search_path,
+                                                           recursive=self._brex_recursive_search)
+                    if resolved is not None:
+                        break
+            if resolved is None:
+                # Nothing left to try. Record what was wanted so
+                # `_prompt_for_missing_brex` can name it, and stop the walk.
+                if brex_ref not in self._missing_brex_refs:
+                    self._missing_brex_refs.append(brex_ref)
+                break
             if resolved in visited:
                 break
             visited.add(resolved)
@@ -2991,93 +2854,8 @@ class BrexChecker():
         Returns:
             str: `path`, for convenience
         """
-        try:
-            # Imported here rather than at module scope: openpyxl is only
-            # needed by this one report format, and importing brex_checker
-            # itself must stay cheap (see the lazy `acd/__init__.py`).
-            from openpyxl import Workbook
-            from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-            from openpyxl.utils import get_column_letter
-        except ImportError as exc:  # pragma: no cover - depends on the environment
-            raise ImportError(
-                "to_excel_report needs openpyxl (pip install openpyxl); "
-                "use to_json_report/to_xml_report/to_html_report otherwise."
-            ) from exc
-
-        def excel_value(value):
-            """Excel-safe cell value: control characters openpyxl refuses are
-            stripped, and an over-long node snippet is truncated well inside
-            the 32767-character cell limit."""
-            if value is None or isinstance(value, (int, float, bool)):
-                return value
-            text = str(value)
-            text = ''.join(
-                char for char in text
-                if char in '\t\n\r' or ord(char) >= 32
-            )
-            if len(text) > 2000:
-                text = text[:2000] + ' [...]'
-            return text
-
-        palette = _REPORT_PALETTE
-        thin = Side(style="thin", color=palette["grid"])
-        cell_border = Border(left=thin, right=thin, top=thin, bottom=thin)
-        header_font = Font(bold=True, color="FFFFFF", size=11)
-        header_fill = PatternFill("solid", fgColor=palette["header"])
-        title_font = Font(bold=True, size=16, color=palette["header"])
-        muted_font = Font(size=9, color=palette["muted"])
-        label_font = Font(bold=True, size=11, color=palette["header"])
-        top_left = Alignment(horizontal="left", vertical="top", wrap_text=True)
-        header_align = Alignment(horizontal="left", vertical="center", wrap_text=True)
-        fills = {
-            key: PatternFill("solid", fgColor=palette[key])
-            for key in ("error", "warning", "ok", "band")
-        }
-
-        def write_table(worksheet, headers, rows, widths, tint=None, start_row=1,
-                        autofilter=True, freeze=True):
-            """Header + body of one table, styled; returns the next free row."""
-            for column, header in enumerate(headers, start=1):
-                cell = worksheet.cell(row=start_row, column=column, value=header)
-                cell.font = header_font
-                cell.fill = header_fill
-                cell.border = cell_border
-                cell.alignment = header_align
-            worksheet.row_dimensions[start_row].height = 26
-            for offset, row in enumerate(rows):
-                row_number = start_row + 1 + offset
-                fill = fills.get(tint(row)) if tint else None
-                if fill is None and offset % 2:
-                    fill = fills["band"]
-                for column, header in enumerate(headers, start=1):
-                    cell = worksheet.cell(
-                        row=row_number, column=column, value=excel_value(row.get(header))
-                    )
-                    cell.border = cell_border
-                    cell.alignment = top_left
-                    if fill is not None:
-                        cell.fill = fill
-            for column, width in enumerate(widths, start=1):
-                worksheet.column_dimensions[get_column_letter(column)].width = width
-            last_row = start_row + len(rows)
-            if autofilter:
-                worksheet.auto_filter.ref = (
-                    f"A{start_row}:{get_column_letter(len(headers))}{max(last_row, start_row)}"
-                )
-            if freeze:
-                worksheet.freeze_panes = worksheet.cell(row=start_row + 1, column=1)
-            return last_row + 2
-
-        def add_sheet(name, tab_color):
-            worksheet = workbook.create_sheet(name)
-            worksheet.sheet_properties.tabColor = tab_color
-            return worksheet
-
-        workbook = Workbook()
-        summary = workbook.active
-        summary.title = "Summary"
-        summary.sheet_properties.tabColor = palette["header"]
-        summary.sheet_view.showGridLines = False
+        report = ExcelReport("BREX check report", self._report_source())
+        palette = report.palette
 
         totals = self.run_summary(result)
         document_rows = self._document_stats(result)
@@ -3085,51 +2863,17 @@ class BrexChecker():
         sections = self._json_document_sections(result)
         xpath_error_rows = self._xpath_error_rows(result)
 
-        summary.merge_cells("A1:D1")
-        summary["A1"] = "BREX check report"
-        summary["A1"].font = title_font
-        summary.merge_cells("A2:D2")
-        summary["A2"] = (
-            f"{self._report_source()}  --  generated "
-            f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        )
-        summary["A2"].font = muted_font
-        summary.column_dimensions["A"].width = 34
-        summary.column_dimensions["B"].width = 16
-
-        row = 4
-        summary.cell(row=row, column=1, value="Run totals").font = label_font
-        row += 1
-        totals_start = row
-        for label, key in (
-            ("Documents checked", "DocumentsChecked"),
-            ("Documents passed", "DocumentsPassed"),
-            ("Documents failed", "DocumentsFailed"),
-            ("Documents skipped", "DocumentsSkipped"),
-            ("Errors", "Errors"),
-            ("Warnings", "Warnings"),
-        ):
-            label_cell = summary.cell(row=row, column=1, value=label)
-            value_cell = summary.cell(row=row, column=2, value=totals[key])
-            for cell in (label_cell, value_cell):
-                cell.border = cell_border
-            value_cell.font = Font(bold=True)
-            if totals[key]:
-                if key in ("DocumentsFailed", "Errors"):
-                    for cell in (label_cell, value_cell):
-                        cell.fill = fills["error"]
-                elif key == "Warnings":
-                    for cell in (label_cell, value_cell):
-                        cell.fill = fills["warning"]
-                elif key == "DocumentsPassed":
-                    for cell in (label_cell, value_cell):
-                        cell.fill = fills["ok"]
-            row += 1
-        summary.row_dimensions[totals_start].height = 18
+        row = report.write_totals(4, [
+            ("Documents checked", totals["DocumentsChecked"], None),
+            ("Documents passed", totals["DocumentsPassed"], "ok"),
+            ("Documents failed", totals["DocumentsFailed"], "error"),
+            ("Documents skipped", totals["DocumentsSkipped"], None),
+            ("Errors", totals["Errors"], "error"),
+            ("Warnings", totals["Warnings"], "warning"),
+        ])
 
         row += 1
-        summary.cell(row=row, column=1, value="Violations by severity").font = label_font
-        row += 1
+        row = report.label(row, "Violations by severity")
         severity_rows = [
             {"Severity": severity if severity is not None else "(none declared)", "Count": count}
             for severity, count in sorted(
@@ -3140,13 +2884,12 @@ class BrexChecker():
         # and freezing there would pin the whole block above them. The
         # documents table below carries the autofilter instead -- it is the
         # one worth filtering on a folder run.
-        row = write_table(summary, ["Severity", "Count"], severity_rows, [34, 16],
-                          start_row=row, autofilter=False, freeze=False)
+        row = report.write_table(report.summary, ["Severity", "Count"], severity_rows,
+                                 [34, 16], start_row=row, autofilter=False, freeze=False)
 
-        summary.cell(row=row, column=1, value="Documents").font = label_font
-        row += 1
-        write_table(
-            summary,
+        row = report.label(row, "Documents")
+        report.write_table(
+            report.summary,
             ["Document", "Status", "Errors", "Warnings"],
             [
                 {
@@ -3166,9 +2909,8 @@ class BrexChecker():
             freeze=False,
         )
 
-        violations_sheet = add_sheet("Violations", palette["error"])
-        write_table(
-            violations_sheet,
+        report.write_table(
+            report.add_sheet("Violations", palette["error"]),
             list(_REPORT_VIOLATION_COLUMNS),
             violation_rows,
             [26, 22, 8, 22, 14, 10, 16, 16, 16, 46, 46, 34, 26, 26, 26, 34, 40],
@@ -3176,8 +2918,8 @@ class BrexChecker():
         )
 
         if sections["sns"]:
-            write_table(
-                add_sheet("SNS", palette["error"]),
+            report.write_table(
+                report.add_sheet("SNS", palette["error"]),
                 ["Document", "Code", "Invalid value", "Object use"],
                 [
                     {
@@ -3192,8 +2934,8 @@ class BrexChecker():
                 tint=lambda entry: "error",
             )
         if sections["notations"]:
-            write_table(
-                add_sheet("Notations", palette["error"]),
+            report.write_table(
+                report.add_sheet("Notations", palette["error"]),
                 ["Document", "Entity", "Invalid notation", "Object use"],
                 [
                     {
@@ -3208,8 +2950,8 @@ class BrexChecker():
                 tint=lambda entry: "error",
             )
         if xpath_error_rows:
-            write_table(
-                add_sheet("XPath errors", palette["warning"]),
+            report.write_table(
+                report.add_sheet("XPath errors", palette["warning"]),
                 ["Document", "BREX", "Object path", "Object use", "Error"],
                 [
                     {
@@ -3225,8 +2967,8 @@ class BrexChecker():
                 tint=lambda entry: "warning",
             )
         if sections["nonContextRules"]:
-            write_table(
-                add_sheet("Non-context rules", palette["muted"]),
+            report.write_table(
+                report.add_sheet("Non-context rules", palette["muted"]),
                 ["Document", "BREX", "BR decision", "Text"],
                 [
                     {
@@ -3240,8 +2982,8 @@ class BrexChecker():
                 [26, 22, 20, 80],
             )
         if sections["brexFallback"]:
-            write_table(
-                add_sheet("BREX fallback", palette["muted"]),
+            report.write_table(
+                report.add_sheet("BREX fallback", palette["muted"]),
                 ["Document", "Reference", "Used built-in BREX", "Built-in BREX path"],
                 [
                     {
@@ -3255,8 +2997,7 @@ class BrexChecker():
                 [26, 40, 20, 60],
             )
 
-        workbook.save(clean_path(path))
-        return path
+        return report.save(path)
 
     def to_html_report(self, result: dict, path: str = None,
                        title: str = "BREX check report") -> str:
@@ -3293,43 +3034,10 @@ class BrexChecker():
         sections = self._json_document_sections(result)
         xpath_error_rows = self._xpath_error_rows(result)
 
-        def cell(value, css_class=None, mono=False):
-            text = "" if value is None else str(value)
-            classes = " ".join(_ for _ in (css_class, "mono" if mono else None) if _)
-            attr = f' class="{classes}"' if classes else ""
-            return f"<td{attr}>{html_escape(text)}</td>"
-
-        def table(headers, body_rows, css_class="grid"):
-            head = "".join(f"<th>{html_escape(_)}</th>" for _ in headers)
-            body = "".join(f"<tr>{row}</tr>" for row in body_rows)
-            return (
-                f'<div class="table-wrap"><table class="{css_class}">'
-                f"<thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>"
-            )
-
-        def section(heading, count, content, open_by_default=True):
-            return (
-                f'<details class="section"{" open" if open_by_default else ""}>'
-                f'<summary><span class="section-title">{html_escape(heading)}</span>'
-                f'<span class="pill">{count}</span></summary>{content}</details>'
-            )
-
-        parts = [
-            "<!doctype html>",
-            '<html lang="en"><head><meta charset="utf-8">',
-            '<meta name="viewport" content="width=device-width, initial-scale=1">',
-            f"<title>{html_escape(title)}</title>",
-            f"<style>{_REPORT_HTML_CSS}</style>",
-            "</head><body>",
-            '<header class="page-head"><div>',
-            f"<h1>{html_escape(title)}</h1>",
-            f'<p class="muted">{html_escape(self._report_source())} &middot; generated '
-            f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>",
-            "</div>",
-            '<button id="theme-toggle" type="button" aria-label="Toggle dark mode">'
-            '<span class="theme-icon"></span><span class="theme-label">Theme</span></button>',
-            "</header>",
-        ]
+        report = HtmlReport(title, self._report_source())
+        cell = report.cell
+        table = report.table
+        section = report.section
 
         cards = [
             ("Documents checked", totals["DocumentsChecked"], "neutral"),
@@ -3340,35 +3048,24 @@ class BrexChecker():
         ]
         if totals["DocumentsSkipped"]:
             cards.append(("Skipped", totals["DocumentsSkipped"], "neutral"))
-        parts.append('<section class="cards">')
-        for label, value, tone in cards:
-            parts.append(
-                f'<div class="card {tone}"><span class="card-value">{value}</span>'
-                f'<span class="card-label">{html_escape(label)}</span></div>'
-            )
-        parts.append("</section>")
+        report.add_cards(cards)
 
-        if totals["ViolationsBySeverity"]:
-            chips = "".join(
-                f'<span class="chip"><span class="chip-key">'
-                f'{html_escape(str(severity) if severity is not None else "no severity")}'
-                f'</span><span class="chip-value">{count}</span></span>'
-                for severity, count in sorted(
-                    totals["ViolationsBySeverity"].items(), key=lambda item: str(item[0])
-                )
+        report.add_chips([
+            (severity if severity is not None else "no severity", count)
+            for severity, count in sorted(
+                totals["ViolationsBySeverity"].items(), key=lambda item: str(item[0])
             )
-            parts.append(f'<section class="chips">{chips}</section>')
+        ])
 
         if len(document_rows) > 1:
-            parts.append(section(
+            report.add(section(
                 "Documents",
                 len(document_rows),
                 table(
                     ["Document", "Status", "Errors", "Warnings"],
                     [
                         cell(basename(str(entry["document"])) or entry["document"], mono=True)
-                        + f'<td><span class="status {entry["status"].lower()}">'
-                        f"{html_escape(entry['status'])}</span></td>"
+                        + report.status_cell(entry["status"])
                         + cell(entry["errors"], "num")
                         + cell(entry["warnings"], "num")
                         for entry in document_rows
@@ -3377,13 +3074,9 @@ class BrexChecker():
             ))
 
         if violation_rows:
-            controls = (
-                '<div class="controls">'
-                '<input id="violation-filter" type="search" '
-                'placeholder="Filter violations (document, rule, xpath, text...)">'
-                '<label class="switch"><input id="errors-only" type="checkbox">'
-                "<span>Errors only</span></label>"
-                '<span id="violation-count" class="muted"></span></div>'
+            controls = report.filter_controls(
+                "Filter violations (document, rule, xpath, text...)",
+                "violation-filter", "errors-only", "violation-count",
             )
             body_rows = []
             for entry in violation_rows:
@@ -3406,12 +3099,11 @@ class BrexChecker():
                         "<details><summary>node source</summary>"
                         f'<pre>{html_escape(str(entry["Node"]))}</pre></details>'
                     )
-                status = entry["Status"].lower()
                 body_rows.append(
-                    f'<tr data-status="{status}">'
+                    f'<tr data-status="{entry["Status"].lower()}">'
                     + cell(entry["Document"], mono=True)
                     + cell(entry["Line"], "num")
-                    + f'<td><span class="status {status}">{html_escape(entry["Status"])}</span></td>'
+                    + report.status_cell(entry["Status"])
                     + cell(entry["Severity"])
                     + cell(entry["Flag"])
                     + cell(entry["Rule ID"] or entry["BR decision"], mono=True)
@@ -3420,26 +3112,21 @@ class BrexChecker():
                     + f'<td class="details">{"".join(details)}</td>'
                     + "</tr>"
                 )
-            head = "".join(
-                f"<th>{_}</th>"
-                for _ in ("Document", "Line", "Status", "Severity", "Flag", "Rule",
-                          "Object path", "Object use", "Details")
-            )
-            parts.append(section(
+            report.add(section(
                 "Violations",
                 len(violation_rows),
-                controls
-                + '<div class="table-wrap"><table class="grid" id="violations">'
-                f"<thead><tr>{head}</tr></thead><tbody>{''.join(body_rows)}</tbody></table></div>",
+                controls + table(
+                    ("Document", "Line", "Status", "Severity", "Flag", "Rule",
+                     "Object path", "Object use", "Details"),
+                    body_rows,
+                    table_attrs='id="violations" data-filterable data-noun="violations"',
+                ),
             ))
         else:
-            parts.append(
-                '<section class="empty"><span class="empty-mark">&#10003;</span>'
-                "<p>No BREX violations found.</p></section>"
-            )
+            report.add_empty_state("No BREX violations found.")
 
         if sections["sns"]:
-            parts.append(section("SNS violations", len(sections["sns"]), table(
+            report.add(section("SNS violations", len(sections["sns"]), table(
                 ["Document", "Code", "Invalid value", "Object use"],
                 [
                     cell(basename(str(entry["document"])) or entry["document"], mono=True)
@@ -3450,7 +3137,7 @@ class BrexChecker():
                 ],
             )))
         if sections["notations"]:
-            parts.append(section("Notation violations", len(sections["notations"]), table(
+            report.add(section("Notation violations", len(sections["notations"]), table(
                 ["Document", "Entity", "Invalid notation", "Object use"],
                 [
                     cell(basename(str(entry["document"])) or entry["document"], mono=True)
@@ -3461,7 +3148,7 @@ class BrexChecker():
                 ],
             )))
         if xpath_error_rows:
-            parts.append(section("XPath errors", len(xpath_error_rows), table(
+            report.add(section("XPath errors", len(xpath_error_rows), table(
                 ["Document", "BREX", "Object path", "Object use", "Error"],
                 [
                     cell(basename(str(entry["document"])) or entry["document"], mono=True)
@@ -3473,7 +3160,7 @@ class BrexChecker():
                 ],
             )))
         if sections["nonContextRules"]:
-            parts.append(section("Non-context rules", len(sections["nonContextRules"]), table(
+            report.add(section("Non-context rules", len(sections["nonContextRules"]), table(
                 ["Document", "BREX", "BR decision", "Text"],
                 [
                     cell(basename(str(entry["document"])) or entry["document"], mono=True)
@@ -3484,7 +3171,7 @@ class BrexChecker():
                 ],
             ), open_by_default=False))
         if sections["brexFallback"]:
-            parts.append(section("BREX fallback", len(sections["brexFallback"]), table(
+            report.add(section("BREX fallback", len(sections["brexFallback"]), table(
                 ["Document", "Reference", "Used built-in BREX", "Built-in BREX path"],
                 [
                     cell(basename(str(entry["document"])) or entry["document"], mono=True)
@@ -3495,13 +3182,7 @@ class BrexChecker():
                 ],
             ), open_by_default=False))
 
-        parts.append(f"<script>{_REPORT_HTML_JS}</script>")
-        parts.append("</body></html>")
-        html = "\n".join(parts)
-        if path:
-            with open(clean_path(path), "w", encoding="utf-8") as report_file:
-                report_file.write(html)
-        return html
+        return report.render(path)
 
     def lint_brex(self, brex_path: str, csdb_schemas: any = None) -> list:
         """Self-consistency lint pass over a single BREX file, meant to be run

@@ -45,7 +45,14 @@ acd = [
     "3rd/*/*/*/*",
     "3rd/*/*/*/*/*",
     "3rd/*/*/*/*/*/*",
+    # S1000D resources bundled with the package, so a checkout or an install
+    # resolves a schema, an entity set or a master BREX with no configuration
+    # and no network. See `acd/resources.py`.
     "brex/*.XML",
+    "brex/*/*",
+    "xsd/*/*",
+    "ent/catalog.xml",
+    "ent/*/*",
 ]
 
 [project.scripts]

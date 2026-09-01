@@ -133,5 +133,9 @@ dmypy.json
 
 # Other
 *DMC-*.XML
-# ...except the built-in default BREX modules shipped as package data.
+# ...except the built-in default BREX modules shipped as package data: the
+# flat master set that `default_brex` resolves against, and the per-issue
+# folders beside it. Without the second line, brex_2_3/, brex_4_2/ and
+# brex_5_0/ hold nothing but DMC-*.XML and so are ignored in their entirety.
 !acd/brex/*.XML
+!acd/brex/*/*.XML

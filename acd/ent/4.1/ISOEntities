@@ -1,0 +1,225 @@
+<!--**********************************************************************
+    *                                                                    *
+    *                        S1000D Issue 2                              *
+    *                    XML Character Entities                          *
+    *                                                                    *
+    *                     Release Version 2.0                            *
+    *                       Date: 2003-05-31                             *
+    *                                                                    *
+    * Amendment:-                                                        *
+    * 1. Newly introduced entity.                                        *
+    *====================================================================*
+    * Typical invocation in the DOCTYPE statement of XML instances:      *
+    * <!ENTITY % ISOEntities PUBLIC                                      *
+    *  "ISO 8879-1986//ENTITIES ISO Character Entities 20030531//EN//XML"*
+    *  "http://www.s1000d.org/S1000D_2-3/ent/xml/ISOEntities">           *
+    * %ISOEntities;                                                      *
+    ********************************************************************** -->
+
+
+
+<!--**********************************************************************
+    * Define and call Entity %ISOamsa;                                   *
+    *     (ISO Added Math Symbols: Arrow Relations)  containing:-        *
+    *          the formal public identifier for the                      *
+    *          ISO 1986 Added Math Symbols: Arrow Relations public text. *
+    ********************************************************************** -->
+<!ENTITY % ISOamsa PUBLIC
+  "ISO 8879-1986//ENTITIES Added Math Symbols: Arrow Relations//EN//XML" 
+  "iso-amsa.ent">
+%ISOamsa;
+
+<!--**********************************************************************
+    * Define and call Entity %ISOamsb;                                   *
+    *     (ISO Added Math Symbols: Binary Operators)  containing:-       *
+    *         the formal public identifier for the                       *
+    *         ISO 1986 Added Math Symbols: Binary Operators public text. *
+    ********************************************************************** -->
+<!ENTITY % ISOamsb PUBLIC
+  "ISO 8879-1986//ENTITIES Added Math Symbols: Binary Operators//EN//XML" 
+  "iso-amsb.ent">
+%ISOamsb;
+
+<!--**********************************************************************
+    * Define and call Entity %ISOamsc;                                   *
+    *     (ISO Added Math Symbols: Delimiters)  containing:-             *
+    *          the formal public identifier for the                      *
+    *          ISO 1986 Added Math Symbols: Delimiters public text.      *
+    ********************************************************************** -->
+<!ENTITY % ISOamsc PUBLIC
+  "ISO 8879-1986//ENTITIES Added Math Symbols: Delimiters//EN//XML" 
+  "iso-amsc.ent">
+%ISOamsc;
+
+<!--**********************************************************************
+    * Define and call Entity %ISOamsn;                                   *
+    *     (ISO Added Math Symbols: Negated Relations)  containing:-      *
+    *        the formal public identifier for the                        *
+    *        ISO 1986 Added Math Symbols: Negated Relations public text. *
+    ********************************************************************** -->
+<!ENTITY % ISOamsn PUBLIC
+  "ISO 8879-1986//ENTITIES Added Math Symbols: Negated Relations//EN//XML" 
+  "iso-amsn.ent">
+%ISOamsn;
+
+<!--**********************************************************************
+    * Define and call Entity %ISOamso;                                   *
+    *     (ISO Added Math Symbols: Ordinary)  containing:-               *
+    *          the formal public identifier for the                      *
+    *          ISO 1986 Added Math Symbols: Ordinary public text.        *
+    ********************************************************************** -->
+<!ENTITY % ISOamso PUBLIC
+  "ISO 8879-1986//ENTITIES Added Math Symbols: Ordinary//EN//XML" 
+  "iso-amso.ent">
+%ISOamso;
+
+<!--**********************************************************************
+    * Define and call Entity %ISOamsr;                                   *
+    *     (ISO Added Math Symbols: Relations)  containing:-              *
+    *          the formal public identifier for the                      *
+    *          ISO 1986 Added Math Symbols: Relations public text.       *
+    ********************************************************************** -->
+<!ENTITY % ISOamsr PUBLIC
+  "ISO 8879-1986//ENTITIES Added Math Symbols: Relations//EN//XML" 
+  "iso-amsr.ent">
+%ISOamsr;
+
+<!--**********************************************************************
+    * Define and call Entity %ISObox; (ISO Box and Line Drawing)         *
+    * containing:-                                                       *
+    *                 the formal public identifier for the               *
+    *                 ISO Box and Line Drawing public text.              *
+    *====================================================================*
+    *   All names are in the form: box1234, where:                       *
+    *     box = constants that identify a box drawing entity.            *
+    *     1&2 = v, V, u, U, d, D, Ud, or uD, as follows:                 *
+    *       v = vertical line for full height.                           *
+    *       u = upper half of vertical line.                             *
+    *       d = downward (lower) half of vertical line.                  *
+    *     3&4 = h, H, l, L, r, R, Lr, or lR, as follows:                 *
+    *       h = horizontal line for full width.                          *
+    *       l = left half of horizontal line.                            *
+    *       r = right half of horizontal line.                           *
+    *   In all cases, an upper-case letter means a double or heavy line. *
+    ********************************************************************** -->
+<!ENTITY % ISObox PUBLIC
+  "ISO 8879-1986//ENTITIES Box and Line Drawing//EN//XML" 
+  "iso-box.ent">
+%ISObox;
+
+<!--**********************************************************************
+    * Define and call Entity %ISOcyr1; (ISO Russian Cyrillic)            *
+    *  containing:-      the formal public identifier for the            *
+    *                    ISO Russian Cyrillic public text.               *
+    ********************************************************************** -->
+<!ENTITY % ISOcyr1 PUBLIC
+  "ISO 8879-1986//ENTITIES Russian Cyrillic//EN//XML" 
+  "iso-cyr1.ent">
+%ISOcyr1;
+
+<!--**********************************************************************
+    * Define and call Entity %ISOcyr2; (ISO Non-Russian Cyrillic)        *
+    *  containing:-      the formal public identifier for the            *
+    *                    ISO Non-Russian Cyrillic public text.           *
+    ********************************************************************** -->
+<!ENTITY % ISOcyr2 PUBLIC
+  "ISO 8879-1986//ENTITIES Non-Russian Cyrillic//EN//XML" 
+  "iso-cyr2.ent">
+%ISOcyr2;
+
+<!--**********************************************************************
+    * Define and call Entity %ISOdia; (ISO Diacritical Marks)            *
+    *  containing:-      the formal public identifier for the            *
+    *                    ISO Diacritical Marks public text.              *
+    ********************************************************************** -->
+<!ENTITY % ISOdia PUBLIC
+  "ISO 8879-1986//ENTITIES Diacritical Marks//EN//XML" 
+  "iso-dia.ent">
+%ISOdia;
+
+<!--**********************************************************************
+    * Define and call Entity %ISOgrk1; (ISO Greek Letters)               *
+    *  containing:-      the formal public identifier for the            *
+    *                    ISO Greek Letters public text.                  *
+    ********************************************************************** -->
+<!ENTITY % ISOgrk1 PUBLIC
+  "ISO 8879-1986//ENTITIES Greek Letters//EN//XML" 
+  "iso-grk1.ent">
+%ISOgrk1;
+
+<!--**********************************************************************
+    * Define and call Entity %ISOgrk2; (ISO Monotoniko Greek)            *
+    *  containing:-      the formal public identifier for the            *
+    *                    ISO Monotoniko Greek public text.               *
+    ********************************************************************** -->
+<!ENTITY % ISOgrk2 PUBLIC
+  "ISO 8879-1986//ENTITIES Monotoniko Greek//EN//XML" 
+  "iso-grk2.ent">
+%ISOgrk2;
+
+<!--**********************************************************************
+    * Define and call Entity %ISOgrk3; (ISO Greek Symbols)               *
+    *  containing:-      the formal public identifier for the            *
+    *                    ISO 1986 Greek Symbols public text.             *
+    ********************************************************************** -->
+<!ENTITY % ISOgrk3 PUBLIC
+  "ISO 8879-1986//ENTITIES Greek Symbols//EN//XML" 
+  "iso-grk3.ent">
+%ISOgrk3;
+
+<!--**********************************************************************
+    * Define and call Entity %ISOgrk4; (ISO Alternative Greek Symbols)   *
+    *  containing:-      the formal public identifier for the            *
+    *                    ISO 1986 Alternative Greek Symbols public text. *
+    ********************************************************************** -->
+<!ENTITY % ISOgrk4 PUBLIC
+  "ISO 8879-1986//ENTITIES Alternative Greek Symbols//EN//XML" 
+  "iso-grk4.ent">
+%ISOgrk4;
+
+<!--**********************************************************************
+    * Define and call Entity %ISOlat1; (ISO Added Latin 1) containing:-  *
+    * the formal public identifier for the ISO Added Latin 1 public text.*
+    ********************************************************************** -->
+<!ENTITY % ISOlat1 PUBLIC 
+  "ISO 8879-1986//ENTITIES Added Latin 1//EN//XML" 
+  "iso-lat1.ent">
+%ISOlat1;
+
+<!--**********************************************************************
+    * Define and call Entity %ISOlat2; (ISO Added Latin 2) containing:-  *
+    * the formal public identifier for the ISO Added Latin 2 public text.*
+    ********************************************************************** -->
+<!ENTITY % ISOlat2 PUBLIC 
+  "ISO 8879-1986//ENTITIES Added Latin 2//EN//XML" 
+  "iso-lat2.ent">
+%ISOlat2;
+
+<!--**********************************************************************
+    * Define and call Entity %ISOnum; (ISO Numeric and Special Graphic)  *
+    * containing:-  the formal public identifier for the                 *
+    *               ISO Numeric and Special Graphic public text.         *
+    ********************************************************************** -->
+<!ENTITY % ISOnum PUBLIC 
+  "ISO 8879-1986//ENTITIES Numeric and Special Graphic//EN//XML" 
+  "iso-num.ent">
+%ISOnum;
+
+<!--**********************************************************************
+    * Define and call Entity %ISOpub; (ISO Publishing) containing:-  the *
+    *  formal public identifier for the ISO 1986 Publishing public text. *
+    ********************************************************************** -->
+<!ENTITY % ISOpub PUBLIC
+  "ISO 8879-1986//ENTITIES Publishing//EN//XML" 
+  "iso-pub.ent">
+%ISOpub;
+
+<!--**********************************************************************
+    * Define and call Entity %ISOtech; (ISO General Technical)           *
+    * containing:-  the formal public identifier for the                 *
+    *               ISO 1986 General Technical public text.              *
+    ********************************************************************** -->
+<!ENTITY % ISOtech PUBLIC
+  "ISO 8879-1986//ENTITIES General Technical//EN//XML" 
+  "iso-tech.ent">
+%ISOtech;
