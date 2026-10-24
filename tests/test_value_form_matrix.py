@@ -1,4 +1,4 @@
-"""End-to-end `objectValue/@valueForm` fixture set for brex_checker_rework.md
+"""End-to-end `objectValue/@valueForm` fixture set for docs/brex_checker_rework.md
 §4.5: `single`, `pattern` (including XSD character-class subtraction and
 whole-value anchoring, §3.4) and `range` in both `~` range and `|` set form
 (§3.5), each checked through `BrexChecker.validate()` rather than the

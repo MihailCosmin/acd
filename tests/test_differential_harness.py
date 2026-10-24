@@ -1,4 +1,4 @@
-"""Differential harness tests for brex_checker_rework.md §4.5: "Add a
+"""Differential harness tests for docs/brex_checker_rework.md §4.5: "Add a
 differential harness that runs both brex_checker.py and
 s1kd-brexcheck -clnST over the whole CMP 21-77-05 folder and diffs the
 violation sets, so parity is measurable and intentional divergences are
@@ -146,7 +146,7 @@ def test_diff_reports_real_gaps_on_both_sides():
 
 
 def test_diff_classifies_known_xpath2_only_functions_as_ignored():
-    # Ref brex_checker_rework.md §1: 6 of 919 real rules use matches()/
+    # Ref docs/brex_checker_rework.md §1: 6 of 919 real rules use matches()/
     # tokenize()/lower-case(), which a default (XPath-1-only) s1kd-brexcheck
     # build cannot compile -- an expected, documented divergence rather
     # than a real parity gap.

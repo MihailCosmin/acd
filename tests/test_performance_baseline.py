@@ -1,4 +1,4 @@
-"""Performance baseline for brex_checker_rework.md §4.5, protecting the P3
+"""Performance baseline for docs/brex_checker_rework.md §4.5, protecting the P3
 caching work (§4.4: parse each BREX once per run rather than once per
 document, and compile each objectPath once) over the real evidence folder.
 

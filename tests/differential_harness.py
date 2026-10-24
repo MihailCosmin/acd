@@ -1,5 +1,5 @@
 """Differential harness comparing `BrexChecker` against the reference
-`s1kd-brexcheck` C tool (brex_checker_rework.md §4.5), for the same real
+`s1kd-brexcheck` C tool (docs/brex_checker_rework.md §4.5), for the same real
 S1000D CSDB objects/BREX.
 
 Both tools can emit an XML report in the same `brexCheck` shape --
@@ -27,7 +27,7 @@ from lxml import etree
 
 
 # XPath 2.0-only functions used by 6 of the 919 real rules in the plan
-# document's evidence base (brex_checker_rework.md §1, "XPath engine
+# document's evidence base (docs/brex_checker_rework.md §1, "XPath engine
 # comparison"): a *default* s1kd-brexcheck build (no XPath 2.0 engine
 # compiled in -- `xpath2_engine=NONE` in the tool's own Makefile) cannot
 # compile these, so a rule whose objectPath contains one of them is an

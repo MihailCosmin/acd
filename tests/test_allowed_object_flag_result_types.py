@@ -1,4 +1,4 @@
-"""Fixture matrix for brex_checker_rework.md §4.5: every `allowedObjectFlag`
+"""Fixture matrix for docs/brex_checker_rework.md §4.5: every `allowedObjectFlag`
 against each kind of XPath result a compiled `objectPath` can produce --
 node-set, boolean, string and numeric. Ref §3.2 (flag 0/1 boolean handling)
 and §3.9 (element-vs-string comparison for flag 2).
@@ -109,7 +109,7 @@ def test_flag_0_boolean_violation_has_no_backing_node(checker):
 @pytest.mark.parametrize("xpath", ["string(//foo)", "count(//foo)", "count(//foo) div 4"],
                          ids=["string", "number", "decimal"])
 def test_flag_0_scalar_violation_has_no_backing_node(checker, xpath):
-    # Ref brex_checker_rework.md §4.5: before this fixture surfaced it, a
+    # Ref docs/brex_checker_rework.md §4.5: before this fixture surfaced it, a
     # bare numeric objectPath crashed with TypeError (int has no len()) and
     # a bare string objectPath was silently miscounted by iterating over
     # its characters instead of treating the whole string as one result.

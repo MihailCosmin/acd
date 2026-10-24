@@ -1,4 +1,4 @@
-"""Regression test for brex_checker_rework.md §1.1 / §3.1.
+"""Regression test for docs/brex_checker_rework.md §1.1 / §3.1.
 
 Before the P0 fixes, a minimal BREX with 10 deliberately-violated rules (5 x
 flag 0, 2 x flag 1, 3 x flag 2) reported "3 Errors" instead of 10: the

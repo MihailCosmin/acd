@@ -1,4 +1,4 @@
-"""End-to-end malformed-`objectPath` fixture for brex_checker_rework.md
+"""End-to-end malformed-`objectPath` fixture for docs/brex_checker_rework.md
 §4.5 / §3.12: a BREX containing one unparseable rule alongside otherwise
 normal, violated rules must still let the run complete, reporting an
 `xpathError` for the broken rule only -- every other rule is checked and

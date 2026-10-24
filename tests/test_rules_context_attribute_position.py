@@ -1,4 +1,4 @@
-"""End-to-end regression for brex_checker_rework.md §3.3 / §4.5: the checked
+"""End-to-end regression for docs/brex_checker_rework.md §3.3 / §4.5: the checked
 object's `xsi:noNamespaceSchemaLocation` must be read correctly regardless of
 its position among the root element's attributes, so a `rulesContext`-
 qualified rule group is selected the same way every time.

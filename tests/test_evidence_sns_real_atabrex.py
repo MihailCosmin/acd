@@ -1,4 +1,4 @@
-"""SNS fixture for brex_checker_rework.md §4.5, exercising normal/strict/
+"""SNS fixture for docs/brex_checker_rework.md §4.5, exercising normal/strict/
 unstrict modes against the real
 `DMC-ATABREX-F-00-00-00-01A-022A-D_004-00_EN-US.XML` (the ATA CMP BREX from
 the plan's evidence base, 749 real `snsCode` entries -- see §1).
