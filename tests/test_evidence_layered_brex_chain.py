@@ -4,7 +4,7 @@ the plan document, and asserting every layer is collected exactly once.
 
 Uses the real evidence-base DM `DMC-CTTAE29N-A-00-00-00-01A-00KA-D_001-01_SX-US.XML`
 and the real BREX files (see the §4.2 "Use brexDmRef for BREX resolution"
-task note in docs/brex_checker_rework.md, which independently verified this exact
+task note, now task N26 in tasklist.json, which independently verified this exact
 chain). All three BREX layers -- both ATABREX modules and the S1000D 4.2
 default BREX itself -- are physically present in the evidence folder (they
 are the same three BREX the plan document's whole evidence base in §1 was
