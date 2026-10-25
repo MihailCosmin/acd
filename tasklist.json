@@ -12,6 +12,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Fixed the error-key collision: every violation is kept, not only the last per flag",
       "details": "Fix the error-key collision. Replace the by-value error_0/1/2 counters with a per-BREX, per-flag accumulating collection (a list of violation records, or a counter held on self). Ref §3.1.",
       "done": "2026-08-27T16:12:21"
@@ -21,6 +23,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Flag-0 rules with boolean XPath results are now evaluated (s1kd is_invalid)",
       "details": "Handle boolean XPath results for flag 0. Mirror s1kd is_invalid: empty node-set → violation iff the boolean result is true; non-empty node-set → violation. Ref §3.2.",
       "done": "2026-08-27T16:12:21"
@@ -30,6 +34,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Flag-1 results read by type (bool / node-set / string / number), selector run once",
       "details": "Harden flag 1 result interpretation. Distinguish bool / node-set / string / number results explicitly instead of relying on Python truthiness, and evaluate the selector once. Ref §3.2, §3.12.",
       "done": "2026-08-27T16:12:21"
@@ -39,6 +45,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Schema read from parsed xsi:noNamespaceSchemaLocation instead of an order-dependent regex",
       "details": "Replace get_schema_from_xml with a parsed lookup of /*/@xsi:noNamespaceSchemaLocation (lxml, namespace-aware) instead of the order-dependent regex. Ref §3.3.",
       "done": "2026-08-27T16:12:21"
@@ -48,6 +56,8 @@
       "section": "validation",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Regression test: schema read with the xsi attribute first, middle and last",
       "details": "Add a regression test asserting the schema is read correctly when xsi:noNamespaceSchemaLocation is the first, middle and last attribute.",
       "done": "2026-08-27T16:46:46"
@@ -57,6 +67,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
+      "model": "haiku",
+      "effort": "low",
       "short": "Pattern values must match the whole value (fullmatch)",
       "details": "Make pattern matching whole-value. Use regex.fullmatch, or wrap the pattern as ^(?:…)$. Ref §3.4.",
       "done": "2026-08-27T16:46:46"
@@ -66,6 +78,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
+      "model": "sonnet",
+      "effort": "high",
       "short": "XSD regex syntax (class subtraction, \\i \\c \\I \\C, block escapes) translated to Python",
       "details": "Translate XSD regex syntax to Python before compiling. At minimum character-class subtraction [A-Z-[IO]] → [A-Z--[IO]] (regex V1 set operations), plus \\i, \\c, \\I, \\C and XSD block/category escapes. Both ATABREX modules use subtraction today. Ref §3.4.",
       "done": "2026-08-27T16:46:46"
@@ -75,6 +89,8 @@
       "section": "validation",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Test: XSD class-subtraction pattern and whole-value anchoring",
       "details": "Add a test covering 00[A-Z-[IO]]{1,3}|00[0]{1} accepting 00ABC and rejecting 00IOI, and [0-9]{2} rejecting XX12XX.",
       "done": "2026-08-27T16:46:46"
@@ -84,6 +100,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Range and set values ported from s1kd is_in_set / is_in_range",
       "details": "Reimplement range as is_in_set / is_in_range (port s1kd_tools.c:378-434): split on |, then on ~, compare numerically when both bounds and the value are numeric, otherwise lexicographically. Stop enumerating values. Ref §3.5.",
       "done": "2026-08-28T11:24:35"
@@ -93,6 +111,8 @@
       "section": "validation",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Test matrix for range and set values",
       "details": "Add a test matrix for range/set values: a~c, A|B|C, 01|02, aa01~aa09, 0001~0099, 20~100 (numeric vs lexicographic), accpnl51~accpnl99.",
       "done": "2026-08-28T11:24:35"
@@ -102,6 +122,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Flag-2 results normalised to string values before comparison",
       "details": "Normalise flag-2 result items to their string value before comparison (element → text content; attribute → value), removing the broken TypeError fallback and the unreachable (@)([a-zA-Z]+)(^[a-zA-Z]) regex. Ref §3.9.",
       "done": "2026-08-28T11:24:35"
@@ -111,6 +133,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Malformed objectPath recorded as xpathError; the run continues",
       "details": "Wrap elementpath.Selector construction and evaluation in try/except, record the failure as an xpathError entry against that rule, and continue with the remaining rules. Ref §3.12.",
       "done": "2026-08-28T11:24:35"
@@ -120,6 +144,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Removed the hard-coded DDN exclusion; rulesContext decides",
       "details": "Remove the hard-coded DDN exclusion and let rulesContext matching decide; the three BREX contain 22 DDN rules that currently never run. Ref §3.10.",
       "done": "2026-08-28T11:24:35"
@@ -129,6 +155,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Directory mode returns {filename: result}, writes valid debug JSON, keeps override list",
       "details": "Fix directory mode: return a mapping of {filename: result}, handle the empty-directory case, emit valid JSON in debug mode, and stop wiping an explicit override_brex_list(). Ref §3.11.",
       "done": "2026-08-28T11:24:35"
@@ -138,6 +166,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
+      "model": "sonnet",
+      "effort": "low",
       "short": "_append_summary counts the actual violations",
       "details": "Fix _append_summary to count actual violations (it currently measures the collapsed dict). Ref §3.1, §3.11.",
       "done": "2026-08-28T11:24:35"
@@ -147,6 +177,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
+      "model": "haiku",
+      "effort": "low",
       "short": "Merged self.xml_content and self._xml_content into one attribute",
       "details": "Resolve self.xml_content vs self._xml_content to a single attribute. Ref §3.12.",
       "done": "2026-08-28T11:24:35"
@@ -156,6 +188,8 @@
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "high",
       "short": "SNS rule checking ported from s1kd check_brex_sns_rules",
       "details": "Implement SNS rule checking (category A2). Port check_brex_sns_rules (s1kd-brexcheck.c:1057-1144): walk systemCode → subSystemCode → subSubSystemCode → assyCode down snsSystem / snsSubSystem / snsSubSubSystem / snsAssy, stopping at the first failing level. Needed for DMC-ATABREX-F-00-00-00-01A-022A-D_004-00_EN-US.XML (749 SNS codes). Implemented as BrexChecker._check_sns_rules / _sns_should_check / _get_sns_rules_group in acd/brex_checker.py; results land in result[\"sns\"] and feed _append_summary. Verified against the real ATA CMP BREX: parsed SNS counts (78 snsSystem / 391 snsSubSystem / 280 snsSubSubSystem / 0 snsAssy) match the evidence base exactly, and end-to-end runs against the 62 CMP 21-77-05 data modules produce plausible pass/fail results.",
       "done": "2026-08-28T14:20:00"
@@ -165,6 +199,8 @@
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "SNS normal, strict and unstrict modes",
       "details": "Implement the three SNS modes — normal (optional levels default to 0 / 00 / 0000), strict (no shorthand), unstrict (any code valid when the level is omitted); port should_check (s1kd-brexcheck.c:1038). Expose as a parameter on validate(). Implemented as a sns_mode parameter (\"normal\" / \"strict\" / \"unstrict\", validated against SNS_MODES) threaded through validate() -> _check_rules -> _check_sns_rules -> _sns_should_check in acd/brex_checker.py.",
       "done": "2026-08-28T14:20:00"
@@ -174,6 +210,8 @@
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "low",
       "short": "snsRules combined from all BREX in the layer chain",
       "details": "Combine snsRules from all BREX in the layer chain into one rule set before checking, as s1kd's check_brex_sns does. Done in _get_sns_rules_group.",
       "done": "2026-08-28T14:20:00"
@@ -183,6 +221,8 @@
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "haiku",
+      "effort": "low",
       "short": "SNS checking restricted to dmodule roots",
       "details": "Restrict SNS checking to dmodule roots (s1kd skips PM / DML / DDN / comment). Done in _check_sns_rules (checks dmod_root.tag == \"dmodule\").",
       "done": "2026-08-28T14:20:00"
@@ -192,6 +232,8 @@
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "high",
       "short": "Notation rule checking ported from s1kd check_brex_notation_rules",
       "details": "Implement notation rule checking (category A3). Port check_brex_notation_rules / check_entity: read NOTATION declarations from the internal DTD subset, accept a notation if some notationRule names it with @allowedNotationFlag != \"0\", and report the objectUse of the first inclusion rule otherwise. Requires parsing with DTD loading enabled. Implemented as BrexChecker._check_notation_rules / _check_entity_notation / _get_notation_rules_group in acd/brex_checker.py; results land in result[\"notations\"] and feed _append_summary. Follows the C original in walking ENTITY declarations of the internal DTD subset (unparsed/NDATA entities specifically) rather than <!NOTATION> declarations directly, since that is what check_entity's entity->content actually reads; the internal DTD subset is available from lxml's default parser with no special DTD-loading options needed (it is inline in the document, unlike an external subset).",
       "done": "2026-08-28T14:20:00"
@@ -201,6 +243,8 @@
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "brDecisionIdentNumber captured and reported on every violation",
       "details": "Capture and report brDecisionRef/@brDecisionIdentNumber (category A5) on every violation — 262 rules in these three BREX carry one, and it is the identifier customers quote. Implemented in acd/brex_checker.py: _show_rules reads the brDecisionRef sibling of objectPath/objectUse (confirmed against the real ATABREX evidence file, e.g. SOR-230 at line 773 of DMC-ATABREX-F-00-00-00-00A-022A-D_004-00_EN-US.XML) and carries its brDecisionIdentNumber (or None when absent) into every rule dict; _check_object_flag_0/1/2 add it to each violation record under BrDecisionIdentNumber, and the three xpathError diagnostics carry it too so a malformed rule can still be traced back to its decision number. Matches the C original, which only wires brDecisionRef into check_brex_rules (structure-object-rule checks) — SNS and notation-rule violations have no associated brDecisionRef in the schema and are unaffected. Covered by tests/test_br_decision_ref.py.",
       "done": "2026-08-28T14:20:00"
@@ -210,6 +254,8 @@
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "high",
       "short": "Business-rule severity levels from @brSeverityLevel and .brseveritylevels",
       "details": "Implement business-rule severity levels (category A6). Read structureObjectRule/@brSeverityLevel, fall back to brex/@defaultBrSeverityLevel, resolve against a .brseveritylevels file (<brSeverityLevels><brSeverityLevel value=\"brsl01\" fail=\"yes\">Error</brSeverityLevel>…), and let fail=\"no\" levels report as warnings that do not fail the run. Implemented in acd/brex_checker.py: _show_rules reads structureObjectRule/@brSeverityLevel (falling back to the brex root's @defaultBrSeverityLevel when absent) into each rule dict's brSeverityLevel key; set_severity_levels_path / _get_severity_levels load and cache a .brseveritylevels file into a {value: {fail, type}} table; _is_severity_failure ports is_failure (s1kd-brexcheck.c:569-605) — a violation fails unless a severity-levels file is set, defines that exact value, and marks it fail=\"no\". _check_object_flag_0/1/2 attach BrSeverityLevel and Fail to every violation record, and _append_summary excludes Fail: False entries from the error count, reporting them instead as \"N Errors, M Warnings\" (unchanged \"N Errors\" format when there are no warnings, so existing callers/tests are unaffected). No explicit path defaults to the old always-fail behaviour, matching the C original when no -w flag is given. Covered by tests/test_severity_levels.py. Parent-directory auto-discovery of .brseveritylevels is the next task item, not part of this one.",
       "done": "2026-08-28T14:20:00"
@@ -219,6 +265,8 @@
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "medium",
       "short": ".brseveritylevels searched in parent directories, with an override parameter",
       "details": "Search parent directories for .brseveritylevels by default, with an override parameter. Implemented in acd/brex_checker.py: _find_severity_levels_file walks from the checked XML's directory upward through its parents (adapting find_config, s1kd_tools.c:30-56, to search from the file's directory instead of the process's cwd) looking for a file named .brseveritylevels, returning the first match or None at the filesystem root. _get_severity_levels now falls back to this search whenever set_severity_levels_path has not been called explicitly. Two override paths: set_severity_levels_path (explicit file, unchanged, takes precedence and skips the search) and the new set_severity_levels_search(enabled: bool) (turns the default search off entirely, e.g. to ignore a discoverable file). Covered by new cases in tests/test_severity_levels.py: discovery in the XML's own directory, discovery in an ancestor directory, explicit-path precedence over an auto-discovered file, and search disabled ignoring a discoverable file; the two pre-existing \"no severity levels\" tests now call set_severity_levels_search(False) so they no longer depend on the ambient filesystem lacking a stray .brseveritylevels above the pytest temp dir.",
       "done": "2026-08-28T14:20:00"
@@ -228,6 +276,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "objectValue checking applied to every rule with objectValue children, not only flag 2",
       "details": "Apply objectValue checking to every rule that has objectValue children, not only flag 2 (s1kd is_invalid → check_objects_values). Ref §3.8. Implemented in acd/brex_checker.py: extracted the per-element value-matching loop out of _check_object_flag_2 into a shared _check_object_values(value, elements) helper (port of check_objects_values, s1kd-brexcheck.c:275-304), then wired it into _check_object_flag_1 — when a flag-1 rule's node-set is non-empty (the presence check passed) and the rule carries values_allowed/regex_allowed/ranges_allowed, its matched nodes are now also value-checked, with any failures appended to the '2' violation bucket. Flag 0 is intentionally left unchanged: per the C reference, check_objects_values is only reached when the node-set is non-empty, and a non-violating flag-0 rule always has an *empty* node-set (a non-empty one is already a presence violation), so there is nothing to value-check there.",
       "done": "2026-08-28T14:20:00"
@@ -237,6 +287,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "BREX resolution uses brexDmRef instead of the first dmRef with infoCode 022",
       "details": "Use brexDmRef for BREX resolution. Add a dedicated lookup for //brexDmRef|//brexref instead of \"first dmRef with infoCode 022\". Ref §3.7. Implemented in acd/s1000d.py: get_brex_ref now parses the object and runs the XPath //brexDmRef|//brexref (matching s1kd-brexcheck's find_brex_fname_from_doc) to get the one node that actually carries the applicable-BREX reference, then reads its nested .//dmCode|.//avee (plus .//issueInfo for the 4.0+ form) instead of scanning every dmRef/refdm in the document for infoCode/incode 022. Verified against the real ATA CMP evidence base (DMC-CTTAE29N-A-00-00-00-01A-00KA-D... → DMC-ATABREX-...-01A-... → DMC-ATABREX-...-00A-... → DMC-S1000D-F-04-10-0301-00A-022A-D, the last self-referencing to terminate the chain) — identical, correct resolution before and after the change. Covered by tests/test_brex_dm_ref_resolution.py, including a case with a decoy dmRef (infoCode=\"022\", pointing at a nonexistent DM) placed before the real brexDmRef in document order: confirmed by inlining the old scan-based logic that it would have followed the decoy and raised NoBrexDefined, while the new lookup resolves and checks the real BREX. The legacy S1000D <= 3.0 brexref/avee form is also covered. The pre-existing _init_brex_list cycle-guard/None-handling gap (next task item) is unchanged.",
       "done": "2026-08-28T14:20:00"
@@ -246,6 +298,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Cycle guard in the layered-BREX walk; a missing BREX reference no longer raises",
       "details": "Add a visited-set cycle guard to the layered-BREX walk in _init_brex_list, and handle get_brex_ref returning None without a TypeError. Ref §3.7.",
       "done": "2026-08-28T14:20:00"
@@ -255,6 +309,8 @@
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "high",
       "short": "Built-in default BREX modules shipped, with a default-BREX-only mode and fallback",
       "details": "Ship the built-in default BREX modules (s1kd-tools/tools/s1kd-brexcheck/brex/, issues A/D/E/F/G/H plus DMC-AE-A-…) and add a \"check against default BREX only\" mode equivalent to s1kd-brexcheck -B, plus the fallback when the referenced BREX cannot be found. Implemented as a new acd/default_brex.py module plus the 7 bundled BREX XML files under acd/brex/ (shipped as package data via pyproject.toml), ported from s1kd-brexcheck's brex/, default_brex_dmc, search_brex_fname_from_default_brex and load_brex (s1kd-brexcheck.c): default_brex_dmc(schema) selects the schema-appropriate built-in BREX by the same substring rules as the C original (so e.g. S1000D_4-0-1/S1000D_4-0-2 sub-issues still match S1000D_4-0), default_brex_path(logical_dmc) resolves one of the 7 logical DMCs to its bundled file path, and find_default_brex_fallback(ref) matches a BREX reference against the 7 built-ins by base DMC plus issue/inWork (accepting any issue when the reference does not specify one). BrexChecker.use_default_brex(enabled=True) in acd/brex_checker.py is the -B/--default-brex equivalent: _init_brex_list short-circuits to the single schema-selected built-in BREX, ignoring any brexDmRef/brexref and skipping layering entirely, matching the C original's -B behaviour. The fallback is wired into _init_brex_list's existing brexDmRef walk (collapsed from two dead-duplicate branches into one while making this change, since branch two's guard was provably unreachable): when find_document_by_reference fails to locate a referenced BREX, find_default_brex_fallback is tried before giving up, at every layer of the chain (not just the top-level reference), exactly as find_brex_fname_from_doc is used uniformly in the C original. Per explicit product decision, the fallback is not silent like the C tool (which only logs when the fallback also fails) — every substitution is recorded in the result dict's new always-present brexFallback list (Reference, UsedBuiltinBrex, BuiltinBrexPath per entry), which _append_summary excludes from the error/warning count as purely informational. override_brex_list/use_default_brex reset _brex_fallbacks so stale markers never leak across runs or directory-mode files. Verified end-to-end against the real bundled files (not just fixtures): schema selection for all 7 built-ins resolves to an existing file, use_default_brex() checks a legacy S1000D 3.0 object against the real bundled DMC-AE-A-... BREX and ignores an unrelated brexDmRef, and a brexDmRef naming DMC-AE-A-... that can't be found on disk falls back to the real bundled copy (which self-references to terminate the layering walk, confirming the existing self-reference guard still applies to a fallback-resolved file) and is flagged in brexFallback; a reference to neither an on-disk nor a built-in BREX still raises NoBrexDefined unchanged. Covered by tests/test_default_brex.py.",
       "done": "2026-08-28T14:20:00"
@@ -264,6 +320,8 @@
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Multiple BREX search paths and recursive search (-I, -r)",
       "details": "Add multiple BREX search paths and recursive search (-I, -r equivalents) alongside the current single set_brex_path. Implemented in acd/brex_checker.py: add_brex_search_path(path) appends a directory to a new _brex_search_paths list (the -I/--include equivalent, repeatable), clear_brex_search_paths() resets it, and set_brex_recursive_search(enabled) toggles a new _brex_recursive_search flag (the -r/--recursive equivalent) that applies uniformly to the primary path and every added search path, mirroring the C original's find_csdb_object(..., recursive_search) calls for search_dir and each spaths[i] (s1kd-brexcheck.c:538-547). _init_brex_list's resolution loop now tries self._brex_dir_path[0] first and, only if that misses, walks _brex_search_paths in the order added, stopping at the first match, before falling back to the built-in default BREX as before. acd/s1000d.py's find_document_by_reference gained a recursive: bool = True parameter (default preserves the pre-existing always-recursive os.walk behaviour; False restricts the search to files directly inside the given directory, via os.listdir). Covered by tests/test_brex_search_paths.py: search-path fallback and ordering, rejecting a non-directory path, clearing search paths, recursive-on-by-default vs. recursive-off for both the primary path and an added search path, and direct unit tests of find_document_by_reference's recursive parameter.",
       "done": "2026-08-28T16:02:47"
@@ -273,6 +331,8 @@
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "high",
       "short": "S1000D <= 3.0 legacy BREX spellings supported",
       "details": "Support S1000D <= 3.0 legacy BREX spellings (category C5): objpath / objuse / objval, @objappl, @val1 / @val2, contextrules/@context. s1kd accepts all of these; we accept none. Implemented in acd/brex_checker.py: _get_object_rule_nodes now also collects //structrules/objrule/objpath alongside the modern //structureObjectRuleGroup/structureObjectRule/objectPath -- the real S1000D <= 3.0 default BREX nests rules exactly three levels below contextrules (objpath -> objrule -> structrules -> contextrules), same depth as the modern schema below contextRules, so the existing fixed-depth getparent().getparent().getparent() walk in _show_rules needed no change, just an @rulesContext|@context fallback lookup. _show_rules reads objectUse|objuse, @allowedObjectFlag|@objappl, and objectValue|objval with @valueForm|@valtype plus @valueAllowed|@val1[~@val2] (port of get_value_allowed, s1kd-brexcheck.c:194-216, which concatenates val1/val2 into the same first~last string our is_in_set already parses). _check_rules's dispatch loop now also routes a rule whose flag is entirely absent into the flag-2 value-check path whenever it carries objval children -- the shape of the great majority of rules in the real S1000D 3.0 default BREX (e.g. //@accpnltype, no @objappl at all) -- matching s1kd's is_invalid (s1kd-brexcheck.c:307-331), which falls through to check_objects_values whenever allowedObjectFlag is NULL. Verified end-to-end against the real bundled acd/brex/DMC-AE-A-04-10-0301-00A-022A-D_003-00.XML (the actual S1000D <= 3.0 default BREX shipped with s1kd-brexcheck), not just hand-built fixtures. Covered by tests/test_legacy_brex_spellings.py: flag 0/1/2 violations under legacy spelling, a flag-less value-only rule, range and pattern valtypes, a rule with no objval children never being a violation, contextrules/@context schema-qualification correctly skipping a non-matching object, a no-false-positives case with valid values, and the real bundled default BREX checked end-to-end against both a violating and a conforming object.",
       "done": "2026-08-28T16:02:47"
@@ -282,6 +342,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Rules selected with the descendant axis and filtered by rulesContext at selection",
       "details": "Select rules with the descendant axis and filter at selection time, matching //contextRules[not(@rulesContext) or @rulesContext=$schema]//structureObjectRule, and stop walking parents by fixed depth. Also removes the lxml FutureWarning. Ref §3.6. Implemented in acd/brex_checker.py: _get_object_rule_nodes now takes an optional schema and selects with Element.xpath() (real XPath via libxml2) instead of findall() (the restricted ElementPath dialect, whose leading // on a parsed tree is what raised the \"This search incorrectly ignores the root element\" FutureWarning), using the descendant axis //contextRules[not(@rulesContext) or @rulesContext=$schema]//structureObjectRule/objectPath with $schema bound as an XPath variable so only unqualified or schema-matching rules are selected at all, regardless of how deeply structureObjectRule is nested under contextRules. The S1000D <= 3.0 spelling gets the equivalent treatment: //contextrules[not(@context) or @context=$schema]//objrule/objpath. _show_rules threads schema through from its caller (_check_rules, which already had it from get_schema_from_xml) and, since the enclosing contextRules/contextrules element is no longer guaranteed to sit exactly three getparent() calls up, finds it with next(x.iterancestors('contextRules', 'contextrules'), None) instead — correct at any nesting depth, and a None result (no such ancestor) degrades to an empty contextRules rather than raising. Verified: full suite passes with -W error::FutureWarning, confirming the warning is gone; the existing _check_object_flag_0/1/2 schema-equality checks stay in place as a harmless no-op now that filtering already happened at selection.",
       "done": "2026-08-28T16:02:47"
@@ -291,6 +353,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Every namespace in scope at the objectPath node registered",
       "details": "Register every namespace in scope at the objectPath node rather than a hard-coded rdf + xsi dictionary. Ref §3.12. Implemented in acd/brex_checker.py: _show_rules now captures x.nsmap (lxml's full in-scope namespace map, walking every ancestor up to the BREX root, not just a fixed depth) for each objectPath/objpath node, remaps the lxml default-namespace key None to '' as elementpath expects, and stores it per-rule as value['namespaces'] layered over NS_DICT as a base (so the well-known rdf/xsi prefixes stay resolvable even when a BREX declares neither). _check_object_flag_0/1/2 now construct their elementpath.Selector with value.get('namespaces', NS_DICT) instead of the module-level constant, and the Saxon path in _check_object_flag_0 declares each rule's namespaces (skipping the empty/default prefix, which PyXdmNode.declare_namespace does not accept) instead of iterating NS_DICT. NS_DICT itself is unchanged and still exported from acd/__init__.py for backward compatibility. Covered by tests/test_objectpath_namespaces.py: a prefix declared only on the BREX root resolves at a deeply nested objectPath, a prefix declared only on one structureObjectRule resolves for that rule and does not leak into a sibling rule's namespace map, rdf/xsi still resolve with no local declaration, and a direct check of _show_rules's per-rule namespaces dict.",
       "done": "2026-08-28T16:02:47"
@@ -300,6 +364,8 @@
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "remove-deleted support: changeType=\"delete\" elements dropped before checking",
       "details": "Add remove-deleted support (-^): drop elements with @changeType=\"delete\" before checking. Implemented in acd/brex_checker.py: _remove_deleted_elements ports rem_delete_nodes/rem_delete_elems (s1kd_tools.c:1054-1088) -- recursively unlinks any element whose @changeType (or legacy @change) attribute is \"delete\", without descending into a removed element's children (they go with it). _check_rules gained a remove_deleted: bool = False parameter; when set, it is applied to the parsed document right after parsing and before the schema-based SNS/notation/content-rule checks, matching the C original's ordering (rem_delete_elems runs once, immediately after parse, ahead of every subsequent check). Since nodes are removed in place on the already-parsed tree rather than by re-parsing, surviving elements keep their original .sourceline, so line numbers in violation records are unaffected. The Saxon path (_check_object_flag_0) previously always re-read self._xml_path from disk, which would have bypassed the in-memory removal; it now accepts an xml_text parameter and, when remove_deleted is active, _check_rules serialises the modified tree once and passes it through so Saxon evaluates the same reduced document as the elementpath path. validate() gained the matching remove_deleted parameter and threads it to _check_rules in both single-file and directory mode. Covered by tests/test_remove_deleted.py: a deleted element still flagged by default (opt-in only), the same element dropped from a flag-0 \"must not be present\" check once enabled, a non-deleted sibling still correctly flagged with the option on, the legacy @change=\"delete\" spelling, a deleted parent taking its children with it, a flag-1 \"must be present\" rule that starts passing (element present) and starts failing (element removed) as the option is toggled, and the option threaded end-to-end through validate().",
       "done": "2026-08-28T16:02:47"
@@ -309,6 +375,8 @@
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "high",
       "short": "Parser options: XInclude, entity resolution, XML catalogs, ignore-empty",
       "details": "Add parser options: XInclude processing, entity resolution, XML catalogs, and the ignore-empty behaviour for empty / non-XML inputs. Implemented in acd/brex_checker.py: _build_xml_parser/_finish_parse/_parse_xml_file/_parse_xml_text build a single lxml XMLParser from the checker's parser-option state and apply XInclude processing afterwards, and now back every internal parse of the checked object and every BREX file (_check_rules, _get_object_rule_nodes, _get_sns_rules_group, _get_notation_rules_group) instead of ad hoc etree.parse(...) calls -- mirroring read_xml_doc (s1kd_tools.c:532-543), which applies DEFAULT_PARSE_OPTS uniformly to every CSDB object it reads. set_xinclude(enabled) is the --xinclude equivalent (ElementTree.xinclude(), mirroring xmlXIncludeProcessFlags). set_resolve_entities(enabled) controls lxml's resolve_entities parser flag (--noent); set_entity_resolution(load_external_dtd, allow_network) is the --dtdload/--net pair, off by default so parsing a checked object cannot trigger unexpected file/network access on its own -- verified that an external-DTD-declared entity raises XMLSyntaxError by default and resolves once load_external_dtd=True is set (entities declared directly in the internal DTD subset, even via a SYSTEM identifier, were already resolved regardless, since that is a document-supplied declaration rather than a fetched external subset). set_xml_catalog(path) is the --xml-catalog <file> equivalent; since lxml has no catalog-loading binding, it appends to the XML_CATALOG_FILES environment variable, which libxml2 reads on its first catalog lookup (documented caveat: only takes effect if set before that first lookup in the process). set_ignore_empty(enabled) is -e/--ignore-empty: _is_valid_xml_file attempts a real parse and validate() uses it to skip an empty/non-XML object before _init_brex_list()/_check_rules() ever run -- left out of the results mapping entirely in directory mode (matching s1kd-brexcheck's continue), reported as {\"Skipped\": True, \"Summary\": \"...\"} for a single object. Covered by tests/test_parser_options.py: XInclude on/off, external-DTD entity resolution on/off, the network-access-requires-dtd-loading guard, XML catalog registration/dedup/missing-file rejection, and ignore-empty for both single-file and directory mode with and without the flag set.",
       "done": "2026-08-28T16:02:47"
@@ -318,6 +386,8 @@
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Violations carry the node's canonical XPath and a copy of the violating subtree",
       "details": "Emit the node's canonical XPath and a copy of the violating subtree in each violation record (categories D2, D3), shallow by default with an opt-in deep copy. Implemented in acd/brex_checker.py: _select_with_nodes re-implements the value-extraction step elementpath's own Selector.select performs (XPathToken.get_results), but from the lower-level, un-formatted root_token.select(), so it can return the raw XPath node backing each node-set item alongside the same formatted result .select() would give -- the formatted API alone discards an attribute/text result's parent element entirely, which is what dump_nodes_xml (s1kd-brexcheck.c:334-360) needs to report a node's canonical XPath and copy it. _node_xpath_and_copy reads the node's extended_path (elementpath's own canonical-path computation, e.g. /dml[1]/forbiddenElement[2] or /dml[1]/someElement[1]/@constrainedAttr) and, for an attribute/text result, copies its owning element instead of the bare value (if (node->type == XML_ATTRIBUTE_NODE) node = node->parent; in the C original) -- shallow by default (tag and attributes only, matching xmlCopyNode(node, 2)), or the full recursive subtree when a new deep_copy_nodes parameter (the -8/--deep-copy-nodes equivalent) is enabled, threaded through validate() -> _check_rules() -> _check_object_flag_0/1/2 / _check_object_values. Every content-rule violation record (flags 0, 1, 2) now carries NodeXpath and Object (an XML string, None when no node backs the violation, e.g. a flag-1 \"required but missing\" violation or a boolean-valued flag-0 rule). The Saxon path (_check_object_flag_0's self._saxon branch) is left emitting None for both fields, consistent with its existing acknowledged incompleteness (§3.12, \"Make the Saxon path complete or remove it\"). Covered by tests/test_node_xpath_and_copy.py: canonical XPath and shallow copy for a repeated element violation (positional indices [1]/[2]), deep copy including descendants and tail text, an attribute violation resolving to its owning element, None/None for a missing-element flag-1 violation and a boolean flag-0 rule, and deep_copy_nodes threaded end-to-end through validate().",
       "done": "2026-08-28T16:02:47"
@@ -327,6 +397,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Real line numbers taken from the parsed tree",
       "details": "Report the violating node's real line number from the parsed tree instead of scanning raw text for the attribute name. Ref §3.12, category D1. Implemented in acd/brex_checker.py: extracted the element-resolution half of _node_xpath_and_copy (walking a raw _select_with_nodes XPath node to its owning lxml element -- itself for an element result, the parent for an attribute/text result) into a shared _resolve_owning_element(node) helper, and added _node_line_number(node) on top of it that reads the owning element's .sourceline (lxml's binding to libxml2's xmlGetLineNo, matching what s1kd-brexcheck reports). _check_object_flag_0's element/attribute branch and _check_object_values (shared by flags 1/2) now call _node_line_number(nodes[idx]) instead of the old element.sourceline attempt with a text-scan-for-the-attribute-name fallback on AttributeError -- that fallback matched the *first* line in the file containing the attribute name, so it silently misreported the line for every violation past the first repeated attribute/element in a document, and only handled attributes, never element or text-node results without a direct .sourceline. Fixed to \"x\" only when a violation has no backing node at all (a boolean-valued flag-0 rule, or a flag-1 \"required but missing\" result). The Saxon path (_check_object_flag_0's self._saxon branch) still text-scans via regex_builder, matching its existing acknowledged incompleteness (\"Make the Saxon path complete or remove it\", §3.12/§4.4). Covered by tests/test_violation_line_numbers.py: multiple forbiddenElement violations resolve to their own distinct real lines rather than all collapsing to the first occurrence, repeated-attribute violations resolve to each owning element's real line, an element-text value violation resolves correctly, and Line is a real int rather than a string.",
       "done": "2026-08-28T16:11:50"
@@ -336,6 +408,8 @@
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "XML report compatible with s1kd-brexcheck -x",
       "details": "Add an XML report output compatible with the s1kd-brexcheck -x shape (brexCheck/document/brex/error/{brDecisionRef,objectPath,objectUse,object}) so existing tooling can consume our output (category D6). Implemented in acd/brex_checker.py: to_xml_report(result) converts a validate() result (single-object or directory-mode) into a <brexCheck> document tree matching the C tool's shape (document[@path]/{sns,notations,brex[@path]/{error,xpathError}}), ported piecewise from the relevant s1kd-brexcheck.c fragments -- _append_error_node from the <error> construction in check_brex_rules (s1kd-brexcheck.c:900-938, including its brSeverityLevel/fail attribute logic), _append_sns_notation_nodes from check_brex_sns_rules (s1kd-brexcheck.c:1077-1134) and check_brex_notation_rules (s1kd-brexcheck.c:1213-1224). One difference from the C original: our violation records are already one-per-matched-node (see _check_object_flag_0/_check_object_values), so each becomes its own <error> with at most one <object> child, rather than one <error> per rule holding several <object> children. objectValue echoing (allowed values) is not emitted, since our violation records store parsed value lists rather than the original <objectValue> nodes -- out of scope for this task, which only asked for the brDecisionRef/objectPath/objectUse/object shape. Covered by tests/test_xml_report.py: root/document/brex shape, flag-0 error with brDecisionRef/objectPath/objectUse/object (including line/xpath attributes and the embedded node copy), flag-1 missing-element error with no object child, brSeverityLevel/fail attribute combinations (fail=\"no\", no-severity fail=\"yes\", failing-severity omits fail), xpathError reporting, SNS noErrors/error nodes, a notation error node, directory-mode conversion, and the ignore-empty skipped-result case.",
       "done": "2026-08-28T16:18:43"
@@ -345,6 +419,8 @@
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "high",
       "short": "Formatted Excel and HTML reports",
       "details": "Add formatted Excel and HTML reports for human readers, alongside the machine-readable JSON and -x-compatible XML ones (category D6). Implemented in acd/brex_checker.py: to_excel_report(result, path) writes a styled .xlsx workbook (openpyxl, imported inside the method so importing brex_checker stays cheap and the dependency is only needed by callers who actually want a workbook) and to_html_report(result, path=None, title=...) returns -- and optionally writes -- a self-contained HTML document. Both accept either result shape (single object after set_xml, batch/folder after set_xml_dir, distinguished by _is_single_object_result like every other report) and are built from the same shared, render-ready helpers so they cannot drift apart or from the existing reports: _violation_records (one traversal pairing each BrexViolation with the raw record it came from -- violations() is now a projection of it, so the walk and its skip rules exist once), _report_violation_rows (the flat, column-keyed rows both renderers consume, duplicate=True entries excluded exactly as in run_summary/to_json_report/to_xml_report), _document_stats (per-document errors/warnings/status, the batch counterpart of run_summary's run totals), _xpath_error_rows (category D8 diagnostics -- rules that were silently *not* checked, already in the XML report as xpathError nodes) and the existing _json_document_sections for SNS/notation/nonContextRules/brexFallback content. The one thing these two carry that BrexViolation cannot is the raw record's Description, which for a flag-2 record is the only carrier of the value actually found (\"Element/Attribute (X) did not match the object values.\") -- surfaced as a Finding column rather than by widening the dataclass and changing the JSON report's shape. The workbook opens on a Summary sheet (run totals, violations by brSeverityLevel, and a per-document pass/fail table) followed by Violations, then SNS, Notations, XPath errors, Non-context rules and BREX fallback, each omitted when the run produced nothing of that kind; formatting is a coloured bold frozen header band with autofilter, borders and wrapped text on every cell, tuned column widths, zebra banding, rows tinted by outcome (red error / amber warning / green passing document) and coloured sheet tabs, with cell values sanitised of control characters and truncated well inside Excel's 32767-character limit for deep node copies (-8). The HTML report mirrors it: KPI cards, severity chips, the per-document table (batch runs only), a violations table with a live text filter and an errors-only switch, collapsible sections and <details>-wrapped node source. It follows the reader's prefers-color-scheme for dark/light with a toggle that overrides it in both directions (full light palette on bare :root, dark redefined under a :root:not([data-theme=\"light\"])-guarded media query and again under :root[data-theme=\"dark\"]), remembered in localStorage behind a try/catch so a file:// copy with site data blocked still renders, and pulls in nothing external at all -- CSS and JS inline, no fonts, images or CDN links -- so it survives being e-mailed or opened off a network share. Shared colours live in one _REPORT_PALETTE so a workbook and an HTML report of the same run read as the same document. Covered by tests/test_excel_report.py (sheet set for batch and single-object runs, one row per violation with severity/BR-decision/allowed-values/finding, the Summary sheet's totals and per-document table, header styling/freeze/autofilter, per-cell borders and wrapping, column widths, outcome tinting, long-snippet truncation, the conditional SNS and XPath-error sheets, omission of empty sheets, and an ignore-empty skipped-file run) and tests/test_html_report.py (complete document structure, batch and single-object content, summary cards and severity chips, found-vs-allowed rendering, the empty state for a clean run, escaping of markup in rule text and node snippets, writing to a path, a configurable title, the XPath-errors section, the dark/light contract, the filter controls, and the absence of any external reference).",
       "done": "2026-08-31T17:08:55"
@@ -354,6 +430,8 @@
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Run summary: documents passed / failed and violations by severity",
       "details": "Add a run summary with documents passed/failed and violations by severity (category D7). Implemented in acd/brex_checker.py: extracted the counting logic previously inline in _append_summary into a shared _count_violations(object_flag_dict) helper that returns (error_count, warning_count, severity_counts), tallying content-rule violations under their resolved BrSeverityLevel (or None when absent) and SNS/notation violations under None too (they have no severity-level concept at all, per §A6); _append_summary now calls it and is otherwise unchanged. run_summary(result) is the new port of s1kd-brexcheck -T/--totals: a separate, opt-in conversion over a finished validate() result -- the same pattern to_xml_report already uses -- rather than being folded into validate() itself, so validate()'s return shape is unchanged for existing callers. It accepts either a single-object or directory-mode result (via _is_single_object_result, same as to_xml_report) and returns {DocumentsChecked, DocumentsPassed, DocumentsFailed, DocumentsSkipped, Errors, Warnings, ViolationsBySeverity}; a document \"passes\" when its error count (warnings from fail=\"no\" severities excluded) is zero. Noted limitation: directory-mode validate() drops a skipped file from its results mapping entirely (continue) rather than recording a Skipped marker, so DocumentsSkipped can only ever reflect single-object mode's skip path -- fixing that would mean changing validate()'s directory-mode contract, out of scope here. to_xml_report gained a new _append_run_summary_node that prepends a <summary documentsChecked=... documentsPassed=... documentsFailed=... documentsSkipped=... errors=... warnings=...><severity value=\"...\" count=\".../></summary> node (built from run_summary, so the two never disagree) as the first child of <brexCheck> -- an addition beyond the C tool's -x shape, since s1kd-brexcheck's totals are -T-only console output with no XML report equivalent. Covered by tests/test_run_summary.py: a passing document, a failing document with severity tallied, a warning-only document that still passes, SNS/notation violations counted as errors with no severity, directory-mode aggregation across documents, a skipped document counted separately, and the XML report's <summary> node matching run_summary()'s counts.",
       "done": "2026-08-31T10:23:40"
@@ -363,6 +441,8 @@
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "nonContextRules surfaced as informational report entries",
       "details": "Surface nonContextRules/nonContextRule (category A4) in the report as informational entries — text plus brDecisionRef — so authors see the human-readable business rules that apply. They are not machine-checkable, but silently dropping them hides a whole rule class. Implemented in acd/brex_checker.py: _get_non_context_rules collects every nonContextRules/nonContextRule from each BREX in the active chain (self._brex_list[0]), reading its brDecisionRef/@brDecisionIdentNumber (None when absent) and its text -- from the simplePara child the real S1000D default BREX uses, with a full-itertext() fallback for a nonContextRule with no simplePara wrapper. Wired into _check_rules as a new, always-present result[\"nonContextRules\"] key, populated unconditionally (like notations, not gated on dmodule roots the way sns is, since non-context rules describe the whole BREX, not a specific object). Purely informational, not a violation: _count_violations/_append_summary/run_summary all skip the key (it would otherwise crash the flag-0/1/2 counting loop, since its value is a list, not a per-flag dict), and to_xml_report gained _append_non_context_rules_node, which emits a <nonContextRules> node (one <nonContextRule> per entry, nesting a <brDecisionRef> and a <text>) only when the chain defines at least one -- omitted entirely otherwise, since (unlike sns/notations) there is no pass/fail state to report with a <noErrors/> counterpart. Verified against the real bundled default BREX (acd/brex/DMC-S1000D-H-04-10-0301-00A-022A-D_001-00_EN-US.XML), which correctly yields the one real nonContextRule (\"Deletion of data modules is treated as a special case of update...\", BREX-S1-00245) -- also present, in the same form, in the F issue; the E and G issues carry the equivalent rule with no brDecisionRef. Covered by tests/test_non_context_rules.py: text plus brDecisionRef extraction, a rule with no brDecisionRef, a rule with no simplePara wrapper, multiple rules in document order, no nonContextRules at all, non-effect on the error count, collection across a layered/multi-BREX chain, and the XML report node (present and omitted).",
       "done": "2026-08-31T10:23:40"
@@ -372,6 +452,8 @@
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "valueTailoring (lexical / restrictable) reported with each value violation",
       "details": "Report objectValue/@valueTailoring (category C4) with each value violation, distinguishing lexical (value list may be extended) from restrictable (value list may only be narrowed), so downstream tailoring review knows which allowed-value sets a project may legally change. Implemented in acd/brex_checker.py: _show_rules now also collects a value_tailoring list alongside values_allowed/regex_allowed/ranges_allowed -- one {valueForm, valueAllowed, valueTailoring} entry per objectValue that actually declares @valueTailoring (absent on the S1000D <= 3.0 objval/val1 spelling, and on plenty of 4.x rules too -- 193 of 2462 in the evidence base -- so an undeclared value is left out rather than padded with a None entry, since there is nothing to distinguish for it). _check_object_values (shared by flag 2 and the flag-1-with-objectValue-children path, §3.8) attaches it to every value violation as 'ValueTailoring', alongside the existing 'Single Values'/'Pattern Values'/'Range Values' echo (D5) -- so a violation on a rule mixing tailoring policies (e.g. \"aa\" lexical, \"bb\" restrictable) reports both, distinguishable by looking up the failing rule's allowed values. Not wired into to_xml_report, matching the precedent already set there: to_xml_report's own task note records that echoing allowed values into the XML report was deliberately left out of scope, and adding ValueTailoring alone without its sibling value lists would be inconsistent. Verified against the real bundled default BREX (acd/brex/DMC-S1000D-H-04-10-0301-00A-022A-D_001-00_EN-US.XML): 84 rules carry declared tailoring, split 577 lexical / 796 restrictable across their objectValue children. Covered by tests/test_value_tailoring.py: a rule mixing lexical and restrictable values on the same violation, a rule with no declared tailoring reporting an empty list, pattern- and range-form values carrying tailoring, the flag-1 value-check path, and the legacy objval spelling (no valueTailoring concept, reports empty).",
       "done": "2026-08-31T10:23:40"
@@ -381,6 +463,8 @@
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
+      "model": "sonnet",
+      "effort": "high",
       "short": "BREX self-consistency lint pass (lint_brex)",
       "details": "Add a BREX self-consistency lint pass that runs over a BREX before it is used:\n- every objectPath compiles;\n- every structureObjectRule has an objectUse;\n- allowedObjectFlag=\"2\" rules actually carry objectValue children (18 in these three BREX do not, and are silently no-ops);\n- valueForm=\"pattern\" values are valid XSD regexes;\n- valueForm=\"range\" values parse as a range or set;\n- @brSeverityLevel values exist in the severity-level file;\n- duplicate structureObjectRule/@id and duplicate brDecisionIdentNumber.\n\nImplemented in acd/brex_checker.py as BrexChecker.lint_brex(brex_path), a standalone opt-in method (no equivalent in s1kd-brexcheck) meant to be called on a BREX file before passing it to override_brex_list/set_brex_path, independent of any checked object. Reuses _get_object_rule_nodes(brex_path, schema=None) to walk every structureObjectRule/objrule regardless of rulesContext, so both modern and S1000D <= 3.0 legacy-spelling rules are linted. Each of the seven checks is its own finding category (InvalidXPath, MissingObjectUse, EmptyValueFlag2, InvalidPattern, InvalidRange, UnknownSeverityLevel, DuplicateId, DuplicateBrDecisionIdentNumber): XPath compilation reuses elementpath.Selector the same way the checker itself does; pattern validity reuses translate_xsd_regex_to_python plus regex.compile(..., V1); range/set validity checks for empty members/bounds in the ~/| grammar is_in_set/is_in_range otherwise silently mis-parse instead of rejecting; the severity check resolves a rule's own brSeverityLevel or the BREX root's defaultBrSeverityLevel against the checker's currently configured .brseveritylevels table (_get_severity_levels) and is skipped entirely when none is configured/discoverable, since there is nothing to validate against; duplicate @id/brDecisionIdentNumber are tallied across the whole file and reported once each with every occurrence's line number. Verified end-to-end against all 7 bundled default BREX in acd/brex/: zero findings on the BREX with no value-only flag-2 rules, and exactly 18 EmptyValueFlag2 findings on the F/G/H issues (20 on the E issue) — matching the evidence base's \"18 in these three BREX do not [carry objectValue]\" figure exactly, with no false positives from the pattern/range/severity/duplicate checks against real production rule data. Covered by tests/test_brex_lint.py: a clean BREX with no findings, each of the eight finding categories individually (including the legacy objrule/objpath/objuse/objval spelling for the pattern check), a flag-1 rule with no objectValue correctly not flagged, valid set/range values not flagged, a known severity level not flagged, and the severity check skipped when no .brseveritylevels file is configured.",
       "done": "2026-08-31T11:10:41"
@@ -390,6 +474,8 @@
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Lint: every objectPath compiles",
       "details": "every objectPath compiles;",
       "done": "2026-08-31T11:10:41"
@@ -399,6 +485,8 @@
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Lint: every structureObjectRule has an objectUse",
       "details": "every structureObjectRule has an objectUse;",
       "done": "2026-08-31T11:10:41"
@@ -408,6 +496,8 @@
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Lint: allowedObjectFlag=\"2\" rules carry objectValue children",
       "details": "allowedObjectFlag=\"2\" rules actually carry objectValue children (18 in these three BREX do not, and are silently no-ops);",
       "done": "2026-08-31T11:10:41"
@@ -417,6 +507,8 @@
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Lint: pattern values are valid XSD regexes",
       "details": "valueForm=\"pattern\" values are valid XSD regexes;",
       "done": "2026-08-31T11:10:41"
@@ -426,6 +518,8 @@
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Lint: range values parse as a range or set",
       "details": "valueForm=\"range\" values parse as a range or set;",
       "done": "2026-08-31T11:10:41"
@@ -435,6 +529,8 @@
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Lint: brSeverityLevel values exist in the severity-level file",
       "details": "@brSeverityLevel values exist in the severity-level file;",
       "done": "2026-08-31T11:10:41"
@@ -444,6 +540,8 @@
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Lint: duplicate structureObjectRule ids and duplicate brDecisionIdentNumber",
       "details": "duplicate structureObjectRule/@id and duplicate brDecisionIdentNumber.",
       "done": "2026-08-31T11:10:41"
@@ -453,6 +551,8 @@
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Rules unreachable by rulesContext reported as BREX warnings",
       "details": "Detect rules made unreachable by rulesContext — e.g. a rulesContext naming a schema no object in the CSDB uses, or a typo'd schema URI. Report as a BREX warning. Implemented in acd/brex_checker.py as BrexChecker._lint_unreachable_rules_context, wired into lint_brex(brex_path, csdb_schemas=None) as a new opt-in parameter: when given an iterable of schema URI strings actually used by the target CSDB, every contextRules/contextrules group whose rulesContext/context names a schema absent from that set is reported as an UnreachableRulesContext finding (one per distinct unreachable schema string, with every declaring group's line under Lines); an unqualified group is never flagged, since it always applies regardless of schema. A typo'd schema URI is indistinguishable from \"legitimately declared for a schema this particular CSDB happens not to use\" without a CSDB to compare against, so the check is skipped entirely (not \"everything qualified is unreachable\") when csdb_schemas is None (the default, so every existing lint_brex call site is unaffected) or empty. s1000d.collect_csdb_schemas(directory, recursive=True) is the new helper that builds this set for a caller: walks a CSDB directory (same recursive/non-recursive convention as find_document_by_reference) and collects the distinct xsi:noNamespaceSchemaLocation values via the existing get_schema_from_xml, tolerating an unreadable or non-well-formed file. Verified against the real evidence-base CSDB (CMP 21-77-05, 63 objects): collect_csdb_schemas correctly found the 10 schemas actually in use (this delivery uses the per-info-kind \"strict\" schema variant, not \"flat\"), and lint_brex on the real DMC-ATABREX-...-01A... correctly flagged the 8 rulesContext schemas the ATABREX declares rules for that no object in this particular delivery uses (fault.xsd, container.xsd, dml.xsd, checklist.xsd, crew.xsd, sb.xsd, schedul.xsd, wrngdata.xsd), with zero false positives against the 10 schemas that are in use. Covered by tests/test_brex_lint.py: an unreachable schema reported, a used schema not flagged, the check skipped without csdb_schemas, the check skipped when csdb_schemas is empty, and an unqualified group never flagged regardless of csdb_schemas.",
       "done": "2026-08-31T11:10:41"
@@ -462,6 +562,8 @@
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
+      "model": "sonnet",
+      "effort": "high",
       "short": "Per-rule hit statistics (evaluated / matched / violated)",
       "details": "Report per-rule hit statistics (rules evaluated / matched / violated) so a project can see which BREX rules never fire against its data set. Implemented in acd/brex_checker.py: self._rule_stats, keyed per distinct content rule by the new _rule_stat_key ((Brex, contextRules, xpath) — the same rule identity lint_brex's duplicate checks already treat as interchangeable), accumulates across every call to _check_rules — i.e. across an entire directory-mode validate() run, or across as many single-object validate() calls as a caller makes over a whole CSDB — since the feature is explicitly about visibility across a data set, not a single document; reset_rule_statistics() starts a fresh one, rule_hit_statistics() returns the accumulated list. _record_rule_evaluated is called once per rule per document from _check_rules's dispatch loop, before _check_object_flag_0/1/2, so a rule counts as evaluated even when it never reaches a check function at all (an allowedObjectFlag=\"2\" rule with no objectValue children — the same silent no-op lint_brex's EmptyValueFlag2 finding already flags statically — now visibly stays at 0 matched / 0 violated forever at runtime too, confirming the static finding). _record_rule_hit(value, matched, violated) is called once per rule per document from inside _check_object_flag_0 (both the Saxon and elementpath paths), _check_object_flag_1 and _check_object_flag_2, reusing the selector result each function already computed (no extra XPath evaluation): matched means value['xpath'] located something in this document — a non-empty node-set or a true boolean result — independent of what allowedObjectFlag does with that outcome (a found forbidden node for flag 0, a found required node for flag 1, a found value-constrained node for flag 2); violated means this evaluation produced a violation, folding in a flag-1 rule's follow-on value check (§3.8) so its overall Violated reflects either a presence failure or a value failure. Neither is recorded on an xpathError (the selector never ran), though _record_rule_evaluated still counts that attempt. Scoped to content rules only, matching how the rest of the taxonomy (§2.A) separates categories — SNS and notation rules are checked as one pass per document, not rule-by-rule, so they have no per-rule breakdown here (verified: a real SNS violation surfaced during end-to-end testing below correctly did not appear in any rule's Violated count). Verified end-to-end against the real evidence-base chain (the 919-rule ATABREX-01A/00A/S1000D-default layering) by running validate() across 5 real data modules from CMP 21-77-05: 549 distinct rules tracked, with the per-document schema-qualification correctly reflected (474 of 549 evaluated in all 5 mixed-info-kind documents, the rest only in the subset whose schema they're qualified for), 13 matched at least once and 536 never matched against this small sample — exactly the \"which rules never fire\" signal the feature is for. Covered by tests/test_rule_hit_statistics.py: accumulation across two documents for flag 0 (never-present, sometimes-present), flag 1 (sometimes-required-and-present), flag 2 (matched-but-valid vs. matched-and-invalid), and a flag-2 rule with no objectValue staying at 0/0 forever; identifying fields carried on each stat; reset_rule_statistics clearing accumulated state; and an empty result before any check has run.",
       "done": "2026-08-31T11:10:41"
@@ -471,6 +573,8 @@
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
+      "model": "sonnet",
+      "effort": "high",
       "short": "Cross-BREX conflict detection for layered BREX",
       "details": "Add cross-BREX conflict detection for layered BREX — the same objectPath given contradictory allowedObjectFlags, or restrictable value sets widened by a lower layer. Implemented in acd/brex_checker.py as BrexChecker.lint_brex_layers(entry_brex_path), a standalone opt-in method (no equivalent in s1kd-brexcheck) that resolves the same brexDmRef/brexref layer chain _init_brex_list would follow, but starting from a BREX file directly rather than from an object that references it — extracted the walk itself (resolution order, search-path fallback, built-in-BREX fallback, visited-set cycle guard) out of _init_brex_list into a new shared _walk_brex_chain(xml_start, search_dir) so both call sites share one implementation; _init_brex_list is otherwise behaviourally unchanged (confirmed by the full existing suite, including the cycle-guard and dead-end-chain tests in tests/test_brex_dm_ref_resolution.py, passing unmodified). Layer order follows official S1000D valueTailoring terminology: entry_brex_path (layer 0) is the \"lower\", project-specific BREX that may only restrict what a \"higher\", more general BREX further down the chain (ultimately a master/default BREX, at a larger layer index) declares. Two rules are compared as \"the same rule\" when they share both their rulesContext/context qualifier and exact objectPath/objpath text (reusing _show_rules per layer) — a documented simplification that does not catch an unqualified rule in one layer conflicting with a schema-qualified rule for the same path in another. Two findings: ConflictingAllowedObjectFlag, when the same rule is required absent (\"0\") by one layer and present (\"1\") by another — verified against the real ATABREX-01A/00A/S1000D-default chain that this is the *only* flag pair worth flagging: an initial version that flagged any two differing flags produced two false positives on that real chain (@commercialClassification, @caveat), each a project layer forbidding an attribute outright (\"0\") that a more general layer only value-constrains (\"2\") — a legitimate narrowing, not a conflict, since an absent attribute trivially satisfies a \"value constrained if present\" rule too; and RestrictableValueSetWidened, when the same rule declares a single-form objectValue with valueTailoring=\"restrictable\" in two or more layers and a lower layer's allowed-value set is not a subset of a higher layer's set for that rule (pattern/range forms are not compared — a general regex/range subset relationship is out of scope). Verified against the real evidence-base chain (DMC-ATABREX-...-01A... -> ...-00A... -> DMC-S1000D-F-..., 919 rules combined): zero findings, confirming the refined flag-conflict logic and the value-widening check both correctly produce no false positives against real, well-maintained production data. Covered by tests/test_brex_layer_conflicts.py: a genuine \"0\"/\"1\" conflict detected with both layers identified, a \"0\"/\"2\" pairing correctly *not* flagged, restrictable value-set widening detected with the exact extra values reported, an agreeing rule across layers not flagged, and a single-layer BREX (no further brexDmRef) producing no findings.",
       "done": "2026-08-31T11:10:41"
@@ -480,6 +584,8 @@
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "SNS rule tables validated (duplicate codes, missing titles, codes off pattern)",
       "details": "Validate SNS rule tables themselves (duplicate snsCode at a level, missing snsTitle, codes outside the pattern declared elsewhere in the BREX). Implemented in acd/brex_checker.py as BrexChecker._lint_sns_rules_table, wired unconditionally into lint_brex (no opt-in needed, unlike the CSDB-schema check above, since everything it needs is already in the one BREX file being linted): walks every snsSystem/snsSubSystem/snsSubSubSystem/snsAssy element the BREX declares (via a new _parse_brex_root helper — needed because a snsRules-only BREX can have zero content rules, so _get_object_rule_nodes's node list can't be relied on to reach the tree) and reports DuplicateSnsCode when two sibling elements at the same level (grouped by parent) share an snsCode text value, MissingSnsTitle when a level element has no snsTitle child, and SnsCodeOutsidePattern when a snsCode fails every valueForm=\"pattern\" content rule declared elsewhere in the same file for the corresponding dmCode attribute (snsSystem -> @systemCode, snsSubSystem -> @subSystemCode, snsSubSubSystem -> @subSubSystemCode, snsAssy -> @assyCode, matched by a rule's objectPath/objpath ending in that attribute name — a heuristic name match, since nothing in the schema formally links an snsRules level to a content rule; skipped when no such pattern rule exists for that attribute at all, since there is nothing to check against). Reuses the objectPath nodes lint_brex already selected (passed in as content_rule_nodes) to build the pattern cross-reference without a second selection pass, and the same translate_xsd_regex_to_python/regex V1 compilation lint_brex's own InvalidPattern check uses, skipping a pattern that doesn't itself compile (already reported separately by that check). Verified against the real evidence-base ATABREX (DMC-ATABREX-...-01A..., the one with 749 real SNS codes across snsSystem(78)/snsSubSystem(391)/snsSubSubSystem(280)): zero findings, confirming none of the three checks false-positive at scale against a large, real, well-formed SNS table; the 7 bundled default BREX (acd/brex/*.XML) declare no snsRules at all, so the check is a no-op on those, as expected. Covered by tests/test_brex_lint.py: duplicate snsCode among siblings reported with both lines, distinct codes not flagged, a missing snsTitle reported, a present snsTitle not flagged, a snsCode outside its declared pattern reported, a matching snsCode not flagged, no flag when no pattern rule is declared for that attribute at all, and a BREX with no snsRules producing none of the three finding categories.",
       "done": "2026-08-31T11:10:41"
@@ -489,6 +595,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
+      "model": "haiku",
+      "effort": "low",
       "short": "objectUse read as full text content; a missing objectUse is tolerated",
       "details": "Read objectUse as full text content (''.join(node.itertext())) instead of .text, and tolerate a missing objectUse instead of raising IndexError. Ref §3.12, category D4. Implemented in acd/brex_checker.py: _show_rules now reads x.getparent().xpath('objectUse|objuse'), joining itertext() of the first match instead of taking .text (which silently dropped any content after a child element), and stores None instead of raising IndexError when a rule has no objectUse/objuse at all (the shape lint_brex's pre-existing MissingObjectUse finding already flags statically). Covered by tests/test_p3_robustness_hygiene.py: an objectUse with inline child markup reads as its full joined text, and a rule with no objectUse reports Description: None instead of raising.",
       "done": "2026-08-31T11:41:28"
@@ -498,6 +606,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
+      "model": "sonnet",
+      "effort": "high",
       "short": "Each BREX parsed once per run and its rule list cached",
       "details": "Parse each BREX once per run, not once per data module, and cache the extracted rule list. Ref §3.12. Implemented in acd/brex_checker.py as BrexChecker._get_content_rules(brex, schema, debug), a cached wrapper around _show_rules keyed by (brex, schema) on a new self._rule_cache dict (cleared only on a fresh BrexChecker instance, since a BREX file's content doesn't change mid-run and repeated instantiation across different runs already gets a fresh cache). _check_rules's per-document loop now calls _get_content_rules instead of _show_rules directly, so a BREX is parsed and its rule list extracted once per (brex, schema) pair for the life of the checker instance rather than once per document — directory-mode validate() and repeated single-object validate() calls against the same BREX chain both benefit. Covered by tests/test_p3_robustness_hygiene.py: _get_object_rule_nodes (the actual parse) spied across three documents checked against the same BREX and schema, asserting exactly one call, plus _get_content_rules returning the identical cached list object across calls.",
       "done": "2026-08-31T11:41:28"
@@ -507,6 +617,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
+      "model": "sonnet",
+      "effort": "high",
       "short": "Each objectPath compiled once and reused across documents",
       "details": "Compile each objectPath once into a reusable selector and evaluate it against each document, instead of recompiling per (rule, document). Ref §3.12. Implemented in acd/brex_checker.py: _show_rules compiles elementpath.Selector(xpath, namespaces=...) once per rule when the rule dict is built (piggybacking on the _get_content_rules cache above so it truly happens once per (brex, schema) pair, not once per document), storing the compiled selector as value['selector'] (None plus a captured value['selector_error'] on a compile failure, instead of raising immediately). _check_object_flag_0/1/2 no longer construct their own elementpath.Selector; a new shared _resolve_selector(brex_violations, value) helper returns the precompiled selector or records an xpathError from the captured compile failure. Evaluation itself (_select_with_nodes(selector, root)) still runs fresh per document via its own elementpath.XPathContext, and is still wrapped in try/except elementpath.ElementPathError per call since a dynamic (evaluation-time) error can depend on the specific document, not just the rule. Covered by tests/test_p3_robustness_hygiene.py: a rule's selector is an elementpath.Selector instance and is the identical object across repeated _get_content_rules calls, and a rule with an unparseable objectPath reports a single xpathError (no exception) with no recompilation attempt.",
       "done": "2026-08-31T11:41:28"
@@ -516,6 +628,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
+      "model": "haiku",
+      "effort": "low",
       "short": "regex_builder escapes attribute names and values",
       "details": "Escape attribute values in regex_builder (regex.escape), or drop the raw-text search entirely once line numbers come from the parsed tree. Ref §3.12. Implemented in acd/brex_checker.py: regex_builder now escapes both attribute_name and attribute_value with regex.escape before embedding them in the built pattern, so a value containing regex metacharacters (., (, [, …) is matched literally instead of producing a wrong or invalid pattern. Covered by tests/test_p3_robustness_hygiene.py: an attribute value containing ./(/) matches only its literal text and not an unrelated string that would incidentally satisfy the unescaped pattern, and likewise for an attribute name containing a metacharacter.",
       "done": "2026-08-31T11:41:28"
@@ -525,6 +639,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Saxon path removed (product decision); elementpath is the only engine",
       "details": "Make the Saxon path complete or remove it — it is only wired into _check_object_flag_0, so saxon=True currently gives an inconsistent mix of engines. Ref §3.12. Per explicit product decision, removed rather than completed: the Saxon branch had zero test coverage and completing it would have meant duplicating _check_object_flag_1/_check_object_flag_2/_check_object_values/node-xpath-and-copy/line-number/rule-hit-statistics logic against the Saxon API for no behavioural gain over the existing elementpath path. Removed the saxonche import, the saxon constructor parameter and self._saxon attribute, the Saxon branch of _check_object_flag_0 (and its now-unused xml_text parameter/plumbing through _check_rules), and the saxonche line from requirements.txt; clean_xpath (only ever called from the removed branch) is kept since it remains part of the package's public API (acd/__init__.py). Covered by tests/test_p3_robustness_hygiene.py: BrexChecker(saxon=True) raises TypeError and a plain BrexChecker() instance carries no _saxon attribute; the full existing suite (acd/brex_checker.py imports and 246 tests) passes with no saxonche installed.",
       "done": "2026-08-31T11:41:28"
@@ -534,6 +650,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
+      "model": "sonnet",
+      "effort": "high",
       "short": "XPath version chosen like s1kd: 1.0 for S1000D <= 3.0 BREX, 2.0 for 4.0+",
       "details": "Select the XPath version the way s1kd does: XPath 1.0 for BREX declaring S1000D <= 3.0, XPath 2.0 for 4.0+, with an explicit override. Ours is always XPath 2.0 — correct for these BREX, wrong for a 3.0 BREX that relies on XPath 1.0 =-on-node-set semantics. Implemented in acd/brex_checker.py: set_xpath_version(version) is the -X/--xpath-version equivalent (\"1.0\"/\"2.0\"/None for dynamic, validated against the new XPATH_VERSIONS constant), and _brex_requires_xpath2(brex_schema) ports brex_requires_xpath2 (s1kd-brexcheck.c:1296-1322): an explicit override always wins; otherwise a BREX declaring S1000D issue 2.0/2.1/2.2/2.3/3.0 (_XPATH1_ONLY_ISSUE_PREFIXES) gets elementpath.XPath1Parser, everything else (4.0+, or no/unrecognised xsi:noNamespaceSchemaLocation) gets elementpath.XPath2Parser -- the existing default. The decision is made once per BREX file in _show_rules (from the BREX's own root xsi:noNamespaceSchemaLocation, read via the same nodes_to_check[0].getroottree().getroot() the existing defaultBrSeverityLevel lookup already uses -- moot when a BREX has no rules to compile a selector for), not from the checked object's schema, matching the C original's xmlDocGetRootElement(brex) rather than the dmod being checked; the chosen parser is passed to every elementpath.Selector(...) compiled from that BREX. lint_brex's independent InvalidXPath compile check is updated the same way, so a lint result reflects the version real checking would actually use for that BREX. Verified against all 7 bundled default BREX (acd/brex/*.XML): the S1000D <= 3.0 one (DMC-AE-A-...) selects XPath 1.0, the six 4.x ones (issues A/D/E/F/G/H) select XPath 2.0, zero compile failures across all of them; the real evidence-base ATABREX pair (both declaring S1000D 4.2) also continues to select XPath 2.0 unchanged. Covered by tests/test_xpath_version.py: dynamic XPath 1.0 for every legacy issue (2.0/2.1/2.2/2.3/3.0) and XPath 2.0 for 4.2 and for an undeclared schema, a concrete pass/fail difference using the XPath-2.0-only matches() function (fails to compile under dynamic mode for a 3.0-declared BREX, compiles for a 4.2-declared one), the explicit override forcing either version regardless of declared issue, set_xpath_version(None) restoring dynamic selection, rejection of an unsupported version string, lint_brex's InvalidXPath finding tracking the same dynamic decision, and an end-to-end _check_rules() run recording an xpathError for the incompatible rule while the BREX's other, XPath-1-compatible rule is unaffected.",
       "done": "2026-08-31T12:14:07"
@@ -543,6 +661,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
+      "model": "sonnet",
+      "effort": "high",
       "short": "Directory filter uses a real extension test; BREX data modules are checked too",
       "details": "Replace the \".xml\" in name / \"-022a-\" not in name directory filter with a real extension test, and check BREX data modules like any other object. Ref §3.11. Implemented in acd/brex_checker.py: validate()'s directory-mode file filter is now _.lower().endswith(\".xml\") and isfile(join(self._xml_dir, _)) (matching the extension-test convention already used by s1000d.collect_csdb_schemas/find_document_by_reference), dropping both the substring extension test and the -022a- exclusion entirely, so a BREX data module sitting in the checked directory is listed and checked exactly like any other object.\n\nRemoving the exclusion surfaced a real, previously-unreachable consequence: a self-referencing master/default BREX (the standard shape for a top-level BREX with nothing above it -- confirmed on the real bundled DMC-S1000D-F-... default BREX and reproduced against the real evidence-base CSDB) checked directly as the primary object hit _walk_brex_chain's existing cycle guard on its very first lookup (its own brexDmRef resolves to itself), which returned an empty chain and made _init_brex_list raise NoBrexDefined for every such file -- i.e. BREX data modules could be listed but not actually checked. Fixed in _walk_brex_chain: when the self-reference terminates the walk on its first iteration (xml == xml_start), the file is appended as its own sole applicable BREX instead of yielding an empty chain, mirroring s1kd's main() (strcmp(brex_fnames[0], dmod_fnames[i]) == 0), where find_brex_fname_from_doc already resolves such a reference to the file itself. A self-reference reached deeper in the walk (a referenced BREX's own terminating self-reference, the pre-existing and already-tested case) is unaffected, since that BREX is already in the list from the previous iteration. Verified end-to-end against the real evidence-base CSDB (CMP 21-77-05): directory-mode validate() now checks all 3 BREX files it contains (previously always excluded) without raising -- the two ATABREX layers resolve their normal chain and report 0 errors, and the self-referencing S1000D 4.2 default BREX checks against itself and reports one real SNS finding (its own systemCode against its own declared SNS rules) rather than crashing; lint_brex_layers on a self-referencing BREX passed directly (unaffected code path, verified against the same bundled default BREX) still correctly reports no findings. Covered by tests/test_directory_mode.py (real extension test rejecting foo.xml.bak, case-insensitive .XML matching, a directory literally named weird.xml ignored, a -022a--named data module now checked and flagged) and tests/test_brex_dm_ref_resolution.py (_init_brex_list resolving a self-referencing BREX checked directly to itself, and an end-to-end validate() run against it raising nothing).",
       "done": "2026-08-31T12:14:07"
@@ -552,6 +672,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
+      "model": "opus",
+      "effort": "high",
       "short": "Structured violation objects (dataclass) returned",
       "details": "Return structured violation objects (dataclass: brex, rule id, brDecisionIdentNumber, flag, severity, objectPath, objectUse, allowed values, node xpath, line, node snippet) instead of nested dicts keyed by integers, and derive the JSON and XML reports from them. Implemented in acd/brex_checker.py: a new @dataclass BrexViolation (document, brex, rule_id, br_decision_ident_number, flag, rules_context, severity, fail, object_path, object_use, allowed_values, node_xpath, line, node_snippet, duplicate) is the canonical structured shape a violation is reported in. _check_rules's per-BREX result[brex_path]['0'/'1'/'2'] dict lists (kept unchanged -- existing callers and the whole test suite key off them directly, and s1kd-brexcheck's own shape is dict-based) now also carry 'RuleId' (structureObjectRule/objrule @id, newly captured in _show_rules) and 'RulesContext' alongside the fields already there. _violation_from_dict(document, brex, flag, violation) is the single conversion point from a raw record to a BrexViolation; violations(result) flattens an entire validate()/_check_rules() result (single-object or directory-mode, via _is_single_object_result) through it into one ordered list. Both report formats are derived from that same conversion rather than each walking the raw dicts independently: to_xml_report's _append_error_node now takes a BrexViolation (reading its typed attributes instead of dict keys) and _build_document_node builds one via _violation_from_dict before calling it; the new to_json_report(result, indent=2) returns {\"summary\": run_summary(result), \"violations\": [...]} with each violation as BrexViolation.to_dict() (dataclasses.asdict), replacing the \"ad-hoc JSON\" category D6 originally flagged (dump(result, ...) of the raw internal dict) with a defined, typed shape. BrexViolation is exported from acd/__init__.py. Covered by tests/test_structured_violations.py.",
       "done": "2026-08-31T12:36:41"
@@ -561,6 +683,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Identical violations from layered BREX deduplicated",
       "details": "Deduplicate identical violations raised by the same rule appearing in multiple layered BREX. Implemented in acd/brex_checker.py as BrexChecker._deduplicate_violations, called once at the end of _check_rules over the finished brex_violations_dict. Layered BREX commonly re-states or inherits the same rule verbatim across layers (a project BREX re-declaring, or simply not overriding, a rule its master BREX already defines); checking the object against every layer in the chain then produces one violation record per layer for what is really a single real-world defect. Two violations are treated as the same when they share (flag, RulesContext, Xpath, NodeXpath) -- the same \"same rule\" definition lint_brex_layers already established (rulesContext/context + exact objectPath/objpath text), plus landing on the same node (or both having no backing node at all, e.g. two layers' identical flag-1 \"required but missing\" result, which is still the same violation). self._brex_list[0] is walked in its existing project-specific-layer-first order (see _walk_brex_chain/lint_brex_layers's \"layer 0 is the lower, project-specific BREX\" convention), so the first-seen copy -- the more specific layer's -- is left as canonical and every later copy is marked 'Duplicate': True; nothing is removed from result[brex_path]['0'/'1'/'2'], so its length and per-BREX keying are unchanged and every existing caller/test that indexes it directly is unaffected. _count_violations (and therefore _append_summary/run_summary) and to_xml_report/to_json_report (via BrexViolation.duplicate) all skip a Duplicate: True entry, so error/warning counts and both report formats reflect the deduplicated set while the raw dict keeps every record for transparency. The identity key intentionally omits Brex, so two literal duplicate rule definitions within a *single* BREX file are deduplicated the same way. Covered by tests/test_structured_violations.py: raw per-layer records both present with only the later one marked duplicate, _append_summary/run_summary/to_json_report/to_xml_report all counting the pair once, and a same-file duplicate-rule case.",
       "done": "2026-08-31T12:36:41"
@@ -570,6 +694,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Progress callback replaces the tqdm dependency",
       "details": "Add a progress callback rather than the hard tqdm dependency inside the library. Implemented in acd/brex_checker.py: removed from tqdm import tqdm and the include_tqdm bool parameter entirely (no prior test coverage depended on it), replacing both call sites -- _check_rules's per-content-rule loop and validate()'s directory-mode per-file loop -- with a single progress_callback: Callable[[int, int, str], None] = None parameter, called as progress_callback(current, total, stage) with stage=\"rules\" or stage=\"files\" respectively (validate() forwards its own progress_callback into _check_rules, so both stages surface through one callback). None (the default) reports nothing, preserving prior behaviour exactly for every existing caller. A caller who wants a tqdm bar (or any other progress UI/logging) now drives it themselves from the callback, e.g. lambda current, total, stage: bars[stage].update(1); acd/brex_checker.py itself no longer imports tqdm at all. tqdm is left in requirements.txt and untouched elsewhere in the package (acd/filelist.py, acd/copying.py still use their own unrelated include_tqdm parameters), since only this file's hard dependency was in scope. Covered by tests/test_progress_callback.py: the module carries no tqdm attribute, _check_rules reports (current, total, \"rules\") once per content rule, validate() reports (current, total, \"files\") once per file in directory mode, and omitting the callback still works.",
       "done": "2026-08-31T12:36:41"
@@ -579,6 +705,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Opt-in clear error for objects without xsi:noNamespaceSchemaLocation",
       "details": "Raise a clear error when the object has no xsi:noNamespaceSchemaLocation (DTD-based objects) instead of comparing rulesContext against None. Implemented as an opt-in setting rather than an unconditional raise: a genuine S1000D <= 3.0 / DTD-based object legitimately has no xsi:noNamespaceSchemaLocation at all (that mechanism is XSD-only), and _check_rules already handles that case correctly today -- schema resolves to None, every schema-qualified contextRules/rulesContext group is skipped and every unqualified one still applies, exactly as tests/test_legacy_brex_spellings.py's test_legacy_context_qualified_rule_skipped_for_non_matching_schema (a schema-less object, by design) already verifies; s1kd-brexcheck itself never errors on a missing schema either (xmlGetNsProp returns NULL silently, s1kd-brexcheck.c:1371). Raising unconditionally would have broken exactly the legacy-spelling support added earlier in this list. Implemented in acd/brex_checker.py as a new NoSchemaDeclared exception (exported from acd/__init__.py) plus BrexChecker.set_require_schema(enabled=True) (off by default, matching every other opt-in checker setting in this codebase -- set_ignore_empty, set_xpath_version, etc.): when enabled, _check_rules raises NoSchemaDeclared immediately after get_schema_from_xml resolves to None, with a message naming the checked object and explaining both why (schema-qualified rules cannot be selected) and the escape hatch (set_require_schema(False), the default, for a genuine DTD-based object). Intended for a caller checking a corpus of objects that are all expected to be XSD/4.0+-based, where a missing declaration on one of them is far more likely an authoring mistake than a legitimate legacy object, and silently under-checking it would hide that mistake instead of surfacing it. Covered by tests/test_no_schema_declared.py: default behaviour unchanged (no raise) for a schema-less object, the option raising for one, the option not firing when a schema is declared, toggling the option back off, the option defaulting to off on a fresh checker, and the raise surfacing through validate() too.",
       "done": "2026-08-31T12:36:41"
@@ -588,6 +716,8 @@
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Regression test: the 10-violation fixture from section 1.1",
       "details": "Add the 10-violation fixture from §1.1 as a regression test asserting exactly 10 violations with the correct flags and messages. Implemented as tests/test_headline_reproduction.py: the exact BREX/object shape from §1.1 (5 x flag 0, 2 x flag 1, 3 x flag 2, all violated) asserts Summary == \"10 Errors\", plus, per flag, the full set of violated objectPaths mapped to their expected messages/allowed-values -- pinning §3.1's fix (the error-key collision that collapsed each flag's violations down to 1, reproducing the historical \"3 Errors\" bug) against regression.",
       "done": "2026-08-31T15:14:40"
@@ -597,6 +727,8 @@
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Fixtures for each allowedObjectFlag across node-set, boolean, string, numeric results",
       "details": "Add fixtures for each allowedObjectFlag covering node-set, boolean, string and numeric XPath results. Implemented as tests/test_allowed_object_flag_result_types.py, exercising _check_object_flag_0/1/2 directly against //foo (node-set), //foo = 'bar' (boolean), string(...) and count(...) (scalar string/number) for flags 0 and 1, plus the flag-2 value-check equivalents. Writing this fixture surfaced two previously-undiscovered defects of the same class §3.2 already fixed for booleans, now also fixed in acd/brex_checker.py: _check_object_flag_0 crashed with TypeError: object of type 'int' has no len() on a bare numeric objectPath (e.g. count(...), since neither 0 nor 1 has a len()) and silently miscounted a bare string result by iterating over its characters instead of treating it as one result (string(//foo) evaluating to \"bar\" produced 3 bogus violations, one per character); _check_object_flag_2 had the identical bug (crash on a number passed to _check_object_values's enumerate, per-character iteration on a string) in its value-checking path. Both now treat any scalar XPath result (boolean, string, number, Decimal) as a single result -- flag 0 via isinstance(result, (bool, str, int, float, Decimal)) evaluated for truthiness (matching how _check_object_flag_1 already handled these types), flag 2 by wrapping a scalar result as the sole item of a one-element list before value-checking. Flag 0's new placeholder line label \"(Scalar condition -> Interpret XPath)\" sits alongside the existing \"(Boolean condition -> Interpret XPath)\", unchanged for an actual boolean result so no prior test's exact string assertion could break (verified none existed either way). Full pre-existing suite (286 tests) still passes unchanged.",
       "done": "2026-08-31T15:14:40"
@@ -606,6 +738,8 @@
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
+      "model": "sonnet",
+      "effort": "low",
       "short": "valueForm fixture set: single, pattern, range and set",
       "details": "Add a valueForm fixture set covering single, pattern (including XSD subtraction and whole-value anchoring) and range / set forms. test_range_set_values.py and test_xsd_regex_translation.py already cover the underlying is_in_set/is_in_range/translate_xsd_regex_to_python helpers directly (the full matrix from §4.1: a~c, A|B|C, 01|02, aa01~aa09, 0001~0099, accpnl51~accpnl99, the 00[A-Z-[IO]]{1,3} subtraction case, [0-9]{2} whole-value anchoring). Added tests/test_value_form_matrix.py as the end-to-end complement: one BREX mixing all five forms (single, pattern-with-subtraction, pattern-whole-value, ~-range, |-set) checked through BrexChecker._check_rules/validate() against both a valid and an invalid object per rule, confirming the correct pass/violation outcome and the echoed Single Values/Pattern Values/Range Values fields end-to-end, plus one test mixing all five forms on a single object to confirm only the actually-violated rules report.",
       "done": "2026-08-31T15:14:40"
@@ -615,6 +749,8 @@
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "SNS fixture: normal, strict and unstrict modes against the real ATABREX 01A",
       "details": "Add an SNS fixture exercising normal, strict and unstrict modes against DMC-ATABREX-F-00-00-00-01A-022A-D_004-00_EN-US.XML. Implemented as tests/test_evidence_sns_real_atabrex.py, checked against the real file itself (not a synthetic copy): reads its actual SNS table (systemCode \"00\" -> subSystemCode \"1\" defines no snsSubSubSystem children at all; subSystemCode \"4\" does; no BREX in the evidence base defines any snsAssy, confirmed by direct inspection) to exercise normal mode's placeholder shorthand, strict mode rejecting that same shorthand, strict mode failing at the assyCode level even along an otherwise-fully-defined path (since no real BREX here defines snsAssy at all, strict mode -- which always checks every level -- can never pass that level against this file), and unstrict mode accepting a code normal mode rejects once the level defines no rules at all. Skipped when the evidence corpus (outside this repository) is not present; override its location with ACD_BREX_EVIDENCE_DIR. Verified passing on the reference machine (6/6).",
       "done": "2026-08-31T15:14:40"
@@ -624,6 +760,8 @@
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
+      "model": "haiku",
+      "effort": "low",
       "short": "Notation-rule fixture (already covered by tests/test_notation_rules.py)",
       "details": "Add a notation-rule fixture with a DM whose internal DTD subset declares an excluded notation. Already covered by the existing tests/test_notation_rules.py (added alongside the §4.2 notation-rule-checking implementation): test_explicitly_disallowed_notation_is_reported builds a DM with an internal DTD subset declaring <!ENTITY graphic1 SYSTEM \"graphic1.tif\" NDATA tiff> against a BREX excluding tiff via allowedNotationFlag=\"0\", plus sibling cases for an allowed notation, an unlisted notation, non-NDATA entities, multiple entities in one document, no internal DTD subset at all, and no notation rules defined at all. No new file needed.",
       "done": "2026-08-31T15:14:40"
@@ -633,6 +771,8 @@
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Layered-BREX fixture (each layer once) plus a cyclic-reference fixture",
       "details": "Add a layered-BREX fixture (DM → ATABREX 01A → ATABREX 00A → S1000D default) asserting all layers are collected exactly once, plus a cyclic-reference fixture. Implemented as tests/test_evidence_layered_brex_chain.py, walking the real chain named in the §4.2 \"Use brexDmRef for BREX resolution\" task note above (DMC-CTTAE29N-A-00-00-00-01A-00KA-D -> both real ATABREX layers -> the real DMC-S1000D-F-04-10-0301-00A-022A-D default BREX -- which, unlike assumed while drafting this fixture, is itself physically present in the evidence folder alongside the two ATABREX files, since all three are the same BREX the plan's whole §1 evidence base was built from, so this chain resolves entirely from real on-disk files with no built-in-default fallback involved; test_default_brex.py already covers that fallback path directly with our bundled acd/brex/ copies). Asserts the resolved _brex_list is exactly the 3 expected real paths in order, that len(chain) == len(set(chain)) (no duplicate layer), zero fallbacks recorded, and that validate() completes cleanly against all three real layers. The cyclic-reference fixture already exists: test_brex_dm_ref_resolution.py::test_init_brex_list_cycle_guard_prevents_infinite_loop (two synthetic BREX referencing each other, asserted to terminate within a timeout via a watchdog thread). Skipped when the evidence corpus is not present; override with ACD_BREX_EVIDENCE_DIR. Verified passing on the reference machine (4/4).",
       "done": "2026-08-31T15:14:40"
@@ -642,6 +782,8 @@
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
+      "model": "sonnet",
+      "effort": "low",
       "short": "rulesContext fixture with the xsi attribute first, middle and last",
       "details": "Add a rulesContext fixture with xsi:noNamespaceSchemaLocation in first, middle and last attribute position, asserting the same rule set is selected each time. test_xml_processing.py::test_get_schema_from_xml_is_position_independent already covers this at the get_schema_from_xml unit level (§4.1). Added tests/test_rules_context_attribute_position.py as the end-to-end complement: a BREX with one schema-qualified contextRules group and one unqualified group, checked via validate() against three otherwise-identical dmodule objects differing only in where xsi:noNamespaceSchemaLocation sits among the root element's attributes, asserting the identical two-rule violation set (both the qualified and the unqualified rule) is selected in all three positions.",
       "done": "2026-08-31T15:14:40"
@@ -651,6 +793,8 @@
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Malformed-objectPath fixture: run completes, xpathError for that rule only",
       "details": "Add a malformed-objectPath fixture asserting the run completes and reports an xpathError for that rule only. test_xpath_error_handling.py already covers this at the _check_object_flag_0/1/2 unit level (an empty violations dict, no other rules in play). Added tests/test_malformed_objectpath_fixture.py as the end-to-end complement: a BREX with one unparseable objectPath alongside three otherwise-normal, genuinely-violated flag 0/1/2 rules, checked through validate(), asserting exactly one xpathError naming the broken rule and that all three other rules are still checked and reported correctly (Summary counts only the 3 real violations, not the diagnostic).",
       "done": "2026-08-31T15:14:40"
@@ -660,6 +804,8 @@
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
+      "model": "opus",
+      "effort": "high",
       "short": "Differential harness against s1kd-brexcheck -clnST over CMP 21-77-05",
       "details": "Add a differential harness that runs both brex_checker.py and s1kd-brexcheck -clnST over the whole CMP 21-77-05 folder and diffs the violation sets, so parity is measurable and intentional divergences are recorded. Implemented as tests/differential_harness.py (the parsing/diffing logic -- not itself a test_*.py module, so pytest does not try to collect it directly) plus tests/test_differential_harness.py. Both tools can emit an XML report in the same brexCheck shape (to_xml_report, category D6, was deliberately built compatible with s1kd-brexcheck -x's documented shape from its man page); parse_brex_check_xml_report is the single parser used for both sides, normalizing s1kd's \"one <error>, several <object> children\" grouping and our \"one violation record per <error>\" shape into the same flat per-node representation before comparison. run_s1kd_brexcheck runs the checklist's literal -c -l -n -S -T, plus -x (report format only -- changes nothing about what is checked, needed to get a diffable structured report at all). diff_violation_sets compares by (brex, document, flag, objectPath) basename-normalized keys (deliberately excluding line/node-xpath, which the two independently-implemented engines are not expected to format identically) and classifies a rule using matches()/tokenize()/lower-case() as an intentional, documented divergence (§1: 6 of 919 real rules use these, uncompilable under a default XPath-1-only s1kd build) rather than a real gap; ParsedViolation.key(include_brex=False) is available for the case where a built-in-default-BREX fallback layer ends up labelled differently by the two tools. The parsing/diffing logic is fully unit-tested with no external binary needed, including a round-trip through our own real to_xml_report output (10/10 passing). The actual cross-tool run (test_differential_parity_over_the_evidence_folder) additionally needs a real s1kd-brexcheck build, which this environment does not have -- no prebuilt binary on PATH, and building it needs libxml2/libxslt/libexslt development headers the available MSYS2/mingw64 toolchain does not have installed (confirmed via pkg-config; see s1kd-tools-master/tools/s1kd-brexcheck/Makefile) -- so it is skipped rather than faked (verified skipping cleanly), and is designed to actually run wherever both the binary (S1KD_BREXCHECK_BIN) and the evidence folder (ACD_BREX_EVIDENCE_DIR) are available.",
       "done": "2026-08-31T15:14:40"
@@ -669,6 +815,8 @@
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Performance baseline over 63 objects x 919 rules",
       "details": "Add a performance baseline over the 63-object folder x 919 rules to protect the caching work in §4.4. Implemented as tests/test_performance_baseline.py against the real evidence folder (67 real .XML objects, not 63 -- the plan's §1 evidence base counted only the non-BREX CSDB objects it derived rule statistics from; directory mode also checks the 3 BREX files themselves per §4.4's own \"check BREX like any other object\" fix, and a few more objects than originally sampled are present). Two guards: (1) the real regression protection -- spies on _get_object_rule_nodes (the expensive BREX-parse-and-rule-selection step) across a full directory-mode run and asserts it is called fewer times than there are documents checked (observed 29 distinct (brex, schema) pairs across 67 documents; without the §4.4 caching it would run once per (document, brex-in-its-resolved-chain) pair, well over 100 times), and (2) a loose wall-clock ceiling (600s) as a smoke-level guard against a gross regression, not a tight benchmark. Verified passing on the reference machine: both tests pass, actual observed time ~91s per full-folder run (182s total for both tests, each running the full folder independently). Both this test and the other three real-evidence fixtures above are marked with a new evidence pytest marker (registered in pyproject.toml) so a fast local loop can deselect them with pytest -m \"not evidence\" (confirmed: 347 tests in 3.68s with all 13 evidence-marked tests deselected); all four skip cleanly wherever the evidence corpus is not present.",
       "done": "2026-08-31T15:14:40"
@@ -678,6 +826,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.6 P0/P1 — Rework found by auditing §4.1–§4.5 against the evidence base",
+      "model": "sonnet",
+      "effort": "low",
       "short": "Decimal XPath results handled in _check_object_flag_1 (crash fix)",
       "details": "Handle Decimal XPath results in _check_object_flag_1 (CRASH). §4.5's \"fixtures for each allowedObjectFlag\" item fixed scalar-result handling in _check_object_flag_0 (isinstance(result, (bool, str, int, float, Decimal))) and _check_object_flag_2 (same tuple minus bool), but _check_object_flag_1 was left at isinstance(result, (str, int, float)). elementpath returns decimal.Decimal — not float — for any XPath arithmetic or decimal literal (count(//b) div 4, count(//b) + 0.5, 1.5), so such a result falls through to the node-set branch and raises TypeError: object of type 'decimal.Decimal' has no len(), aborting the whole run. Reproduced with a one-rule BREX using objectPath count(//b) div 4 at allowedObjectFlag=\"1\". Fix: add Decimal to the scalar tuple in _check_object_flag_1, and add a Decimal case to tests/test_allowed_object_flag_result_types.py for all three flags so the three helpers cannot drift apart again.",
       "done": "2026-08-31T17:08:55"
@@ -687,6 +837,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.6 P0/P1 — Rework found by auditing §4.1–§4.5 against the evidence base",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "Removed the obsolete and-in-XPath line-number heuristics",
       "details": "Remove the two obsolete and-in-XPath line-number heuristics, which discard the real line numbers §4.4 added. _check_object_flag_0 (if ' and ' in value['xpath']) and _check_object_values substitute a placeholder string — \"(Origin traced back to multiple lines -> Interpret XPath)\" / \"... -> Read XPath)\" — for Line whenever the objectPath contains and. That predates §4.4's \"Report the violating node's real line number\", which made _node_line_number(node) resolve the exact violating node: violations are now one-per-node, so there is nothing ambiguous left to hedge about. Measured impact: 148 of the 919 real rules (16%) contain ' and ', all of them flag 0, and on a full directory-mode run over the real CMP 21-77-05 corpus both flag-0 violations found report the placeholder instead of a line number. Reproduced minimally with //bad[@x and @y] against a document with two bad elements: NodeXpath correctly resolves /dmodule[1]/bad[1] and /dmodule[1]/bad[2], proving the nodes — and therefore their real lines, 4 and 6 — are known, while both records report the placeholder string. Fix: delete both heuristics and always use _node_line_number(node), keeping \"x\" only for a violation with no backing node.\n\nWhile removing it, note that _check_object_values's guard is also broken on its own terms: if (r'] and ' or r'and \\[' or r'] and \\[' or ...) in value['xpath'] is an or-chain of non-empty string literals, which Python collapses to its first operand, so the test is only ever '] and ' in value['xpath'] — the other five alternatives (and their stray regex escaping, in what is a plain substring test) have never had any effect. Both problems disappear with the heuristic.",
       "done": "2026-08-31T17:08:55"
@@ -696,6 +848,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.6 P0/P1 — Rework found by auditing §4.1–§4.5 against the evidence base",
+      "model": "sonnet",
+      "effort": "medium",
       "short": "SNS and notation checks gated behind opt-in check_sns / check_notations (default off)",
       "details": "Gate SNS and notation-rule checking behind opt-in parameters, matching s1kd-brexcheck's -S / -n. §4.2 ported both checks faithfully but wired them into _check_rules unconditionally; in the C original opts->check_sns and opts->check_notations both default to false (s1kd-brexcheck.c:1994, :2084, :2091) and gate the calls at :1376 and :1383. There is currently no way to turn either off. Measured impact on the real CMP 21-77-05 corpus (67 objects): 59 SNS + 32 notation violations are reported by default, all counted as errors by _append_summary/run_summary, where a default s1kd-brexcheck invocation reports none.\n\nThe 59 SNS findings are genuine and correctly ported — verified by hand: the ATABREX declares snsSystem 21 → snsSubSystem 7 with no snsSubSubSystem children at all, and should_check does check a non-placeholder subSubSystemCode — they are simply not something the reference tool surfaces unasked. The 32 notation findings are worse: no BREX in the resolved chain declares a single notationRule (confirmed: notationRuleList count is 0 in all three), and check_entity's logic reports every unparsed entity as disallowed when the merged rule group is empty. tests/test_notation_rules.py::test_no_notation_rules_defined_reports_with_generic_description pins that behaviour today, and it is a faithful port — but it is only defensible because the C tool never reaches it without -n.\n\nFix: add check_sns: bool and check_notations: bool parameters to validate()/_check_rules() and gate the two calls. Decide and record the default explicitly: matching the C original means defaulting both to False (and updating the existing SNS/notation tests to opt in), while defaulting to True preserves today's output but needs the empty-rule-group short-circuit for notations, to avoid flagging every entity in a CSDB whose BREX chain constrains no notations.\n\nFixed. validate() and _check_rules() both take check_sns: bool = False and check_notations: bool = False, gating the _check_sns_rules and _check_notation_rules calls in _check_rules. The default is False for both, matching the C original — a plain validate() now reports what a plain s1kd-brexcheck invocation reports, and the 59 SNS + 32 notation findings on CMP 21-77-05 are only produced when explicitly asked for. Consequently the empty-rule-group short-circuit for notations was *not* added: reporting every unparsed entity when the BREX chain declares no notationRule stays a faithful port of check_entity, and is only reachable under the explicit opt-in, exactly as in the C tool. When a check is off its key is absent from the result entirely (not an empty list), which every consumer already handles — _count_violations skips missing keys, and to_xml_report/_append_sns_notation_nodes already reads them with result.get(...), so no <sns>/<notations> node is emitted. sns_mode is unchanged and now only has an effect under check_sns=True.\n\nTests updated to opt in rather than change what they assert: the _validate helpers in tests/test_sns_rules.py, tests/test_notation_rules.py and tests/test_evidence_sns_real_atabrex.py, the two standalone cases in those files that build their own checker, test_run_summary.py::test_sns_and_notation_violations_counted_as_errors_with_no_severity, and the three to_xml_report cases in tests/test_xml_report.py. tests/test_differential_harness.py::test_differential_parity_over_the_evidence_folder also opts in, since run_s1kd_brexcheck passes -S -n on the other side and the two runs must be checking the same thing. Full suite: 368 passed, 1 skipped.",
       "done": "2026-08-31T17:08:55"
@@ -705,6 +859,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.6 P0/P1 — Rework found by auditing §4.1–§4.5 against the evidence base",
+      "model": "sonnet",
+      "effort": "low",
       "short": "SNS and notation violations included in to_json_report",
       "details": "Include SNS and notation violations in to_json_report. violations() deliberately covers only content-rule violations (documented — SNS/notation have no objectPath/objectUse/allowed-values shape to fit BrexViolation), and to_xml_report emits them separately via _append_sns_notation_nodes. to_json_report got no equivalent, so its summary and its violations list contradict each other. Reproduced on a real object from CMP 21-77-05: the report reads \"summary\": {… \"Errors\": 5 …} alongside \"violations\": [], with no way for a consumer to learn what the five errors were. Fix: give to_json_report top-level sns and notations keys mirroring the XML report's nodes — and nonContextRules/brexFallback alongside them for parity with to_xml_report — so the JSON report is self-consistent and carries everything the XML report does.",
       "done": "2026-08-31T17:08:55"
@@ -714,6 +870,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.6 P0/P1 — Rework found by auditing §4.1–§4.5 against the evidence base",
+      "model": "sonnet",
+      "effort": "low",
       "short": "objectValue without valueForm / valtype treated as single",
       "details": "Treat an objectValue with no @valueForm/@valtype as single. _show_rules dispatches on value_form with if \"single\" / elif \"pattern\" / elif \"range\" and no else, so an objectValue that declares no form has its valueAllowed silently dropped from values_allowed. The C reference does the opposite — check_node_values (s1kd-brexcheck.c:219-248) makes exact string equality the else branch, reached whenever form is NULL — and this plan's own §2.C already specifies \"single (or absent) | Exact string equality\". Two consequences: a rule whose only objectValue omits the form becomes a silent no-op (all three allowed-value lists stay empty, so _check_rules's has_values gate skips it entirely), and a rule mixing a form-less objectValue with a formed one reports false-positive violations for values the BREX does allow. Latent in the corpus — all 2462 objectValue in the three evidence BREX and all 7 bundled default BREX declare a form (verified) — but @valueForm is optional in the schema. Fix: make single the fallback branch, and add a fixture to tests/test_value_form_matrix.py for a form-less objectValue both alone and mixed with a pattern one.",
       "done": "2026-08-31T17:08:55"
@@ -723,6 +881,8 @@
       "section": "rework",
       "status": "done",
       "group": "4.6 P0/P1 — Rework found by auditing §4.1–§4.5 against the evidence base",
+      "model": "haiku",
+      "effort": "low",
       "short": "Element values compared as full text content, not .text",
       "details": "Compare element values as full text content, not .text. _check_object_values reads an element result as element.text or \"\", which stops at the first child element; the C reference uses xmlNodeGetContent(node) (s1kd-brexcheck.c:232), the full recursive text. An element with mixed content (<title>Some <emphasis>bold</emphasis> text</title>) is therefore compared as \"Some \" and reported as violating a rule it satisfies. This is the same defect §4.4 already fixed one level up for objectUse (\"Read objectUse as full text content … instead of .text\"); the value comparison was missed. Fix: use ''.join(element.itertext()) and add a mixed-content case to tests/test_value_form_matrix.py.",
       "done": "2026-08-31T17:08:55"
