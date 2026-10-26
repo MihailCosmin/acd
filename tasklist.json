@@ -4,7 +4,8 @@
   "sections": {
     "main": "Main Work",
     "rework": "Rework",
-    "validation": "Validation"
+    "validation": "Validation",
+    "human": "Human"
   },
   "tasks": [
     {
@@ -886,6 +887,26 @@
       "short": "Element values compared as full text content, not .text",
       "details": "Compare element values as full text content, not .text. _check_object_values reads an element result as element.text or \"\", which stops at the first child element; the C reference uses xmlNodeGetContent(node) (s1kd-brexcheck.c:232), the full recursive text. An element with mixed content (<title>Some <emphasis>bold</emphasis> text</title>) is therefore compared as \"Some \" and reported as violating a rule it satisfies. This is the same defect §4.4 already fixed one level up for objectUse (\"Read objectUse as full text content … instead of .text\"); the value comparison was missed. Fix: use ''.join(element.itertext()) and add a mixed-content case to tests/test_value_form_matrix.py.",
       "done": "2026-08-31T17:08:55"
+    },
+    {
+      "id": "N81",
+      "section": "main",
+      "status": "done",
+      "group": "obfuscation",
+      "model": "sonnet",
+      "effort": "high",
+      "short": "AI process that suggests obfuscation targets via an OpenAI-compatible provider",
+      "details": "acd/obfuscation_ai.py: provider config (base URL, model, API key; args, ACD_AI_* env vars or a JSON config; works with local Ollama at http://10.3.1.174:11434), the model lists sensitive strings per text chunk, every suggestion is checked against the text, same-shaped identifiers become regex patterns, suggestions are saved as JSON for review and loaded as the targets dict for obfuscate_document. Test with small models only. Done 26.10.2026: acd/obfuscation_ai.py (ai_provider, ai_chat_json, suggest_obfuscation_targets, save_suggestions, load_targets, CLI python -m acd.obfuscation_ai suggest|apply), process in docs/obfuscation_ai.md, tests/test_obfuscation_ai.py (23 tests against a fake OpenAI-compatible server + 1 live test, ACD_AI_LIVE=1). Checks: suggestion must occur in the text, dates/sizes/labels/ordinary words rejected, per-category shape checks, every case spelling targeted, shape patterns from >=2 same-shaped identifiers, chunk failures reported. Ollama URLs default to thinking off + JSON mode off (JSON mode stalled qwen3.5). Live on 10.3.1.174: qwen3.5:9b 11/11 synthetic, 14/14 real, 0 false positives; qwen3.5:4b 11/11, 13/14, 3 FP; qwen2.5-coder:3b 9/11, 8/14, 14 FP. Verified on Python 3.10 and 3.12; CLI suggest+apply on a real DCN PDF left none of the 8 strings in the output.",
+      "done": "2026-10-26T19:27:26"
+    },
+    {
+      "id": "H1",
+      "section": "human",
+      "status": "todo",
+      "group": "obfuscation",
+      "short": "Decide whether to commit the untracked obfuscation modules from 23-24.10.2026",
+      "details": "acd/obfuscation.py, acd/image_obfuscation.py, acd/line_ocr.py and tests/test_obfuscation.py, test_image_obfuscation.py, test_line_ocr.py, test_imports.py were written by an earlier session (23-24.10.2026) and are still untracked. The regenerated acd/__init__.py / __init__.pyi and the other modified files in git status are uncommitted as well. acd/obfuscation_ai.py (N81) is committed but needs acd.obfuscation for 'apply' and load_targets -> obfuscate_document. Review them, then tell Claude to commit them (git add those paths), or commit them yourself.",
+      "done": null
     }
   ]
 }
