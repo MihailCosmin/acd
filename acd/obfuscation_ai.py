@@ -62,8 +62,14 @@ from json import loads as json_loads
 
 from os import environ
 from os import fspath
+from os import listdir
 from os import makedirs
+from os import remove
+from os.path import abspath
 from os.path import basename
+from os.path import dirname
+from os.path import exists
+from os.path import isdir
 from os.path import join
 from os.path import splitext
 
@@ -765,6 +771,38 @@ def load_targets(suggestions) -> dict:
     return targets
 
 
+def _cache_ocr(directory: str) -> None:
+    """Keep what `line_ocr.ocr_lines` reads in a folder, by the image's content.
+
+    OCR takes minutes for a scanned drawing; with the cache, suggest and every
+    later apply read a page only once (a page changed by removing a logo is a
+    new image). `obfuscation` and this module import ocr_lines when they call
+    it, so they get the cached one. The files are pickles: only use a folder
+    no one else writes to.
+    """
+    from pickle import dump as pickle_dump
+    from pickle import load as pickle_load
+
+    from . import line_ocr
+
+    read = getattr(line_ocr.ocr_lines, "uncached", line_ocr.ocr_lines)
+    makedirs(directory, exist_ok=True)
+
+    def ocr_lines(image):
+        key = sha1(repr((image.shape, str(image.dtype))).encode() + image.tobytes()).hexdigest()
+        path = join(directory, key + ".pickle")
+        if exists(path):
+            with open(path, "rb") as file:
+                return pickle_load(file)
+        lines = read(image)
+        with open(path, "wb") as file:
+            pickle_dump(lines, file)
+        return lines
+
+    ocr_lines.uncached = read
+    line_ocr.ocr_lines = ocr_lines
+
+
 def _ai_command_line(arguments: Optional[list] = None) -> None:
     parser = ArgumentParser(prog="python -m acd.obfuscation_ai", description=__doc__.split("\n\n")[0])
     commands = parser.add_subparsers(dest="command", required=True)
@@ -787,7 +825,20 @@ def _ai_command_line(arguments: Optional[list] = None) -> None:
     apply.add_argument("files", nargs="+")
     apply.add_argument("--out-dir", required=True)
     apply.add_argument("--ocr", action="store_true")
+    for command in (suggest, apply):
+        command.add_argument("--ocr-cache", help="folder to keep OCR results in: a page is then read once, "
+                                                 "however often suggest and apply run on it")
+    apply.add_argument("--logos", nargs="+", default=[],
+                       help="reference images of a logo (files or folders): every similar logo is removed")
+    apply.add_argument("--summary", help="write what was obfuscated in each file as JSON (it names the originals)")
+    apply.add_argument("--report", help="folder for an HTML report comparing every page with its original")
+    apply.add_argument("--resume", action="store_true",
+                       help="continue a batch: skip the files --summary lists as done, and keep their placeholders")
     args = parser.parse_args(arguments)
+    if getattr(args, "resume", False) and not args.summary:
+        parser.error("--resume needs --summary")
+    if args.ocr_cache:
+        _cache_ocr(args.ocr_cache)
 
     if args.command == "suggest":
         options = {}
@@ -811,14 +862,74 @@ def _ai_command_line(arguments: Optional[list] = None) -> None:
 
         targets = load_targets(args.targets)
         makedirs(args.out_dir, exist_ok=True)
+        references = []
+        if args.logos:
+            from .logo_obfuscation import load_logo_references
+            from .logo_obfuscation import obfuscate_logos
+
+            images = []
+            for path in args.logos:
+                if isdir(path):
+                    images += sorted(join(path, name) for name in listdir(path)
+                                     if splitext(name)[1].lower() in _ai_image_extensions())
+                else:
+                    images.append(path)
+            references = load_logo_references(images)
         placeholders = {}
+        summary = {}
+        if args.resume and exists(args.summary):  # a batch run before: its placeholders, and its files done
+            with open(args.summary, encoding="utf-8") as file:
+                summary = json_load(file)
+            for entry in summary.values():
+                placeholders.update((original, new) for original, new in (entry.get("mapping") or {}).items()
+                                    if "█" not in new)
+
+        def save_summary():
+            if args.summary:
+                makedirs(dirname(abspath(args.summary)), exist_ok=True)
+                with open(args.summary, "w", encoding="utf-8") as file:
+                    json_dump(summary, file, ensure_ascii=False, indent=1)
+
         for filepath in args.files:
             stem, extension = splitext(basename(filepath))
-            output, mapping = obfuscate_document(filepath, targets, join(args.out_dir, stem + "_obfuscated" + extension),
-                                                 placeholders=placeholders, ocr=args.ocr)
+            output = join(args.out_dir, stem + "_obfuscated" + extension)
+            if args.resume and "mapping" in summary.get(basename(filepath), {}) and exists(output):
+                print(f"{output}: done before, skipped", file=stderr)
+                continue
+            text_done = join(args.out_dir, f".{stem}_text{extension}") if references else output
+            logos = []
+            try:
+                # Text first, logos after: OCR then reads the pages suggest read, which --ocr-cache has kept
+                _, mapping = obfuscate_document(filepath, targets, text_done, placeholders=placeholders, ocr=args.ocr)
+                if references:  # found in the original: black boxes and placeholders hide or fake logos
+                    _, logos = obfuscate_logos(text_done, references, output, find_in=filepath)
+            except Exception as error:  # one file that fails does not stop the others
+                summary[basename(filepath)] = {"error": f"{type(error).__name__}: {error}"}
+                print(f"{filepath}: FAILED {type(error).__name__}: {error}", file=stderr)
+                continue
+            finally:
+                if text_done != output and exists(text_done):
+                    remove(text_done)
             # one placeholder per string across all files (blacked-out strings need none)
             placeholders.update((original, new) for original, new in mapping.items() if "\u2588" not in new)
-            print(f"{output}: {len(mapping)} strings obfuscated", file=stderr)
+            summary[basename(filepath)] = {
+                "output": output, "mapping": mapping,
+                "logos": [{"page": logo.page + 1, "box": [round(value, 1) for value in tuple(logo.box)],
+                           "score": logo.score, "reference": logo.reference} for logo in logos],
+            }
+            print(f"{output}: {len(mapping)} strings, {len(logos)} logos obfuscated", file=stderr)
+            save_summary()  # after every file: a batch that stops can --resume
+        save_summary()
+        if args.report:
+            from .obfuscation_report import build_report
+
+            folders = {dirname(abspath(filepath)) for filepath in args.files}
+            if len(folders) > 1:
+                print("--report needs all files in one folder: no report written", file=stderr)
+            else:
+                report = build_report(folders.pop(), args.out_dir, args.report, summary,
+                                      progress=lambda line: print(line, file=stderr, flush=True))
+                print(f"report: {report}", file=stderr)
 
 
 if __name__ == "__main__":

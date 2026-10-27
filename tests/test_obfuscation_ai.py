@@ -410,7 +410,80 @@ def test_command_line_suggest_and_apply(fake_model, tmp_path, clean_environment)
     assert "Wochner" not in (out / "sheet_obfuscated.txt").read_text(encoding="utf-8")
 
 
-LIVE = pytest.mark.skipif(not os.environ.get("ACD_AI_LIVE"), reason="set ACD_AI_LIVE to ask a real model")
+def test_command_line_apply_resumes_a_batch(tmp_path):
+    pytest.importorskip("acd.obfuscation")
+    first, second = tmp_path / "a.txt", tmp_path / "b.txt"
+    first.write_text("Part 1641B0100-01 by Heike Wochner", encoding="utf-8")
+    second.write_text("Again 1641B0100-01", encoding="utf-8")
+    targets = tmp_path / "targets.json"
+    targets.write_text(json.dumps({"strings": [{"text": "1641B0100-01", "type": "placeholder"},
+                                               {"text": "Heike Wochner", "type": "blackout"}]}), encoding="utf-8")
+    out, summary = tmp_path / "out", tmp_path / "summary.json"
+    common = ["--out-dir", str(out), "--summary", str(summary), "--resume"]
+    obfuscation_ai._ai_command_line(["apply", str(targets), str(first)] + common)
+    (out / "a_obfuscated.txt").write_text("kept", encoding="utf-8")  # a done file is not done again
+    obfuscation_ai._ai_command_line(["apply", str(targets), str(first), str(second)] + common)
+    assert (out / "a_obfuscated.txt").read_text(encoding="utf-8") == "kept"
+    placeholder = json.loads(summary.read_text(encoding="utf-8"))["a.txt"]["mapping"]["1641B0100-01"]
+    assert (out / "b_obfuscated.txt").read_text(encoding="utf-8") == f"Again {placeholder}"  # the same one
+    assert sorted(json.loads(summary.read_text(encoding="utf-8"))) == ["a.txt", "b.txt"]
+    with pytest.raises(SystemExit):
+        obfuscation_ai._ai_command_line(["apply", str(targets), str(first), "--out-dir", str(out), "--resume"])
+
+
+def test_ocr_cache_reads_an_image_once(tmp_path, monkeypatch):
+    line_ocr = pytest.importorskip("acd.line_ocr")
+    import numpy
+
+    calls = []
+    monkeypatch.setattr(line_ocr, "ocr_lines", lambda image: calls.append(image.shape) or [("text", image.shape)])
+    obfuscation_ai._cache_ocr(str(tmp_path / "cache"))
+    obfuscation_ai._cache_ocr(str(tmp_path / "cache"))  # twice: still one cache, not a cache of a cache
+    page = numpy.zeros((40, 60), dtype=numpy.uint8)
+    assert line_ocr.ocr_lines(page) == [("text", (40, 60))]
+    assert line_ocr.ocr_lines(page.copy()) == [("text", (40, 60))]  # same content: from the cache
+    assert line_ocr.ocr_lines(numpy.ones((40, 60), dtype=numpy.uint8)) == [("text", (40, 60))]
+    assert calls == [(40, 60), (40, 60)]
+    assert len(list((tmp_path / "cache").iterdir())) == 2
+
+
+def test_command_line_apply_removes_logos_and_writes_report(tmp_path):
+    pytest.importorskip("acd.obfuscation")
+    pytest.importorskip("cv2")
+    import pymupdf
+    from PIL import Image
+    from PIL import ImageDraw
+
+    logo = Image.new("RGB", (420, 100), "white")
+    draw = ImageDraw.Draw(logo)
+    for x0, y0, x1, y1 in [(10, 10, 34, 90), (50, 10, 74, 90), (50, 10, 114, 30), (50, 70, 114, 90), (130, 10, 154, 90),
+                           (130, 40, 190, 60), (206, 10, 230, 90), (246, 10, 310, 34), (330, 10, 410, 38)]:
+        draw.rectangle([x0, y0, x1, y1], fill=(0, 40, 140))
+    logos = tmp_path / "logos"
+    logos.mkdir()
+    logo.save(logos / "logo.png")
+    originals = tmp_path / "originals"
+    originals.mkdir()
+    doc = pymupdf.open()
+    page = doc.new_page()
+    page.insert_image(pymupdf.Rect(380, 30, 560, 73), filename=str(logos / "logo.png"))
+    page.insert_text((72, 200), "Inspected by Heike Wochner", fontsize=12)
+    doc.save(originals / "sheet.pdf")
+    targets = tmp_path / "targets.json"
+    targets.write_text(json.dumps({"strings": [{"text": "Heike Wochner", "type": "blackout"}], "patterns": []}),
+                       encoding="utf-8")
+    out, report, summary = tmp_path / "out", tmp_path / "report", tmp_path / "summary.json"
+    obfuscation_ai._ai_command_line(["apply", str(targets), str(originals / "sheet.pdf"), "--out-dir", str(out),
+                                     "--logos", str(logos), "--summary", str(summary), "--report", str(report)])
+    assert sorted(p.name for p in out.iterdir()) == ["sheet_obfuscated.pdf"]  # the logo-free copy is gone
+    result = json.loads(summary.read_text(encoding="utf-8"))["sheet.pdf"]
+    assert list(result["mapping"]) == ["Heike Wochner"] and len(result["logos"]) == 1
+    with pymupdf.open(out / "sheet_obfuscated.pdf") as obfuscated:
+        assert "Wochner" not in obfuscated[0].get_text()
+    assert "1 logo(s) removed" in (report / "report.html").read_text(encoding="utf-8")
+
+
+LIVE =pytest.mark.skipif(not os.environ.get("ACD_AI_LIVE"), reason="set ACD_AI_LIVE to ask a real model")
 
 
 @LIVE

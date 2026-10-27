@@ -922,12 +922,43 @@
       "done": null
     },
     {
+      "id": "N84",
+      "section": "main",
+      "status": "done",
+      "group": "obfuscation",
+      "model": "opus",
+      "effort": "high",
+      "short": "Logo removal by similarity, obfuscate D:\\CMM\\obfuscation test PDFs, comparison report",
+      "details": "User asked (27.10.2026): obfuscate all PDFs in D:\\CMM\\obfuscation\\obfuscation testing into 'obfuscation output'; add removal of logos to PDF and image obfuscation by similarity to the 4 reference images in 'obfusction rules' (Liebherr logo variants); then an HTML comparison report, original vs obfuscated (inspired by D:\\ClaudeData\\ALTHOM-Publisher-2\\bug-fix-check\\compare_report.py). Done 27.10.2026: acd/logo_obfuscation.py finds logos by multi-scale normalized cross-correlation on the page ink (2 widths, sizes 8-72 pt), verified on a sharp render (similarity >= 0.6, letters >= 8 pt, ink share, no filled shape, colour-relative mid-tones, paper on every side) and redacts them (image pixels, vector paths, text) or paints them over in image files. acd/obfuscation_report.py writes the side-by-side HTML report. obfuscation_ai apply got --logos (searched in the original, removed after the text), --summary, --report, --resume, and both commands --ocr-cache. Run: gemma4 suggested 221 strings + 26 patterns (OCR of the 10 scanned PDFs took ~3 h, model ~1.5 h on the shared server); reviewed (dropped 15-5PH, EC 135, added Liebherr/Lindenberg); 16 PDFs obfuscated into D:\\CMM\\obfuscation\\obfuscation output with 54 logos removed, 2 false matches (small areas of M1644-01), report in D:\\CMM\\obfuscation\\obfuscation report\report.html. pytest: 34 passed, 1 skipped (test_obfuscation_ai, test_logo_obfuscation, test_obfuscation_report, py3.12). Left: see N85.",
+      "done": "2026-10-27T16:46:23"
+    },
+    {
+      "id": "N85",
+      "section": "rework",
+      "status": "todo",
+      "group": "obfuscation",
+      "model": "opus",
+      "effort": "high",
+      "short": "Logo search: faster verification, outlined title-block misses, small false matches",
+      "details": "Continues N84. 1) Verification checks up to 200 candidates per reference and page with 36 template variants each: 1-2 min per A0 sheet, 10-20 s per A4 page; rank candidates better or verify coarse-to-fine. 2) The outlined LIEBHERR wordmark in the title blocks of S4-9504760W02 and Z3-9504760 was not matched (removed there only because OCR read it); 1644A0000M02, Z0, S4-3000520 matched at only 0.61. 3) Two false matches on M1644-01 (p10 form lines 0.613, p14 'EQUIPMENT' 0.669). 4) An apply run started in the background ran ~20x slower than the same run in the foreground (cause not found; a one-page background test was not slow). Test data: D:\\CMM\\obfuscation.",
+      "done": null
+    },
+    {
       "id": "H1",
       "section": "human",
       "status": "todo",
       "group": "obfuscation",
       "short": "Decide whether to commit the untracked obfuscation modules from 23-24.10.2026",
       "details": "acd/obfuscation.py, acd/image_obfuscation.py, acd/line_ocr.py and tests/test_obfuscation.py, test_image_obfuscation.py, test_line_ocr.py, test_imports.py were written by an earlier session (23-24.10.2026) and are still untracked. The regenerated acd/__init__.py / __init__.pyi and the other modified files in git status are uncommitted as well. acd/obfuscation_ai.py (N81) is committed but needs acd.obfuscation for 'apply' and load_targets -> obfuscate_document. Review them, then tell Claude to commit them (git add those paths), or commit them yourself.",
+      "done": null
+    },
+    {
+      "id": "H2",
+      "section": "human",
+      "status": "todo",
+      "group": "obfuscation",
+      "short": "Review the obfuscation report for D:\\CMM\\obfuscation before using the output",
+      "details": "Open D:\\CMM\\obfuscation\\obfuscation report\report.html (tabs per document, original left, obfuscated right, changes boxed red). Check that no name, number or logo is left, and decide on what stayed on purpose: the root number 1644 (the model's '1644' was rejected as a plain number), the aircraft type EC 135 and the steel grade 15-5PH (removed from the targets), public standards (NASM, MS, AMS). The targets are in D:\\ClaudeData\u0007cd\\scratch\\logo\targets.json; to change them, edit it and rerun apply (OCR is cached).",
       "done": null
     }
   ]

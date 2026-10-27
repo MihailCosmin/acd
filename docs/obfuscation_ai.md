@@ -103,7 +103,65 @@ python -m acd.obfuscation_ai suggest a.pdf b.xml -o targets.json --chunk-chars 3
 python -m acd.obfuscation_ai apply targets.json a.pdf b.xml --out-dir obfuscated
 ```
 
-`apply` gives a string the same placeholder in every file.
+`apply` gives a string the same placeholder in every file. Its other options:
+- `--logos <images or folders>` removes logos (see below) after the text is obfuscated. Then
+  OCR reads the same pages that `suggest` read, so a shared `--ocr-cache` saves all of it. The
+  logos are searched for in the original, because black boxes and placeholders in the
+  obfuscated copy can hide a logo or pass for one. Their areas are then blacked out in the copy;
+- `--summary summary.json` writes what was replaced in each file, and which logos were removed;
+- `--ocr-cache <folder>` (also for `suggest`) keeps what OCR read, by the image's content. OCR
+  takes about a minute per scanned A4 page on a laptop CPU, and longer for a drawing, so
+  without the cache every rerun reads all the scans again. The cache files are pickles: use a
+  folder nobody else writes to;
+- `--report <folder>` writes `report.html`, which shows every page of every document side by
+  side, original and obfuscated, with what changed boxed in red. It flags pages where nothing
+  changed. The report shows the originals, so keep it where the originals may be.
+  `python -m acd.obfuscation_report <originals> <obfuscated> <report folder> --summary summary.json`
+  writes it on its own.
+
+### Logos
+
+`acd.logo_obfuscation` finds logos by how similar they look to reference images, and removes
+them. A logo can be an image in a header, vector outlines in a drawing's title block, or
+pixels on a scan; all three are found. Give one reference image per variant of the logo, for
+example outlined, solid, and with a slogan, each cropped close to the logo.
+
+1. **Search.** Every page is rendered at up to 100 dpi, with at most 2400 pixels on its longer
+   side. Each reference is matched at every size from 8 to 72 pt high, in steps of 10%, at its own
+   width and at 72% of it. Drawings print the same wordmark with taller letters. The matching is
+   normalized cross-correlation on the page's ink (dark or coloured against light), blurred by a
+   12th of the logo's height, so line weight, colour and scan noise matter little. Blank paper
+   is never a match.
+2. **Check.** The page is rendered once more, sharp, with at most 9000 pixels on its longer
+   side. Each candidate is cut from it with the logo 60 pixels high, and compared at sizes of
+   80–125% and widths of 88–113% of its estimate, with a light blur. It is a logo only if all of
+   these hold:
+   - the similarity is at least 0.6 (`LOGO_SCORE`);
+   - its letters are at least 8 pt high (for a logo with a slogan under it, like 3.png, the whole
+     logo is then at least 11 pt high);
+   - it inks about as much of its box as the reference does;
+   - no single connected shape covers more than 40% of its box (it is letters, not a filled bar);
+   - it has few mid-tones, and it sits on paper.
+
+   A line of text, a black box or a photo fails one of these.
+3. **Remove.** In a PDF the logo is redacted: image pixels under it are blanked, vector paths
+   inside it and text over it are deleted, and a black box takes its place. In an image file,
+   the box is painted over it.
+
+Results on 16 test PDFs of CMM 67-35-81 (27.10.2026), 87 pages, with 4 references (outlined,
+solid, blue with "Aerospace.", small solid):
+- **Removed:** 54 logos. 33 header logos of the inspection sheets, the LSA record and the MO
+  procedure (one per page), 11 blue DCN logos (one per page), the outlined wordmark in 8 drawing
+  title blocks, and 2 wordmarks on nameplate drawings. True logos scored 0.61 to 0.99.
+- **Not found:** the outlined wordmark in 2 more title blocks (S4-9504760W02, Z3-9504760). The
+  text pass had already removed it there: OCR read "LIEBHERR", and it became a placeholder.
+- **Wrongly matched:** 2 small areas of a scanned Eurocopter form, at 0.61 and 0.67 (form lines,
+  and the bold word "EQUIPMENT"). They were blacked out.
+- **Rejected before the per-side paper and shape checks:** text lines, the edges of photos, and
+  black redaction boxes had all matched at up to 0.86.
+
+Rotated logos are only found with `rotations=(0, 90, 270)`, which takes 3 times as long. A
+search takes 10–20 s for an A4 page and 1–2 minutes for an A0 sheet.
 
 The document text is sent to the provider, so use a local model for confidential documents.
 
