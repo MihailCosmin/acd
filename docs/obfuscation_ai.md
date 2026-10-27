@@ -12,7 +12,7 @@ Ollama server, OpenAI, LM Studio, vLLM or llama.cpp's server.
    1. the arguments of `ai_provider(...)` or the CLI flags `--base-url --model --api-key`;
    2. the environment variables `ACD_AI_BASE_URL`, `ACD_AI_MODEL`, `ACD_AI_API_KEY`, `ACD_AI_TIMEOUT`;
    3. a JSON file, given as `config=` / `--config`, or through `ACD_AI_CONFIG`;
-   4. the defaults: the Ollama server `http://10.3.1.174:11434`, model `qwen3.5:9b`, no key.
+   4. the defaults: the Ollama server `http://10.3.1.174:11434`, model `gemma4:26b-iq4xs-text-135k`, no key.
 
    ```json
    {
@@ -46,7 +46,9 @@ Ollama server, OpenAI, LM Studio, vLLM or llama.cpp's server.
    - scans and image files, which are read with OCR when `ocr=True`.
 
    The text is cut into chunks of 2500 characters, which fits Ollama's default context of 4096
-   tokens. Each chunk overlaps the previous one by a line. A chunk that repeats (the same form in
+   tokens. A model with a larger context takes larger chunks (`chunk_chars=` / `--chunk-chars`):
+   the default gemma4 model has 135k tokens and did 15 PDFs in 96 s with 30000 characters,
+   141 s with 2500, and found the same strings. Each chunk overlaps the previous one by a line. A chunk that repeats (the same form in
    many files) is sent only once. The model lists the strings it finds in each of these categories
    (`AI_CATEGORIES`, or your own):
 
@@ -97,7 +99,7 @@ Ollama server, OpenAI, LM Studio, vLLM or llama.cpp's server.
    and `obfuscate_text` take. Check the output: OCR and the model can both miss strings.
 
 ```
-python -m acd.obfuscation_ai suggest a.pdf b.xml -o targets.json --model qwen3.5:4b
+python -m acd.obfuscation_ai suggest a.pdf b.xml -o targets.json --chunk-chars 30000
 python -m acd.obfuscation_ai apply targets.json a.pdf b.xml --out-dir obfuscated
 ```
 
@@ -105,10 +107,9 @@ python -m acd.obfuscation_ai apply targets.json a.pdf b.xml --out-dir obfuscated
 
 The document text is sent to the provider, so use a local model for confidential documents.
 
-## Small models tested
+## Models tested
 
-Tested on 26.10.2026 against the Ollama server `10.3.1.174`. The server was shared, and it gave
-qwen2.5-coder:3b about 3.5 tokens/s. Two sources were used:
+Tested against the Ollama server `10.3.1.174`. Two sources were used:
 - a synthetic inspection sheet with 11 sensitive strings: 2 people, a company, an address in two
   parts, an e-mail address, a phone number and 4 part numbers, 2 of which share a shape;
 - two real CMM 67-35-81 PDFs, a DCN and a packaging data sheet in German. A reviewer would
@@ -116,18 +117,39 @@ qwen2.5-coder:3b about 3.5 tokens/s. Two sources were used:
 
 | model | synthetic: found | real: found | real: false positives | time for the 2 PDFs |
 |---|---|---|---|---|
+| gemma4:26b-iq4xs-text-135k (default) | 11/11 | 14/14 | 0 | 9 s |
+| gemma4:26b-iq4xs-28k | 11/11 | 14/14 | 0 | 9 s |
 | qwen3.5:9b | 11/11 | 14/14 | 0 | 79 s |
 | qwen3.5:4b | 11/11 | 13/14 (missed 079388050) | 3 (LLI-FN, MHA-LONGITUDINAL, and "Tobias" split from "Nägele, Tobias") | 39 s |
 | qwen2.5-coder:3b | 9/11 (missed the address) | 8/14 | 14 (German nouns: Palette, Holzrahmen, Verpackungstyp …) | 61 s |
 
-Without the checks in step 3, the same runs would have let through:
+The gemma4 runs (27.10.2026) had the GPU to themselves; the qwen runs (26.10.2026) shared it,
+with about 3.5 tokens/s for qwen2.5-coder:3b. Both gemma4 models are the same 26B-A4B mixture of
+experts in IQ4_XS; the 28k one also takes images.
+
+On 15 more PDFs of the same CMM, picked at random, the default model listed 140 strings and 15
+patterns in 141 s, with no failed chunk: 31 people, 101 identifiers, 7 companies and the company
+address. A reviewer would delete a few of them: `BAAN` (the ERP system), a marker pen
+("Faber Castel Multimark 1523 permanent"), the aircraft type `EC 135`, and public standard
+numbers (`AMS 2641`, `M39029/58-360`, `MS3198-8P`).
+
+Without the checks in step 3, the runs would have let through:
 - a made-up `LILI_DCN-114242`;
 - dimensions filed as addresses;
 - dates;
 - "Crystal Reports" and "PDFsharp" as companies.
 
-Both qwen3.5 models need thinking and JSON mode off, which is the default for an Ollama URL.
-qwen2.5-coder:3b takes ordinary German words for names, so do not use it.
+The qwen3.5 and gemma4 models need thinking off, and qwen3.5 also needs JSON mode off; both are
+the default for an Ollama URL. qwen2.5-coder:3b takes ordinary German words for names, so do
+not use it. Whatever the model, review the JSON before you use it.
 
-The default is qwen3.5:9b; qwen3.5:4b is about twice as fast and nearly as good. Whatever the
-model, review the JSON before you use it.
+### Vision instead of OCR
+
+`suggest_obfuscation_targets` reads scans and images with OCR, not with a vision model. Asking
+gemma4:26b-iq4xs-28k directly with the image does not beat that yet (27.10.2026):
+- The server's GPU runs out of memory on images larger than 1024 px, so pages are sent at 1024 px.
+- The two real PDFs, sent as page images, gave 12 of 14 strings, against 14 of 14 from their text.
+  The model misread `LLI_DCN-1144242` and "Nägeler, Tobias".
+- On ICN illustrations (2025x2476 px), it found nothing. `D9893` in the margin is too small at
+  1024 px.
+- `obfuscate_document` needs OCR boxes to black out a string in an image anyway.

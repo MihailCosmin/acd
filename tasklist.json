@@ -900,6 +900,28 @@
       "done": "2026-10-26T19:27:26"
     },
     {
+      "id": "N82",
+      "section": "validation",
+      "status": "done",
+      "group": "obfuscation",
+      "model": "sonnet",
+      "effort": "medium",
+      "short": "Rerun obfuscation_ai live tests with gemma4 models",
+      "details": "User asked to redo the obfuscation_ai tests with gemma4:26b-iq4xs-text-135k (text prompts) and gemma4:26b-iq4xs-28k (vision). Done 27.10.2026: both gemma4 models found 11/11 strings in the synthetic sheet and 14/14 in the two real PDFs with 0 false positives, 9 s for the 2 PDFs (qwen3.5:9b: 79 s); on 15 more random BaseLine_Source PDFs the text model gave 140 strings and 15 patterns in 141 s (96 s with --chunk-chars 30000, same strings), few false positives (BAAN, a marker pen, EC 135, public AMS/MS standard numbers). AI_DEFAULT_MODEL is now gemma4:26b-iq4xs-text-135k. Vision (28k model, page images instead of text): GPU out of memory above 1024 px; at 1024 px 12/14 with misreadings, nothing found on ICN JPGs, so OCR stays. Results in docs/obfuscation_ai.md; pytest 23 passed + live test passed on py3.12. Left: see N83.",
+      "done": "2026-10-27T13:56:14"
+    },
+    {
+      "id": "N83",
+      "section": "rework",
+      "status": "todo",
+      "group": "obfuscation",
+      "model": "sonnet",
+      "effort": "medium",
+      "short": "Rerun OCR + gemma4 suggestions on scanned PDFs and ICN images once RAM allows",
+      "details": "Continues N82. On 27.10.2026 RapidOCR failed with 'bad allocation' (commit charge 78.7 of 79.7 GB used on this PC), so the scan path of acd.obfuscation_ai (ocr=True, text from line_ocr fed to gemma4:26b-iq4xs-text-135k) was not tested. Run suggest_obfuscation_targets(ocr=True) on scanned BaseLine_Source PDFs (e.g. 1644-0043_Rev_02.pdf, 1644-0049_Rev_04.pdf, 1644-0202B81_Rev_06.pdf) and 2-3 ICN JPGs from 02_Work_Folder (D9893 in the margin), check recall and false positives, add the results to docs/obfuscation_ai.md. Outputs to scratch only. Script to start from: eval_gemma.py (part 'vision') in session scratchpad 8500676e.",
+      "done": null
+    },
+    {
       "id": "H1",
       "section": "human",
       "status": "todo",

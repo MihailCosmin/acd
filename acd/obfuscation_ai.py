@@ -43,7 +43,7 @@ The process:
 
 From the command line:
 
-    python -m acd.obfuscation_ai suggest *.pdf -o targets.json --model qwen3.5:4b
+    python -m acd.obfuscation_ai suggest *.pdf -o targets.json --chunk-chars 30000
     python -m acd.obfuscation_ai apply targets.json *.pdf --out-dir obfuscated
 
 The text goes to the provider: use a local model for confidential documents.
@@ -83,7 +83,9 @@ from requests import post
 
 
 AI_DEFAULT_BASE_URL = "http://10.3.1.174:11434"
-AI_DEFAULT_MODEL = "qwen3.5:9b"
+# gemma4 26B-A4B (IQ4_XS, 135k context, text only): found every string in the
+# test documents, 2 PDFs in 9 s; qwen3.5:9b found as many in 79 s.
+AI_DEFAULT_MODEL = "gemma4:26b-iq4xs-text-135k"
 
 # Options for an Ollama server: thinking off (qwen3.5:4b thought for more than
 # 5 minutes over one line), and JSON mode off -- with it qwen3.5:4b wrote 2
