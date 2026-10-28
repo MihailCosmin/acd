@@ -93,3 +93,55 @@ def test_no_label_no_redaction(tmp_path):
     doc.save(tmp_path / "plain.pdf")
     _, found = obfuscate_signatures(tmp_path / "plain.pdf", tmp_path / "out.pdf")
     assert found == []
+
+
+def test_row_header_names_the_cells_to_its_right(tmp_path):
+    # an approval table: row labels on the left, "Unterschrift / SIGNATURE" in two lines of one cell
+    doc = pymupdf.open()
+    page = doc.new_page()
+    shape = page.new_shape()
+    columns, rows = (60, 180, 300, 420), (100, 130, 160, 200, 230)
+    for x in columns:
+        shape.draw_line((x, rows[0]), (x, rows[-1]))
+    for y in rows:
+        shape.draw_line((columns[0], y), (columns[-1], y))
+    shape.finish(color=(0, 0, 0), width=0.8)
+    shape.commit()
+    page.insert_text((65, 120), "erstellt", fontsize=9)
+    page.insert_text((65, 150), "Datum / DATE", fontsize=9)
+    page.insert_text((65, 175), "Unterschrift", fontsize=9)
+    page.insert_text((65, 190), "SIGNATURE", fontsize=7)
+    page.insert_text((65, 220), "Name / NAME", fontsize=9)
+    for column, x in enumerate(columns[1:3]):
+        page.insert_text((x + 5, 150), "26.5.2000", fontsize=9)
+        page.insert_image(pymupdf.Rect(x + 4, 163, x + 116, 197), filename=scribble(tmp_path / f"s{column}.png", (0, 0, 0)))
+        page.insert_text((x + 5, 220), "J. Klett", fontsize=9)
+    areas = find_signature_areas(page)
+    assert any(area.intersects(pymupdf.Rect(190, 170, 290, 190)) for area in areas)
+    assert any(area.intersects(pymupdf.Rect(310, 170, 410, 190)) for area in areas)
+    assert not any(area.intersects(pymupdf.Rect(62, 162, 178, 198)) for area in areas)  # the label stays
+    assert not any(area.intersects(pymupdf.Rect(62, 202, 410, 228)) for area in areas)  # and the names
+
+
+def test_faint_lines_of_a_scanned_form_close_its_cells(tmp_path):
+    # a copy of a form shows its cell borders light gray; the signature sits above its label
+    zoom = 2
+    image = Image.new("L", (595 * zoom, 842 * zoom), 255)  # a scan: the page is one image
+    draw = ImageDraw.Draw(image)
+    for x in (10, 290):
+        draw.line([(x * zoom, 10 * zoom), (x * zoom, 190 * zoom)], fill=180, width=2)
+    for y in (10, 100, 190):
+        draw.line([(10 * zoom, y * zoom), (290 * zoom, y * zoom)], fill=180, width=2)
+    # the cell beside it: its border stops 2 points short of the line above, as scanned lines do
+    draw.line([(200 * zoom, 12 * zoom), (200 * zoom, 100 * zoom)], fill=180, width=2)
+    draw.line([(60 * zoom, 80 * zoom), (100 * zoom, 30 * zoom), (140 * zoom, 85 * zoom), (180 * zoom, 40 * zoom)],
+              fill=0, width=3)
+    path = tmp_path / "form.png"
+    image.save(path)
+    doc = pymupdf.open()
+    page = doc.new_page()
+    page.insert_image(page.rect, filename=str(path))
+    page.insert_text((20, 96), "Signature", fontsize=8)
+    areas = find_signature_areas(page)
+    assert any(area.intersects(pymupdf.Rect(100, 40, 140, 70)) for area in areas)  # the signature
+    assert all(area.y1 <= 101 and area.x1 <= 201 for area in areas)  # not the cells below and beside

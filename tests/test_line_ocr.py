@@ -80,3 +80,59 @@ def test_lines_cut_by_detection_tiles_come_back_whole():
     texts = ["".join(line.text.split()) for line in ocr_lines(image)]
 
     assert texts == ["LIEBHERR-AEROSPACELINDENBERGGmbH"]
+
+
+def spans(*gaps, start=10.0):
+    """Positions of characters whose centres lie the given gaps apart."""
+    centres = [start]
+    for gap in gaps:
+        centres.append(centres[-1] + gap)
+    return [(centre - 5, centre + 5) for centre in centres]
+
+
+def test_numbers_read_as_one_run_are_split_where_they_stand_apart():
+    from acd.line_ocr import _split_numbers
+
+    # two balloons, (0220) and (1850), read as "(02201850)": gaps measured on a scanned drawing
+    positions = [(0, 10)] + spans(41, 41, 41, 55, 41, 27, 41, start=20) + [(330, 340)]
+    text, split = _split_numbers("(02201850)", positions)
+    assert text == "(0220 1850)"
+    assert split[5] is None and split[6] == positions[5] and len(split) == len(positions) + 1
+    # a row of balloons
+    row = spans(34, 34, 51, 67, 34, 34, 51, 67, 34, 34, 51, 67, 34, 34, 51)
+    assert _split_numbers("1640169017301610", row)[0] == "1640 1690 1730 1610"
+    # one number: the narrow 1 makes its gaps vary, but not into numbers of 3 digits and more
+    assert _split_numbers("11711791", spans(15, 15, 23, 15, 22, 15, 22))[0] == "11711791"
+    assert _split_numbers("085170749", spans(29, 22, 22, 29, 22, 29, 29, 22))[0] == "085170749"
+    # digits in a code stay together, gaps or not
+    code = [(0, 10), (10, 20), (20, 30)] + spans(20, 20, 40, 20, 20, 20, start=40)
+    assert _split_numbers("E2-2019390", code)[0] == "E2-2019390"
+
+
+def test_a_box_that_reads_as_nothing_is_detected_again_on_its_own(monkeypatch):
+    # on the whole page, the detector takes a label and the signature across it for one box
+    from acd import line_ocr
+
+    whole = np.array([[100, 200], [500, 200], [500, 260], [100, 260]], dtype=np.float64)
+    seen = []
+
+    def detect(engine, gray):
+        seen.append(gray.shape)
+        if len(seen) == 1:
+            return [(whole, False)]
+        # in the part: the label, and the same box again, which must not be read twice
+        return [(np.array([[38, 32], [238, 32], [238, 52], [38, 52]], dtype=np.float64), False),
+                (whole - (70, 170), False)]
+
+    def read(engine, gray, corners, vertical):
+        width = corners[:, 0].max() - corners[:, 0].min()
+        if width > 300:
+            return None
+        return line_ocr.OcrLine("SIGNATURES & DATE", 0.99, [(0, 1)] * 17, int(width), 20, False, np.eye(3))
+
+    monkeypatch.setattr(line_ocr, "_rapidocr", lambda: None)
+    monkeypatch.setattr(line_ocr, "_detect", detect)
+    monkeypatch.setattr(line_ocr, "_read", read)
+    lines = line_ocr.ocr_lines(np.full((1000, 1000), 255, dtype=np.uint8))
+    assert [line.text for line in lines] == ["SIGNATURES & DATE"]
+    assert seen[1] == (120, 460)  # the box, padded by half its height

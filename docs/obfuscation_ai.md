@@ -80,7 +80,9 @@ Ollama server, OpenAI, LM Studio, vLLM or llama.cpp's server.
      text's own spelling is used. Made-up strings are rejected.
    - Dates the model lists, quantities, page numbers and sizes ("1200x800") are rejected (the
      date patterns take care of dates). So are field labels ("DCN-Nr", "lfd. Nr"), strings with fewer than 3 letters
-     or digits, and ordinary words ("Page", "Approved").
+     or digits, and ordinary words ("Page", "Approved"). Values of a drawing are rejected as
+     "technical value": surface roughness ("Rz 1", "Ra 0.8"), diameters with or without a fit
+     ("Ø7H8") and metric threads ("M10x1.5").
    - A value the model copied together with its label ("DCN Number : LLI_DCN-114242") keeps
      only the value. A string cut off at an unbalanced bracket keeps the part before it.
    - A string must also look like its category: a person has no digits, an identifier and a
@@ -92,7 +94,12 @@ Ollama server, OpenAI, LM Studio, vLLM or llama.cpp's server.
      sent to the model.
    - Two or more identifiers of the same shape become a regular expression. For example,
      `1641B0100-01` and `1641B0230-02` become `\d{4}B\d{4}-\d{2}`, which also catches the numbers
-     the model missed. A shape needs at least 4 digits.
+     the model missed. A shape needs at least 4 digits, and something besides digits: a shape
+     of 8 digits alone would match any 8-digit number, such as two item numbers that OCR read as
+     one (`0220 1850` on a drawing as `02201850`), or the grid labels of a sheet (`910111213`).
+     Such strings stay targets on their own. The price: a number of that shape the model missed
+     is no longer caught. On the test folder that was one, the "ID-Nr. (M-Item)" 13935344 of
+     E2-2019070B122; add such numbers to the targets when reviewing them.
    - With `model_patterns=True`, the model proposes patterns as well. A proposed pattern is kept
      only if it compiles, matches its example, does not match the empty string, covers at most
      20% of the text, and matches nothing but identifiers (or strings already found).
@@ -127,6 +134,7 @@ python -m acd.obfuscation_ai apply targets.json a.pdf b.xml --out-dir obfuscated
   without the cache every rerun reads all the scans again. The cache files are pickles: use a
   folder nobody else writes to;
 - `--signatures` blacks out signatures (see below);
+- `--stamps` blacks out stamps (see below), those on scans and in images only with `--ocr`;
 - `--report <folder>` writes `report.html`, which shows every page of every document side by
   side, original and obfuscated, with what changed boxed in red. It flags pages where nothing
   changed. The report shows the originals, so keep it where the originals may be.
@@ -162,7 +170,7 @@ python -m acd.obfuscation_ai deobfuscate --key <copy>.key.json answer.md
 ```
 
 By default `folder` reads scans with OCR (turn it off with `--no-ocr`) and blacks out
-signatures (turn it off with `--no-signatures`). `--max-files N` stops after N files, and the
+signatures and stamps (turn them off with `--no-signatures` and `--no-stamps`). `--max-files N` stops after N files, and the
 next run goes on from there. Use it to split a long run into steps.
 
 A placeholder longer than the string it replaces first runs on into free space. If it still
@@ -181,25 +189,83 @@ a printed label names, and blacks that out:
   values too.
 - **Cells** are found from the table's ruling lines: runs of ink on a render of the page, plus
   the PDF's vector lines, because a signature image with a white background hides the line it was
-  pasted over. If the label fills its cell, it is a column header, and the cells below it of the
-  same width are the signature cells. Otherwise its cell is: all of it except the label. A cell
-  with no ink in it is left alone.
+  pasted over. Copies of scanned forms often show their cell borders light gray, so thin runs of
+  faint ink (gray below 215 of 255) count too; faint areas 6 pixels thick or more are shading,
+  not lines. Lines are drawn on 4 pixels past their ends, because on a scan a cell's border
+  can stop just short of the line it meets, and the cell would run into its neighbour. Two
+  label lines directly under one another in one cell are one label ("Unterschrift" over
+  "SIGNATURE"). Of a label OCR read, only its words count, from the start of the line to the
+  last label word, without the detector's margin: OCR's line can take in a signature written
+  beside or just under it.
+- **Which cells:** if the label fills its cell, it is a header. A column header names the cells
+  below it of the same width. A row header (one with a cell of its width above it and none to its
+  left: "Unterschrift" between "Datum" and "Name") names the cells to its right of the same
+  height. If the label does not fill its cell, the cell is what it names: all of it except the
+  label. A cell with no ink in it is left alone. Where the next cell is looked for, a line that
+  is not the border (a stamp's frame lying on it) is stepped over.
 - **What is removed:** everything in those areas, under a black box. That is images, vector pen
   strokes and text. An image or pen stroke that lies at least 30% in a signature area is removed
   whole, because a signature runs over its cell's lines. Pages without text are read with OCR to
   find the labels.
 
+On a whole page, the OCR detector can take a printed label, the signature written across it and
+the text beside it for one box, which then reads as nothing. `line_ocr` detects such a box again
+on its own, where it splits into lines that read: "SUPPLIERS SIGNATURES & DATE" on the scanned
+Eurocopter form is found that way.
+
 Tested on 27.10.2026:
-- **The LSA record:** the 4 signature images under its "SIGNATURE" header are found. The
-  "Accepted by Customer" stamp in the fifth row is not, because its cell does not close.
+- **The LSA record:** the 4 signature images under its "SIGNATURE" header are found.
 - **DCNs:** the "Electronic Signature" column and the dated "Process Approval Date" cell are
   found. The "Approval" values are left alone.
-- **The scanned Eurocopter form:** the "PURCHASER APPROVAL & DATE" cells are found. Handwriting
-  in cells whose label OCR did not read ("SUPPLIERS SIGNATURES & DATE") is not, and neither are
-  handwritten notes in unlabelled cells.
+- **The scanned Eurocopter form:** the "PURCHASER APPROVAL & DATE" cells are found.
 
-I also tried taking all ink that OCR could not read in any table cell, which would find
-unlabelled handwriting. It blacked out a third of a drawing's views, so it is not used.
+Tested on 28.10.2026, after the fixes above:
+- **The LSA record:** the "Accepted by Customer" stamp in the fifth row is found too (its frame
+  lay on the cell's border, which stopped the search down the column).
+- **The scanned Eurocopter form M1644-01:** the "SUPPLIERS SIGNATURES & DATE" cell on page 1
+  is found, without running into the "DECLARATION OF DESIGN" cell beside it; the purchaser's
+  handwriting in the line of its label is covered. On pages 12 and 13 the signatures above the
+  "Signature" lines are found (14 to 18 areas per page instead of 2 and 0: their faint borders
+  did not close), the ones under "APPROVED BY CUSTOMER" too. The "Project" signature on page 13
+  is not: it is written across its "Signature" label, which OCR does not read.
+- **The approval table of MO-1644-00 (page 2):** the 3 signatures right of "Unterschrift /
+  SIGNATURE" are found; before, the "Name" cell below was blacked out instead.
+
+Still not found: handwriting next to labels that name no signature ("Design: ....", "Commerce:"
+in the remarks of M1644-01), and handwritten notes in unlabelled cells. A signature stroke
+running straight for 25 points or more counts as a ruling line and can cut its cell in two; the
+part beyond it stays. I also tried taking all ink that OCR could not read in any table cell,
+which would find unlabelled handwriting. It blacked out a third of a drawing's views, so it is
+not used.
+
+### Stamps
+
+`acd.stamp_obfuscation` blacks out stamps, the same way as signatures:
+- **Stamp annotations** (PDF /Stamp): all of them, deleted and their area blacked out.
+- **Stamp images:** an image of at most 3% of the page in which OCR reads a stamp word
+  (accepted, approved, released, rejected, verified, inspected, received, certified,
+  freigegeben, geprüft, genehmigt, abgelehnt, eingegangen, kontrolliert) in a line of at most 6
+  words. The whole image goes.
+- **Framed stamps on scans** and in large images: a stamp word in a frame of its own of at most
+  3% of the page. A table cell is no stamp's frame: "genehmigt / APPROVED" heads the columns of a
+  drawing's approval table. So a frame whose border runs on beyond its corners (past its own
+  line width of 4 points, for 6 points more) is left alone.
+
+A stamp without a frame on a scan is not found, nor one whose words OCR cannot read. Tested on
+28.10.2026: the "Accepted by Customer" stamp image in the LSA record is found; the approval
+tables of MO-1644-00 and M1644-01 (with "APPROVED", "ACCEPTED", "genehmigt" in their headers and
+"APPROVED BY CUSTOMER" in a form) give no stamp. The corpus of 944 PDFs holds 5 stamp
+annotations (an AIRBUS logo and "*) This document has been signed according ..." notes).
+
+### OCR of item numbers
+
+RapidOCR reads the item numbers of neighbouring balloons on a drawing as one run of digits
+(`(0220)(1850)` as `(02201850)`). `line_ocr` puts the space back where one gap between digits is
+at least 1.3 times as wide as the next smaller ones and splitting there leaves numbers of 3
+digits or more. Only runs standing alone are split (between spaces, brackets or the line's
+ends), not digits in a code (`E2-2019390`). A misreading of a number known to be sensitive is
+not looked for inside a longer number either. The OCR cache keys on the OCR version
+(`line_ocr.OCR_VERSION`), so pages read before these changes are read again.
 
 ### Logos
 

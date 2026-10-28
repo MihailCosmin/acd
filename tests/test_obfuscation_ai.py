@@ -516,6 +516,26 @@ def test_project_numbers_are_kept_and_short_ones_become_patterns(fake_model):
     assert obfuscation_ai.regex_compile(root["regex"]).findall(text) == ["1644", "1644"]  # not inside 21644
 
 
+def test_numbers_alone_make_no_pattern_and_drawing_values_are_no_codes(fake_model):
+    # 13330712 and 13923284 share a shape, but a pattern of eight digits would
+    # also take the item numbers of two balloons OCR read as one (02201850)
+    text = ("Orders 13330712, 13923284\nItems 02201850 16101730\n"
+            "Surface Rz 1 and RZ 1, bore Ø7H8, thread M10x1.5\nParts 1641B0100-01, 1641B0230-02\n"
+            "Documents 1644-0035, 1644-0041, 1644-0052")
+    model = fake_model(lambda body: findings(
+        ("13330712", "identifier"), ("13923284", "identifier"), ("RZ 1", "project"), ("Ø7H8", "identifier"),
+        ("M10x1.5", "identifier"), ("1641B0100-01", "identifier"), ("1641B0230-02", "identifier"),
+        ("1644-0035", "identifier"), ("1644-0041", "identifier")))
+    suggestions = suggest_obfuscation_targets([("drawing.txt", text)], model.provider(), pattern_categories={})
+    assert [entry["text"] for entry in suggestions["strings"]] == [
+        "13330712", "13923284", "1641B0100-01", "1641B0230-02", "1644-0035", "1644-0041"]
+    # the shapes of the part and document numbers, not of the numbers alone
+    assert sorted(pattern["matches"] for pattern in suggestions["patterns"]) == [
+        ["1641B0100-01", "1641B0230-02"], ["1644-0035", "1644-0041", "1644-0052"]]
+    reasons = {entry["text"]: entry["reason"] for entry in suggestions["rejected"]}
+    assert reasons == {"RZ 1": "technical value", "Ø7H8": "technical value", "M10x1.5": "technical value"}
+
+
 def make_project(tmp_path):
     project = tmp_path / "project"
     (project / "sub").mkdir(parents=True)

@@ -867,7 +867,11 @@ def _misread_hits(text: str, misreadings: list) -> list:
             spans = [match.span() for match in pattern.finditer(skeleton)]
         else:
             continue
-        hits += [(indexes[start], indexes[end - 1] + 1, kind, original) for start, end in spans if end > start]
+        spans = [(indexes[start], indexes[end - 1] + 1) for start, end in spans if end > start]
+        if target.isdigit():  # not inside a longer number: 13923284 is no part of 0139232845
+            spans = [(start, end) for start, end in spans
+                     if not text[start - 1:start].isdigit() and not text[end:end + 1].isdigit()]
+        hits += [(start, end, kind, original) for start, end in spans]
     return hits
 
 

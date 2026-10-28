@@ -162,12 +162,13 @@ def _details(info: dict) -> str:
                        for logo in logos)
         parts.append(f"<details><summary>{len(logos)} logo(s) removed</summary><table><tr><th>Page</th>"
                      f"<th>Like reference</th><th>Similarity</th><th>Box (pt)</th></tr>{rows}</table></details>")
-    signatures = info.get("signatures") or []
-    if signatures:
-        rows = "".join(f"<tr><td class='num'>{area['page']}</td><td><code>{', '.join(f'{v:.0f}' for v in area['box'])}"
-                       f"</code></td></tr>" for area in signatures)
-        parts.append(f"<details><summary>{len(signatures)} signature area(s) blacked out</summary><table><tr>"
-                     f"<th>Page</th><th>Box (pt)</th></tr>{rows}</table></details>")
+    for key, what in (("signatures", "signature area(s)"), ("stamps", "stamp(s)")):
+        areas = info.get(key) or []
+        if areas:
+            rows = "".join(f"<tr><td class='num'>{area['page']}</td><td><code>"
+                           f"{', '.join(f'{v:.0f}' for v in area['box'])}</code></td></tr>" for area in areas)
+            parts.append(f"<details><summary>{len(areas)} {what} blacked out</summary><table><tr>"
+                         f"<th>Page</th><th>Box (pt)</th></tr>{rows}</table></details>")
     if info.get("error"):
         parts.append(f"<p class='warn'>Failed: {html.escape(info['error'])}</p>")
     return "".join(parts)
@@ -193,13 +194,13 @@ def build_report(originals, obfuscated, report_dir, summary: dict = None, title:
         changed = sum(1 for page in pages if page["changes"])
         info = summary.get(relative.as_posix(), summary.get(original.name, {}))
         strings, logos = len(info.get("mapping") or {}), len(info.get("logos") or [])
-        signatures = len(info.get("signatures") or [])
+        signatures, stamps = len(info.get("signatures") or []), len(info.get("stamps") or [])
         progress(f"{relative.as_posix()}: {len(pages)} page(s), {changed} changed")
         name = html.escape(relative.with_suffix("").as_posix())
         rows.append(f"<tr><td><a href='#{stem}' onclick=\"show('{stem}');return false\">{name}</a></td>"
                     f"<td class='num'>{len(pages)}</td><td class='num'>{changed}</td>"
                     f"<td class='num'>{strings if info else '–'}</td><td class='num'>{logos if info else '–'}</td>"
-                    f"<td class='num'>{signatures if info else '–'}</td>"
+                    f"<td class='num'>{signatures if info else '–'}</td><td class='num'>{stamps if info else '–'}</td>"
                     f"<td class='num {'warn' if changed == 0 else ''}'>{len(pages) - changed}</td></tr>")
         tabs.append(f"<button class='tab' data-id='{stem}'>{name} <span class='n'>{changed}/{len(pages)}</span></button>")
         body = [f"<h2>{name}</h2><p class='muted'>{len(pages)} page(s), {changed} with changes. Red boxes: what "
@@ -217,7 +218,7 @@ def build_report(originals, obfuscated, report_dir, summary: dict = None, title:
                 "<p class='muted'>Unchanged pages are worth a look: a page with nothing obfuscated may still hold "
                 "something sensitive the targets missed (scans are only read with OCR).</p>"
                 "<table><tr><th>Document</th><th>Pages</th><th>Pages changed</th><th>Strings obfuscated</th>"
-                f"<th>Logos removed</th><th>Signature areas</th><th>Pages unchanged</th></tr>{''.join(rows)}</table></section>")
+                f"<th>Logos removed</th><th>Signature areas</th><th>Stamps</th><th>Pages unchanged</th></tr>{''.join(rows)}</table></section>")
     page = (f"<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' "
             f"content='width=device-width,initial-scale=1'><title>{html.escape(title)}</title><style>{CSS}</style></head><body>"
             f"<header><h1>{html.escape(title)}: original vs obfuscated</h1>"

@@ -42,6 +42,23 @@ OCR_TILE_OVERLAP = 384
 # Lines read with less confidence are dropped.
 OCR_MIN_SCORE = 0.3
 
+# Changes when `ocr_lines` reads the same image differently: caches of its
+# results key on it (2: boxes that read as nothing are detected again, runs
+# of digits split where they stand apart).
+OCR_VERSION = 2
+
+# The recogniser reads numbers that stand apart -- item numbers in the
+# neighbouring balloons of a drawing -- as one run of digits ("0220 1850" as
+# "02201850"). The gaps tell them apart: one size of gap is this much wider
+# than the next smaller, and splitting at it leaves numbers of this many
+# digits at least (the gaps in one number vary too, around a narrow "1",
+# but do not cut it into such pieces).
+_NUMBER_GAP = 1.3
+_MIN_NUMBER_DIGITS = 3
+# Only runs standing on their own are split, as balloons do: between these
+# ("" is the end of the line).
+_NUMBER_EDGES = ("", " ", "(", ")", "[", "]")
+
 # A horizontal line read with at least this confidence is taken to be upright;
 # below it, the line is read upside down too and the better reading kept.
 _UPRIGHT_SCORE = 0.85
@@ -92,6 +109,37 @@ def ocr_lines(image: np.ndarray) -> list:
     lines = []
     for corners, vertical in _detect(engine, gray):
         line = _read(engine, gray, corners, vertical)
+        if line is not None and line.score >= OCR_MIN_SCORE:
+            lines.append(line)
+        else:
+            lines += _read_again(engine, gray, corners)
+    return lines
+
+
+def _read_again(engine, gray: np.ndarray, corners: np.ndarray) -> list:
+    """The lines in a box that read as nothing, found again in that part of
+    the image alone. On a whole page the detector can take a printed label,
+    the signature written across it and the text beside it for one box
+    ("SUPPLIERS SIGNATURES & DATE" on a scanned form); on its own, the part
+    splits into lines that read."""
+    height, width = gray.shape
+    x0, y0 = corners.min(axis=0)
+    x1, y1 = corners.max(axis=0)
+    pad = max(8.0, min(x1 - x0, y1 - y0) / 2)
+    left, top = int(max(x0 - pad, 0)), int(max(y0 - pad, 0))
+    right, bottom = int(min(x1 + pad, width)), int(min(y1 + pad, height))
+    if right - left > OCR_TILE or bottom - top > OCR_TILE:
+        return []  # a tile's worth: the first detection already saw it this way
+    part = gray[top:bottom, left:right]
+    area = (x1 - x0) * (y1 - y0)
+    lines = []
+    for sub_corners, vertical in _detect(engine, part):
+        sub_corners = sub_corners + (left, top)
+        (a0, b0), (a1, b1) = sub_corners.min(axis=0), sub_corners.max(axis=0)
+        overlap = max(min(a1, x1) - max(a0, x0), 0) * max(min(b1, y1) - max(b0, y0), 0)
+        if overlap >= 0.8 * max(area, (a1 - a0) * (b1 - b0)):
+            continue  # the same box again: it would read as nothing again
+        line = _read(engine, gray, sub_corners, vertical)
         if line is not None and line.score >= OCR_MIN_SCORE:
             lines.append(line)
     return lines
@@ -227,10 +275,51 @@ def _read(engine, gray: np.ndarray, corners: np.ndarray, vertical: bool):
     if best is None or not best[0].strip():
         return None
     text, score, info, turned = best
-    positions = _positions(text, info, width)
+    text, positions = _split_numbers(text, _positions(text, info, width))
     if turned:  # along the turned strip -> along the strip
         positions = [None if span is None else (width - span[1], width - span[0]) for span in positions]
     return OcrLine(text, score, positions, width, height, turned, np.linalg.inv(to_strip))
+
+
+def _split_numbers(text: str, positions: list) -> tuple:
+    """`text` and `positions` with a space wherever a run of digits holds
+    several numbers, told by the gaps between their characters' centres."""
+    runs = []
+    start = None
+    for index, char in enumerate(text + " "):
+        if "0" <= char <= "9":
+            start = index if start is None else start
+        elif start is not None:
+            runs.append((start, index))
+            start = None
+    cuts = set()
+    runs = [(start, end) for start, end in runs  # not part of a code: E2-2019390, S4-3000520W01
+            if text[start - 1:start] in _NUMBER_EDGES and text[end:end + 1] in _NUMBER_EDGES]
+    while runs:
+        start, end = runs.pop()
+        if end - start < 2 * _MIN_NUMBER_DIGITS:
+            continue
+        centres = [(positions[index][0] + positions[index][1]) / 2 for index in range(start, end)]
+        gaps = [right - left for left, right in zip(centres, centres[1:])]
+        sizes = sorted(set(gaps), reverse=True)
+        for wider, narrower in zip(sizes, sizes[1:]):
+            if narrower <= 0 or wider < _NUMBER_GAP * narrower:
+                continue
+            bounds = [0] + [index + 1 for index, gap in enumerate(gaps) if gap >= wider] + [end - start]
+            if all(right - left >= _MIN_NUMBER_DIGITS for left, right in zip(bounds, bounds[1:])):
+                cuts.update(start + bound for bound in bounds[1:-1])
+                runs += [(start + left, start + right) for left, right in zip(bounds, bounds[1:])]
+                break
+    if not cuts:
+        return text, positions
+    new_text, new_positions = [], []
+    for index, (char, span) in enumerate(zip(text, positions)):
+        if index in cuts:
+            new_text.append(" ")
+            new_positions.append(None)
+        new_text.append(char)
+        new_positions.append(span)
+    return "".join(new_text), new_positions
 
 
 def _positions(text: str, info, width: int) -> list:

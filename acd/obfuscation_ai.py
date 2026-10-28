@@ -210,6 +210,16 @@ _DATE = regex_compile(r"\d{1,4}[./-]\d{1,2}[./-]\d{1,4}|\d{1,2}\.?[A-Za-z]{3,9}\
 _DIMENSION = regex_compile(r"\d+(?:[.,]\d+)?(?:\s*[x×*]\s*\d+(?:[.,]\d+)?)+\s*(?:mm|cm|m|in|px)?", IGNORECASE)
 _FIELD_LABEL = regex_compile(r".{0,30}?\b(?:nr|no|num|number|nummer)\.?", IGNORECASE)
 
+# Values of a drawing that models take for codes: surface roughness ("Rz 1",
+# "Ra 0.8"), diameters with or without a fit ("Ø7H8") and metric threads
+# ("M10x1.5").
+_TECHNICAL = regex_compile(
+    r"R(?:[aqtz]|max|z\s*max)\s*\d{1,3}(?:[.,]\d+)?(?:\s*[µu]m)?"
+    r"|[Ø⌀]\s*\d{1,4}(?:[.,]\d+)?(?:\s*[A-Za-z]{1,2}\d{1,2})?"
+    r"|M\d{1,2}(?:[.,]\d+)?(?:\s*[x×]\s*\d{1,3}(?:[.,]\d+)?)?",
+    IGNORECASE,
+)
+
 # What a string of a built-in category must look like, whatever the model says.
 _CATEGORY_CHECKS = {
     "person": lambda string: not any(char.isdigit() for char in string) and sum(char.isalpha() for char in string) >= 4,
@@ -735,6 +745,8 @@ def _ai_check_finding(raw: str, category: str, chunk: str, kept: set) -> tuple:
         return None, "number"  # quantities, page numbers, years
     if _DIMENSION.fullmatch(string):
         return None, "dimension"
+    if _TECHNICAL.fullmatch(string):
+        return None, "technical value"
     if _FIELD_LABEL.fullmatch(string):
         return None, "field label"
     check = _CATEGORY_CHECKS.get(category)
@@ -771,7 +783,10 @@ def _ai_shape_patterns(strings: list, categories: dict, whole: str) -> list:
     share, with every string of the text it matches."""
     shapes = {}
     for entry in strings:
-        if categories.get(entry["category"], ("", "", False))[2]:
+        # A shape of digits alone matches every number that long: two item
+        # numbers OCR read as one ("0220 1850" -> 02201850), a sheet's grid
+        # labels (910111213). Such strings stay targets by themselves.
+        if categories.get(entry["category"], ("", "", False))[2] and not entry["text"].replace(" ", "").isdigit():
             if sum(char.isdigit() for char in entry["text"]) >= _MIN_PATTERN_DIGITS:
                 shapes.setdefault((_ai_shape(entry["text"]), entry["category"]), []).append(entry)
     found = []
@@ -853,7 +868,7 @@ def _cache_ocr(directory: str) -> None:
     makedirs(directory, exist_ok=True)
 
     def ocr_lines(image):
-        key = sha1(repr((image.shape, str(image.dtype))).encode() + image.tobytes()).hexdigest()
+        key = sha1(repr((image.shape, str(image.dtype), line_ocr.OCR_VERSION)).encode() + image.tobytes()).hexdigest()
         path = join(directory, key + ".pickle")
         if exists(path):
             with open(path, "rb") as file:
@@ -882,8 +897,8 @@ def _logo_references(paths) -> list:
 
 
 def _obfuscate_file(filepath: str, output: str, targets: dict, placeholders: dict, placeholder_format: str,
-                    ocr: bool, references=(), signatures: bool = False) -> dict:
-    """Obfuscate one file: its text, then the logos and signatures found in the original.
+                    ocr: bool, references=(), signatures: bool = False, stamps: bool = False) -> dict:
+    """Obfuscate one file: its text, then the logos, signatures and stamps found in the original.
 
     Text first: OCR then reads the pages `suggest` read, which an OCR cache
     has kept. Logos and signatures are found in the original, where no black
@@ -891,7 +906,7 @@ def _obfuscate_file(filepath: str, output: str, targets: dict, placeholders: dic
 
     Returns:
         dict: what was done -- "output", "mapping" (original -> replacement),
-            "logos" and "signatures" (page, box)
+            "logos", "signatures" and "stamps" (page, box)
     """
     from .obfuscation import PLACEHOLDER_FORMAT
     from .obfuscation import obfuscate_document
@@ -910,6 +925,11 @@ def _obfuscate_file(filepath: str, output: str, targets: dict, placeholders: dic
 
         steps.append(("signatures", lambda source, target: obfuscate_signatures(source, target, find_in=filepath,
                                                                                  ocr=ocr)[1]))
+    if stamps and is_pdf:
+        from .stamp_obfuscation import obfuscate_stamps
+
+        steps.append(("stamps", lambda source, target: obfuscate_stamps(source, target, find_in=filepath,
+                                                                         ocr=ocr)[1]))
     temporary = [join(dirname(abspath(output)), f".{stem}_step{number}{extension}") for number in range(len(steps))]
     paths = temporary + [output]
     entry = {"output": output}
@@ -922,8 +942,8 @@ def _obfuscate_file(filepath: str, output: str, targets: dict, placeholders: dic
                 entry["logos"] = [{"page": logo.page + 1, "box": [round(value, 1) for value in tuple(logo.box)],
                                    "score": logo.score, "reference": logo.reference} for logo in found]
             else:
-                entry["signatures"] = [{"page": page + 1, "box": [round(value, 1) for value in tuple(box)]}
-                                       for page, box in found]
+                entry[name] = [{"page": page + 1, "box": [round(value, 1) for value in tuple(box)]}
+                               for page, box in found]
     finally:
         for path in temporary:
             if exists(path):
@@ -955,6 +975,7 @@ def obfuscate_folder(
     ocr: bool = True,
     logos=(),
     signatures: bool = True,
+    stamps: bool = True,
     extensions: tuple = (".pdf",),
     progress: Optional[Callable[[str], None]] = None,
     max_files: Optional[int] = None,
@@ -992,6 +1013,8 @@ def obfuscate_folder(
             remove (`logo_obfuscation`)
         signatures (bool, optional): black out signature cells
             (`signature_obfuscation`). Defaults to True.
+        stamps (bool, optional): black out stamps (`stamp_obfuscation`).
+            Defaults to True.
         extensions (tuple, optional): the files to obfuscate. Defaults to PDFs.
         max_files (int, optional): stop after obfuscating this many files;
             the next run goes on from there
@@ -1038,7 +1061,7 @@ def obfuscate_folder(
             progress(f"{number}/{len(files)} {relative}")
         try:
             entry = _obfuscate_file(filepath, output, rules, key["placeholders"], key["placeholder_format"], ocr,
-                                    references, signatures)
+                                    references, signatures, stamps)
         except Exception as error:  # one file that fails does not stop the others
             key["files"][relative] = {"error": f"{type(error).__name__}: {error}"}
             if progress:
@@ -1101,6 +1124,7 @@ def _ai_command_line(arguments: Optional[list] = None) -> None:
     apply.add_argument("--resume", action="store_true",
                        help="continue a batch: skip the files --summary lists as done, and keep their placeholders")
     apply.add_argument("--signatures", action="store_true", help="black out the cells signature labels name")
+    apply.add_argument("--stamps", action="store_true", help="black out stamps (with --ocr also those on scans)")
     folder = commands.add_parser("folder", help="obfuscate every PDF under a folder, with placeholders unique "
                                                 "to it (PH-<code>-000000001) and a key to map them back")
     folder.add_argument("folder")
@@ -1111,6 +1135,7 @@ def _ai_command_line(arguments: Optional[list] = None) -> None:
     folder.add_argument("--no-ocr", action="store_true", help="do not read scans and images with OCR")
     folder.add_argument("--logos", nargs="+", default=[], help="reference images of a logo (files or folders)")
     folder.add_argument("--no-signatures", action="store_true", help="keep signature cells")
+    folder.add_argument("--no-stamps", action="store_true", help="keep stamps")
     folder.add_argument("--ocr-cache", help="folder to keep OCR results in")
     folder.add_argument("--report", help="folder for an HTML report comparing every page with its original")
     folder.add_argument("--max-files", type=int, help="stop after this many files; run again to go on")
@@ -1126,7 +1151,8 @@ def _ai_command_line(arguments: Optional[list] = None) -> None:
 
     if args.command == "folder":
         key = obfuscate_folder(args.folder, args.out_dir, args.targets, args.key, args.code, not args.no_ocr,
-                               args.logos, not args.no_signatures, progress=progress, max_files=args.max_files)
+                               args.logos, not args.no_signatures, not args.no_stamps, progress=progress,
+                               max_files=args.max_files)
         failed = [name for name, entry in key["files"].items() if "error" in entry]
         print(f"code {key['code']}: {len(key['files'])} files, {len(key['placeholders'])} placeholders, "
               f"{len(failed)} failed", file=stderr)
@@ -1195,7 +1221,7 @@ def _ai_command_line(arguments: Optional[list] = None) -> None:
                 continue
             try:
                 entry = _obfuscate_file(filepath, output, targets, placeholders, None, args.ocr, references,
-                                        args.signatures)
+                                        args.signatures, args.stamps)
             except Exception as error:  # one file that fails does not stop the others
                 summary[basename(filepath)] = {"error": f"{type(error).__name__}: {error}"}
                 print(f"{filepath}: FAILED {type(error).__name__}: {error}", file=stderr)
@@ -1205,7 +1231,8 @@ def _ai_command_line(arguments: Optional[list] = None) -> None:
                                 if "\u2588" not in new)
             summary[basename(filepath)] = entry
             print(f"{output}: {len(entry['mapping'])} strings, {len(entry.get('logos', ()))} logos, "
-                  f"{len(entry.get('signatures', ()))} signature areas obfuscated", file=stderr)
+                  f"{len(entry.get('signatures', ()))} signature areas, {len(entry.get('stamps', ()))} stamps "
+                  "obfuscated", file=stderr)
             save_summary()  # after every file: a batch that stops can --resume
         save_summary()
         if args.report:

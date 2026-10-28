@@ -521,6 +521,20 @@ def test_ocr_matching_allows_for_misreadings():
     assert originals("Next assy 1644-0036") == [("1644-0036", "1644-0036")]
 
 
+def test_ocr_misreadings_of_a_number_are_not_taken_inside_a_longer_one():
+    rules = obfuscation._compile_targets({"13923284": "placeholder"})
+    misreadings = obfuscation._misreadings(obfuscation._known_strings(rules, []))
+
+    def originals(text):
+        return [(text[start:end], original) for start, end, _, original in
+                obfuscation._ocr_regions(text, rules, misreadings)]
+
+    assert originals("Order 13923284 of") == [("13923284", "13923284")]
+    assert originals("Order 13928284 of") == [("13928284", "13923284")]  # one digit misread
+    assert originals("Ref 913928284") == []  # a misread could be anywhere in a longer number
+    assert originals("Ref 13928284 7") == [("13928284", "13923284")]  # a number next to it is no part of it
+
+
 def test_ocr_matches_keep_the_known_string_they_contain():
     # a pattern match inside a misread known string must not give it a placeholder of its own
     rules = obfuscation._compile_targets({

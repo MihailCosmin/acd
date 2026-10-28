@@ -957,13 +957,13 @@
     {
       "id": "acd-N87",
       "section": "rework",
-      "status": "todo",
+      "status": "done",
       "group": "obfuscation",
       "model": "opus",
       "effort": "high",
       "short": "Handwriting on scans outside labelled cells, and labels OCR misses, stay visible",
-      "details": "Continues acd-N86. signature_obfuscation finds signatures only through printed labels. On the scanned Eurocopter form M1644-01 OCR did not read 'SUPPLIERS SIGNATURES & DATE', so those signatures stay; handwritten notes in unlabelled cells ('approved 5C change board') stay too; the 'Accepted by Customer' stamp in L-1644-LSA-0002 is not covered (its cell does not close). Tried: all ink OCR could not read in any table cell -- blacked out a third of a drawing's views, dropped. Ideas: fuzzy label matching on OCR text, a handwriting classifier on unread ink limited to form pages (A4/A3 without drawing views). Test data: D:\\CMM\\obfuscation.",
-      "done": null
+      "details": "Continues acd-N86. signature_obfuscation finds signatures only through printed labels. On the scanned Eurocopter form M1644-01 OCR did not read 'SUPPLIERS SIGNATURES & DATE', so those signatures stay; handwritten notes in unlabelled cells ('approved 5C change board') stay too; the 'Accepted by Customer' stamp in L-1644-LSA-0002 is not covered (its cell does not close). Tried: all ink OCR could not read in any table cell -- blacked out a third of a drawing's views, dropped. Ideas: fuzzy label matching on OCR text, a handwriting classifier on unread ink limited to form pages (A4/A3 without drawing views). Test data: D:\\CMM\\obfuscation. Done 28.10.2026 within acd-N89: the SUPPLIERS SIGNATURES & DATE label is now read (OCR re-detection), the Accepted by Customer stamp is covered (stamp step and column walk past its frame). Left: see acd-N90.",
+      "done": "2026-10-28T14:44:19"
     },
     {
       "id": "acd-N88",
@@ -991,7 +991,29 @@
       "status": "todo",
       "group": "obfuscation",
       "short": "Review the obfuscation report for D:\\CMM\\obfuscation before using the output",
-      "details": "Open D:\\CMM\\obfuscation\\obfuscation report\report.html (tabs per document, original left, obfuscated right, changes boxed red). Check that no name, number or logo is left, and decide on what stayed on purpose: the root number 1644 (the model's '1644' was rejected as a plain number), the aircraft type EC 135 and the steel grade 15-5PH (removed from the targets), public standards (NASM, MS, AMS). The targets are in D:\\ClaudeData\u0007cd\\scratch\\logo\targets.json; to change them, edit it and rerun apply (OCR is cached).",
+      "details": "Open D:\\CMM\\obfuscation\\obfuscation report\\report.html (tabs per document, original left, obfuscated right, changes boxed red). Check that no name, number or logo is left, and decide on what stayed on purpose: the root number 1644 (the model's '1644' was rejected as a plain number), the aircraft type EC 135 and the steel grade 15-5PH (removed from the targets), public standards (NASM, MS, AMS). The targets are in D:\\ClaudeData\\acd\\scratch\\logo\\targets.json; to change them, edit it and rerun apply (OCR is cached). Update 28.10.2026 (acd-N89): a newer run is in D:\\CMM\\obfuscation\\obfuscation report N89\\report.html (targets D:\\ClaudeData\\acd\\scratch\\n89\\targets3.json): item numbers and Rz 1 kept, more signatures and the stamp blacked out; review that one.",
+      "done": null
+    },
+    {
+      "id": "acd-N89",
+      "section": "rework",
+      "status": "done",
+      "group": "obfuscation",
+      "model": "opus",
+      "effort": "high",
+      "short": "Obfuscation: item numbers, drawing values, missed signatures, stamps",
+      "details": "User feedback 28.10.2026 on the D:\\CMM\\obfuscation run: pairs of balloon item numbers on 1644A0000M02 were obfuscated (0220 1850 read by OCR as 02201850 and matched by a learned \\d{8} shape; grid labels 910111213 by \\d{9}), the roughness value 'Rz 1' on Z3-9504760 was obfuscated, signatures on the scanned form M1644-01 were missed, and stamps ('Accepted by Customer') should be obfuscated. Done 28.10.2026: line_ocr splits free-standing digit runs where one gap size is >=1.3x the next smaller and the pieces keep >=3 digits ((02201850) -> (0220 1850); codes like E2-2019390 untouched), and boxes that read as nothing are detected again on their own (finds SUPPLIERS SIGNATURES & DATE); OCR cache keys on OCR_VERSION. obfuscation_ai: no shape patterns of digits alone, technical values rejected (Rz 1, Ra 0.8, Ø7H8, M10x1.5). obfuscation: a misread digits-only number is not taken inside a longer number. signature_obfuscation: Unterschrift label regex fixed, row headers walk right, stacked label lines merged, faint thin ruling lines (gray <215) and line ends extended 4 px, next cell found past a stamp frame, OCR labels kept tight. New acd/stamp_obfuscation.py (stamp annotations, small images reading like a stamp, framed stamps on scans; tables excluded) wired into folder (--no-stamps), apply (--stamps) and the report. Docs in docs/obfuscation_ai.md. Tests: 130 passed, 1 skipped on py3.10 and py3.12 (9 new). Rerun of D:\\CMM\\obfuscation into obfuscation output N89 / report N89: 16 files, 0 failed; the 7 item-number/grid strings and RZ 1 gone; signature areas 28 -> 64 (M1644-01 5 -> 38, MO-1644-00 row fixed), 1 stamp (LSA Accepted by Customer); no false stamps on the scanned approval tables. Lost: 13935344 (ID-Nr. in E2-2019070B122, only the 8-digit pattern had it). Left: see acd-N90.",
+      "done": "2026-10-28T14:44:19"
+    },
+    {
+      "id": "acd-N90",
+      "section": "rework",
+      "status": "todo",
+      "group": "obfuscation",
+      "model": "opus",
+      "effort": "high",
+      "short": "Handwriting next to non-signature labels, labels crossed by a signature, frameless stamps",
+      "details": "Continues acd-N87 and acd-N89. Still visible after N89 (test folder D:\\CMM\\obfuscation, run 'obfuscation output N89'): handwriting next to labels that name no signature ('Design: ....', 'Commerce:', 'Customer Service:' in the remarks of M1644-01 p12/13), handwritten notes in unlabelled cells ('approved 5C change board' on M1644-01 p1), the 'Project' signature on M1644-01 p13 written across its 'Signature' label (OCR does not read the label), stamps without a frame of their own on scans. A signature stroke running straight for 25 pt or more counts as a ruling line and can cut its cell. Ideas: role labels with a colon followed by dotted lines; fuzzy label matching on low-score OCR lines; a handwriting classifier on unread ink limited to form pages.",
       "done": null
     }
   ]
