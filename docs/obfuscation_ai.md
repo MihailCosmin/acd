@@ -58,6 +58,19 @@ Ollama server, OpenAI, LM Studio, vLLM or llama.cpp's server.
    | email, phone, address | blackout | no |
    | company | placeholder | no |
    | identifier (part, drawing, document, serial, order numbers, CAGE codes) | placeholder | yes |
+   | project (project, programme and aircraft or helicopter type numbers: EC 135, H145, a root number 1644) | placeholder | yes |
+
+   The prompt also tells the model that values after labels such as Project, Projekt, Program,
+   Platform, Root number or Aircraft are codes, even when they look like a model name or a short
+   number. A project number of digits only ("1644") becomes a pattern that does not match inside
+   longer numbers ("21644").
+
+   Dates are not left to the model: built-in patterns find them (`AI_PATTERN_CATEGORIES`), and
+   they are blacked out. The patterns match day, month and year with dots or slashes, also spaced
+   out ("20. 04. 2022") or with a two-digit year ("24.11.99"); ISO dates; day-month-year with
+   hyphens and a four-digit year; and dates with English or German month names. They do not match
+   tolerances ("12.27"), part numbers ("1644-0102") or version numbers. `pattern_categories={}`
+   turns this off.
 
    `instructions=` adds text to the prompt (for example "the customer's CAGE code is D9893"), and
    `keep=` lists strings that are never obfuscated.
@@ -65,13 +78,13 @@ Ollama server, OpenAI, LM Studio, vLLM or llama.cpp's server.
 3. **Check.** Nothing the model says is taken on trust:
    - A string is kept only if it occurs in its chunk. Whitespace and case may differ, and the
      text's own spelling is used. Made-up strings are rejected.
-   - Dates (also spaced out, "20. 04. 2022"), quantities, page numbers and sizes ("1200x800")
-     are rejected. So are field labels ("DCN-Nr", "lfd. Nr"), strings with fewer than 3 letters
+   - Dates the model lists, quantities, page numbers and sizes ("1200x800") are rejected (the
+     date patterns take care of dates). So are field labels ("DCN-Nr", "lfd. Nr"), strings with fewer than 3 letters
      or digits, and ordinary words ("Page", "Approved").
    - A value the model copied together with its label ("DCN Number : LLI_DCN-114242") keeps
      only the value. A string cut off at an unbalanced bracket keeps the part before it.
-   - A string must also look like its category: a person has no digits, an identifier has at
-     least one digit, an e-mail address has an `@`, a phone number has at least 6 digits and no
+   - A string must also look like its category: a person has no digits, an identifier and a
+     project have at least one digit, an e-mail address has an `@`, a phone number has at least 6 digits and no
      words, and an address has a word in it.
    - A string written in other case elsewhere ("HEIKE WOCHNER") is obfuscated in that spelling
      too, because `obfuscate_document` matches literal strings case-sensitively.
@@ -113,11 +126,80 @@ python -m acd.obfuscation_ai apply targets.json a.pdf b.xml --out-dir obfuscated
   takes about a minute per scanned A4 page on a laptop CPU, and longer for a drawing, so
   without the cache every rerun reads all the scans again. The cache files are pickles: use a
   folder nobody else writes to;
+- `--signatures` blacks out signatures (see below);
 - `--report <folder>` writes `report.html`, which shows every page of every document side by
   side, original and obfuscated, with what changed boxed in red. It flags pages where nothing
   changed. The report shows the originals, so keep it where the originals may be.
   `python -m acd.obfuscation_report <originals> <obfuscated> <report folder> --summary summary.json`
   writes it on its own.
+
+### A whole folder, with placeholders unique to it
+
+`obfuscate_folder(folder, output_dir, targets)` (or `python -m acd.obfuscation_ai folder`)
+obfuscates every PDF under a top folder and its subfolders into a copy of the folder. The
+folder gets a random code of 5 characters, such as `E3B1Q` (from `0-9A-Z` without `I` and `O`,
+so about 45 million codes). Every string gets one placeholder, the same in every file:
+`PH-E3B1Q-000000001`, `PH-E3B1Q-000000002`, and so on. When text that mixes several projects'
+documents is deobfuscated, a placeholder can only mean one thing.
+
+The key goes next to the output folder (`<output folder>.key.json`), not into it, because the
+output is what gets shared. It holds:
+- the code and the placeholder format;
+- every placeholder's original;
+- what was done to each file: strings, logos, signature areas, or the error.
+
+It is written after every file. A run that stops is resumed by starting it again: files already
+done are skipped, and their placeholders are kept. `deobfuscate_text(text, key)` (or
+`python -m acd.obfuscation_ai deobfuscate --key <key> [files]`) puts the originals back for
+that folder's placeholders. Placeholders of other folders stay as they are, and so do blacked-out
+strings.
+
+```
+python -m acd.obfuscation_ai suggest <folder>/*.pdf -o targets.json --ocr --ocr-cache cache
+python -m acd.obfuscation_ai folder <folder> --out-dir <copy> --targets targets.json \
+    --logos logos --ocr-cache cache --report report
+python -m acd.obfuscation_ai deobfuscate --key <copy>.key.json answer.md
+```
+
+By default `folder` reads scans with OCR (turn it off with `--no-ocr`) and blacks out
+signatures (turn it off with `--no-signatures`). `--max-files N` stops after N files, and the
+next run goes on from there. Use it to split a long run into steps.
+
+A placeholder longer than the string it replaces first runs on into free space. If it still
+does not fit, it shrinks, down to 3 pt; below that it would be unreadable, so it overflows
+instead. In images the limit is 8 pixels. An 18-character folder placeholder fits in the
+place of a 10-character part number at about two thirds of the size.
+
+### Signatures and handwriting
+
+`acd.signature_obfuscation` cannot read a signature, so it does not try to. It finds the place
+a printed label names, and blacks that out:
+- **Labels** are lines of at most 5 words containing "Signature(s)", "Unterschrift(en)",
+  "Signed (by)" or "Visum". "Approval", "approved by" and "Genehmigung" count only with a ":",
+  "&", "date", "Datum", "by" or "durch" in the line ("PURCHASER APPROVAL & DATE"). A bare
+  "Approval" is a signature's type, not a label. "Signature type" and "Electronic signature" are
+  values too.
+- **Cells** are found from the table's ruling lines: runs of ink on a render of the page, plus
+  the PDF's vector lines, because a signature image with a white background hides the line it was
+  pasted over. If the label fills its cell, it is a column header, and the cells below it of the
+  same width are the signature cells. Otherwise its cell is: all of it except the label. A cell
+  with no ink in it is left alone.
+- **What is removed:** everything in those areas, under a black box. That is images, vector pen
+  strokes and text. An image or pen stroke that lies at least 30% in a signature area is removed
+  whole, because a signature runs over its cell's lines. Pages without text are read with OCR to
+  find the labels.
+
+Tested on 27.10.2026:
+- **The LSA record:** the 4 signature images under its "SIGNATURE" header are found. The
+  "Accepted by Customer" stamp in the fifth row is not, because its cell does not close.
+- **DCNs:** the "Electronic Signature" column and the dated "Process Approval Date" cell are
+  found. The "Approval" values are left alone.
+- **The scanned Eurocopter form:** the "PURCHASER APPROVAL & DATE" cells are found. Handwriting
+  in cells whose label OCR did not read ("SUPPLIERS SIGNATURES & DATE") is not, and neither are
+  handwritten notes in unlabelled cells.
+
+I also tried taking all ink that OCR could not read in any table cell, which would find
+unlabelled handwriting. It blacked out a third of a drawing's views, so it is not used.
 
 ### Logos
 
@@ -144,6 +226,16 @@ example outlined, solid, and with a slogan, each cropped close to the logo.
    - it has few mid-tones, and it sits on paper.
 
    A line of text, a black box or a photo fails one of these.
+
+   It must also not read as other words. OCR reads each reference once ("LIEBHERR",
+   "AIRBUS HELICOPTERS"). A match is dropped if text that is like none of those words covers at
+   least half of it (the PDF's words, or OCR lines with `ocr=True`).
+
+   A logo made of several lines of text, such as a name over a slogan, needs more. Hatching and
+   two lines of bold type look like it. Its match is dropped if any other word is in it, or if
+   OCR read the area and found nothing like the logo's words. "Read the area" means a page
+   without text, or an image on a page with text. In the test folder this removed 34 false
+   matches of the AIRBUS HELICOPTERS reference on section hatching and bold headings.
 3. **Remove.** In a PDF the logo is redacted: image pixels under it are blanked, vector paths
    inside it and text over it are deleted, and a black box takes its place. In an image file,
    the box is painted over it.

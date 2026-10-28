@@ -243,7 +243,7 @@ def test_suggestions_are_checked_against_the_text(fake_model):
                        "Palette": "not an identifier"}
 
     # the two part numbers share a shape: the pattern also finds the third
-    [pattern] = suggestions["patterns"]
+    [pattern] = [p for p in suggestions["patterns"] if p["source"] != "built-in"]
     assert pattern["source"] == "shape"
     assert pattern["matches"] == ["1641B0100-01", "1641B0230-02", "1641B0777-03"]
     assert re.compile(pattern["regex"]).search("x 1641B9999-99 y")
@@ -344,7 +344,7 @@ def test_model_patterns_are_checked(fake_model):
     model = fake_model(lambda body: (200, json.dumps({"findings": [], "patterns": patterns})))
     suggestions = suggest_obfuscation_targets([("sheet.txt", TEXT)], model.provider(), model_patterns=True)
     assert '"patterns"' in model.requests[0]["body"]["messages"][1]["content"]
-    [kept] = suggestions["patterns"]
+    [kept] = [p for p in suggestions["patterns"] if p["source"] != "built-in"]
     assert kept["regex"] == r"\d{4}B\d{4}-\d{2}"
     assert kept["source"] == "model"
     assert kept["matches"] == ["1641B0100-01", "1641B0230-02", "1641B0777-03"]
@@ -493,3 +493,113 @@ def test_live_model_finds_names_and_part_numbers():
     texts = {entry["text"] for entry in suggestions["strings"]}
     assert all(obfuscation_ai._ai_literal(text).search(TEXT) for text in texts)  # checked against the text
     assert {"Heike Wochner", "1641B0100-01"} <= texts
+
+
+def test_dates_are_found_by_patterns_and_blacked_out(fake_model):
+    text = "Prepared 22. 07. 2015, approved 2015-08-03 and 5 Mar 2016; tolerance 12.27, part 1644-0102"
+    model = fake_model(lambda body: findings())
+    suggestions = suggest_obfuscation_targets([("dcn.txt", text)], model.provider())
+    dates = [p for p in suggestions["patterns"] if p["category"] == "date"]
+    assert {p["type"] for p in dates} == {"blackout"}
+    assert sorted(m for p in dates for m in p["matches"]) == ["2015-08-03", "22. 07. 2015", "5 Mar 2016"]
+    none = suggest_obfuscation_targets([("dcn.txt", text)], model.provider(), pattern_categories={})
+    assert none["patterns"] == []
+
+
+def test_project_numbers_are_kept_and_short_ones_become_patterns(fake_model):
+    text = "ROOT NUMBER : 1644\nPLATFORM : EC 135\nPart 1644-0102B45 and 21644"
+    model = fake_model(lambda body: findings(("1644", "project"), ("EC 135", "project")))
+    suggestions = suggest_obfuscation_targets([("dcn.txt", text)], model.provider(), pattern_categories={})
+    assert [entry["text"] for entry in suggestions["strings"]] == ["EC 135"]
+    [root] = [p for p in suggestions["patterns"] if p["source"] == "number"]
+    assert root["matches"] == ["1644"] and root["type"] == "placeholder"
+    assert obfuscation_ai.regex_compile(root["regex"]).findall(text) == ["1644", "1644"]  # not inside 21644
+
+
+def make_project(tmp_path):
+    project = tmp_path / "project"
+    (project / "sub").mkdir(parents=True)
+    (project / "a.txt").write_text("Part 1641B0100-01 by Heike Wochner", encoding="utf-8")
+    (project / "sub" / "b.txt").write_text("Again 1641B0100-01, now with D9893", encoding="utf-8")
+    targets = tmp_path / "targets.json"
+    targets.write_text(json.dumps({"strings": [{"text": "1641B0100-01", "type": "placeholder"},
+                                               {"text": "D9893", "type": "placeholder"},
+                                               {"text": "Heike Wochner", "type": "blackout"}]}), encoding="utf-8")
+    return project, targets
+
+
+def test_folder_gets_one_code_and_placeholders_unique_to_it(tmp_path):
+    pytest.importorskip("acd.obfuscation")
+    project, targets = make_project(tmp_path)
+    out = tmp_path / "out"
+    key = obfuscation_ai.obfuscate_folder(project, out, targets, ocr=False, extensions=(".txt",), code="E3B1Q")
+    assert key["code"] == "E3B1Q" and key["placeholder_format"] == "PH-E3B1Q-{:09d}"
+    assert key["placeholders"] == {"1641B0100-01": "PH-E3B1Q-000000001", "D9893": "PH-E3B1Q-000000002"}
+    assert (out / "a.txt").read_text(encoding="utf-8") == "Part PH-E3B1Q-000000001 by █████ ███████"
+    assert (out / "sub" / "b.txt").read_text(encoding="utf-8") == "Again PH-E3B1Q-000000001, now with PH-E3B1Q-000000002"
+    assert (tmp_path / "out.key.json").exists()  # next to the output, not in it
+    assert sorted(key["files"]) == ["a.txt", "sub/b.txt"]
+    step = obfuscation_ai.obfuscate_folder(project, tmp_path / "steps", targets, ocr=False, extensions=(".txt",),
+                                           max_files=1)
+    assert sorted(step["files"]) == ["a.txt"]  # one file per run
+    step = obfuscation_ai.obfuscate_folder(project, tmp_path / "steps", targets, ocr=False, extensions=(".txt",),
+                                           max_files=1)
+    assert sorted(step["files"]) == ["a.txt", "sub/b.txt"] and step["placeholders"]["1641B0100-01"].endswith("001")
+    # run again: the files done are skipped, the code and placeholders kept
+    (out / "a.txt").write_text("kept", encoding="utf-8")
+    again = obfuscation_ai.obfuscate_folder(project, out, targets, ocr=False, extensions=(".txt",))
+    assert again["code"] == "E3B1Q" and (out / "a.txt").read_text(encoding="utf-8") == "kept"
+    with pytest.raises(ValueError):
+        obfuscation_ai.obfuscate_folder(project, out, targets, ocr=False, extensions=(".txt",), code="ZZZZZ")
+    with pytest.raises(ValueError):
+        obfuscation_ai.obfuscate_folder(project, project / "out", targets, ocr=False, extensions=(".txt",))
+
+
+def test_deobfuscation_maps_only_its_own_placeholders_back(tmp_path):
+    pytest.importorskip("acd.obfuscation")
+    project, targets = make_project(tmp_path)
+    obfuscation_ai.obfuscate_folder(project, tmp_path / "out", targets, ocr=False, extensions=(".txt",), code="E3B1Q")
+    key = tmp_path / "out.key.json"
+    text = "PH-E3B1Q-000000002 ships PH-E3B1Q-000000001; PH-X7K2M-000000001 is another project's, PH-E3B1Q-000000099 unknown"
+    assert obfuscation_ai.deobfuscate_text(text, key) == (
+        "D9893 ships 1641B0100-01; PH-X7K2M-000000001 is another project's, PH-E3B1Q-000000099 unknown")
+    answer = tmp_path / "answer.md"
+    answer.write_text("See PH-E3B1Q-000000001.", encoding="utf-8")
+    obfuscation_ai._ai_command_line(["deobfuscate", "--key", str(key), str(answer)])
+    assert (tmp_path / "answer_deobfuscated.md").read_text(encoding="utf-8") == "See 1641B0100-01."
+
+
+def test_folder_codes_are_short_and_readable():
+    codes = {obfuscation_ai.folder_code() for _ in range(200)}
+    assert len(codes) == 200 and all(len(code) == 5 and not set(code) & set("IO") for code in codes)
+
+
+def test_command_line_folder_writes_copies_key_and_report(tmp_path):
+    pytest.importorskip("acd.obfuscation")
+    import pymupdf
+
+    project = tmp_path / "project"
+    project.mkdir()
+    doc = pymupdf.open()
+    doc.new_page().insert_text((72, 100), "Drawing 1641B0100-01 checked 24.11.1999", fontsize=11)
+    doc.save(project / "drawing.pdf")
+    targets = tmp_path / "targets.json"
+    targets.write_text(json.dumps({"strings": [{"text": "1641B0100-01", "type": "placeholder"}],
+                                   "patterns": [{"regex": obfuscation_ai.AI_DATE_PATTERNS[0], "type": "blackout"}]}),
+                       encoding="utf-8")
+    out, report = tmp_path / "out", tmp_path / "report"
+    obfuscation_ai._ai_command_line(["folder", str(project), "--out-dir", str(out), "--targets", str(targets),
+                                     "--code", "Q4R8T", "--no-ocr", "--report", str(report)])
+    with pymupdf.open(out / "drawing.pdf") as result:
+        text = result[0].get_text()
+    assert "PH-Q4R8T-000000001" in text and "1641B0100-01" not in text and "1999" not in text
+    assert "drawing" in (report / "report.html").read_text(encoding="utf-8")
+
+
+def test_spellings_are_whole_words_only(fake_model):
+    text = "LIDA supplies the parts; see lida Ltd. Validation record, signed by LLI, as we will."
+    model = fake_model(lambda body: findings(("LIDA", "company"), ("LLI", "company")))
+    suggestions = suggest_obfuscation_targets([("t.txt", text)], model.provider(), pattern_categories={})
+    entries = {entry["text"]: entry for entry in suggestions["strings"]}
+    assert entries["LIDA"]["spellings"] == ["lida"] and entries["LIDA"]["count"] == 2  # not "Validation"
+    assert entries["LLI"]["spellings"] == [] and entries["LLI"]["count"] == 1  # not "will"

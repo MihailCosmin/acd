@@ -136,3 +136,19 @@ def test_blank_reference_is_refused(tmp_path):
     Image.new("RGB", (100, 30), "white").save(path)
     with pytest.raises(ValueError):
         load_logo_references([path])
+
+
+def test_text_that_reads_otherwise_is_no_logo(reference):
+    from acd.logo_obfuscation import LogoReference
+    from acd.logo_obfuscation import _reads_otherwise
+
+    logo = LogoReference("airbus.png", reference[0].ink, 0.5, frozenset({"AIRBUS", "HELICOPTERS"}))
+    doc = pymupdf.open()
+    page = doc.new_page()
+    page.insert_text((50, 100), "Justage des", fontsize=14, fontname="hebo")
+    page.insert_text((50, 300), "AIRBUS", fontsize=14, fontname="hebo")
+    bold_text, logo_text = pymupdf.Rect(48, 86, 140, 104), pymupdf.Rect(48, 286, 110, 304)
+    assert _reads_otherwise(page, bold_text, logo)  # other words cover it: text, not the logo
+    assert not _reads_otherwise(page, logo_text, logo)  # the logo's own word: the logo, read
+    assert not _reads_otherwise(page, pymupdf.Rect(300, 500, 400, 540), logo)  # no text: an image logo
+    assert not _reads_otherwise(page, bold_text, logo._replace(words=frozenset()))  # a reference OCR could not read

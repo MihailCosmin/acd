@@ -65,12 +65,16 @@ from os import fspath
 from os import listdir
 from os import makedirs
 from os import remove
+from os import sep
+from os import walk
 from os.path import abspath
 from os.path import basename
 from os.path import dirname
 from os.path import exists
 from os.path import isdir
 from os.path import join
+from os.path import normcase
+from os.path import relpath
 from os.path import splitext
 
 from sys import stderr
@@ -123,7 +127,31 @@ AI_CATEGORIES = {
         "placeholder",
         True,
     ),
+    "project": (
+        "project, programme and aircraft or helicopter type numbers and names (EC 135, H145, BK117), and the "
+        "value after a label such as Project, Projekt, Program, Programm, Platform, Root number or Aircraft",
+        "placeholder",
+        True,
+    ),
 }
+
+# Dates are not left to the model: these patterns find them, blacked out.
+# Day, month, year with dots or slashes (also spaced out by PDF text: "20. 04.
+# 2022"), ISO dates, day-month-year with hyphens and a four-digit year, and
+# dates with month names in English or German.
+_DAY = r"(?:0?[1-9]|[12]\d|3[01])"
+_MONTH = r"(?:0?[1-9]|1[0-2])"
+_MONTH_NAME = r"(?:jan|feb|m[aä]r|apr|ma[iy]|jun|jul|aug|sep|o[ck]t|nov|de[cz])[a-zä]*\.?"
+AI_DATE_PATTERNS = (
+    rf"(?<![\w.]){_DAY}\s?[./]\s?{_MONTH}\s?[./]\s?(?:19|20)?\d{{2}}(?![\w.])",
+    r"(?<![\w-])(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])(?![\w-])",
+    rf"(?<![\w-]){_DAY}-{_MONTH}-(?:19|20)\d{{2}}(?![\w-])",
+    rf"(?i)(?<!\w){_DAY}\.?[\s-]?{_MONTH_NAME}[\s-]?(?:19|20)?\d{{2}}(?!\w)",
+    rf"(?i)(?<!\w){_MONTH_NAME}\s{_DAY},?\s(?:19|20)\d{{2}}(?!\w)",
+)
+
+# category -> (obfuscation type, patterns) found by these patterns alone.
+AI_PATTERN_CATEGORIES = {"date": ("blackout", AI_DATE_PATTERNS)}
 
 AIProvider = namedtuple("AIProvider", "base_url model api_key timeout options")
 
@@ -136,7 +164,10 @@ _USER_PROMPT = """Categories:
 {categories}
 {instructions}
 List every string in the TEXT below that belongs to one of the categories. Copy each string exactly as \
-it is written in the text. Only list proper names and codes: never ordinary words or technical terms of any language, headings, field labels (Part No., DCN-Nr), units, sizes, dates or quantities.
+it is written in the text. Only list proper names and codes: never ordinary words or technical terms of any language, headings, field labels (Part No., DCN-Nr), units, sizes, dates or quantities. \
+Codes include project and programme numbers and aircraft or helicopter types (EC 135, H135), even when they look \
+like a model name or a short number: list the value after labels such as Project, Projekt, Program, Platform, \
+Root number or Aircraft.
 Answer as {{"findings": [{{"text": "...", "category": "..."}}]{patterns_key}}}. If there is nothing, \
 answer {{"findings": []{patterns_empty}}}.
 
@@ -186,6 +217,7 @@ _CATEGORY_CHECKS = {
     "phone": lambda string: sum(char.isdigit() for char in string) >= 6
     and not any(char.isalpha() for char in string.lower().replace("ext", "").replace("tel", "").replace("fax", "")),
     "identifier": lambda string: any(char.isdigit() for char in string),
+    "project": lambda string: any(char.isdigit() for char in string),
     "address": lambda string: regex_compile(r"[^\W\d_]{3}").search(string) is not None,
 }
 
@@ -430,6 +462,7 @@ def suggest_obfuscation_targets(
     model_patterns: bool = False,
     ocr: bool = False,
     progress: Optional[Callable[[str], None]] = None,
+    pattern_categories: Optional[dict] = None,
 ) -> dict:
     r"""Have the AI model suggest the obfuscation targets of documents.
 
@@ -457,6 +490,9 @@ def suggest_obfuscation_targets(
             Defaults to False.
         ocr (bool, optional): read scanned pages and images with OCR
         progress (callable, optional): called with a line of text per chunk
+        pattern_categories (dict, optional): category -> (obfuscation type,
+            regular expressions) found without the model. Defaults to
+            `AI_PATTERN_CATEGORIES` (dates, blacked out); {} for none.
 
     Returns:
         dict: the suggestions, JSON-serialisable -- "provider", "sources"
@@ -524,11 +560,28 @@ def suggest_obfuscation_targets(
     whole = "\n".join(text for _, text in texts)
     strings = sorted(found.values(), key=lambda entry: (entry["category"], entry["text"].lower()))
     for entry in strings:
-        matches = [" ".join(match.group().split()) for match in _ai_literal(entry["text"]).finditer(whole)]
+        matches = _ai_occurrences(entry["text"], whole)
         entry["count"] = len(matches)
         # obfuscate_document matches a string case-sensitively: every spelling is a target
         entry["spellings"] = sorted(set(matches) - {entry["text"]})
     suggested_patterns = []
+    # A project number that is only digits ("1644") becomes a pattern: as a
+    # string it would also match inside longer numbers
+    for entry in [entry for entry in strings if entry["category"] == "project" and entry["text"].isdigit()]:
+        strings.remove(entry)
+        regex = rf"(?<![0-9]){entry['text']}(?![0-9])"
+        suggested_patterns.append({
+            "regex": regex, "category": "project", "type": entry["type"], "source": "number",
+            "examples": [entry["text"]], "matches": sorted({m.group() for m in regex_compile(regex).finditer(whole)}),
+        })
+    for category, (kind, regexes) in (AI_PATTERN_CATEGORIES if pattern_categories is None else pattern_categories).items():
+        for regex in regexes:
+            matches = sorted({" ".join(m.group().split()) for m in regex_compile(regex).finditer(whole)})
+            if matches:
+                suggested_patterns.append({
+                    "regex": regex, "category": category, "type": kind, "source": "built-in",
+                    "examples": matches[:3], "matches": matches,
+                })
     if patterns:
         suggested_patterns += _ai_shape_patterns(strings, categories, whole)
     for regex, example, category in proposed:
@@ -645,6 +698,16 @@ def _ai_literal(string: str):
     return regex_compile(r"\s*".join(regex_escape(char) for char in "".join(string.split())), IGNORECASE)
 
 
+def _ai_occurrences(string: str, text: str) -> list:
+    """The string's occurrences in the text, as written there: whole words only.
+
+    "LIDA" does not occur in "Validation", nor "LLI" in "will": as a
+    spelling to obfuscate, "lida" and "lli" would cut into every such word.
+    """
+    pattern = regex_compile(r"(?<![^\W_])" + _ai_literal(string).pattern + r"(?![^\W_])", IGNORECASE)
+    return [" ".join(match.group().split()) for match in pattern.finditer(text)]
+
+
 def _ai_check_finding(raw: str, category: str, chunk: str, kept: set) -> tuple:
     """(the string as the text spells it, None), or (None, why it is rejected)."""
     string = " ".join(raw.split()).strip(" .,;:()[]\"'")
@@ -667,7 +730,8 @@ def _ai_check_finding(raw: str, category: str, chunk: str, kept: set) -> tuple:
         return None, "ordinary word"
     if _DATE.fullmatch("".join(string.split())):
         return None, "date"
-    if not any(char.isalpha() for char in string) and sum(char.isdigit() for char in string) < 5:
+    if not any(char.isalpha() for char in string) and sum(char.isdigit() for char in string) < 5 \
+            and category != "project":  # a project's root number is short: 1644
         return None, "number"  # quantities, page numbers, years
     if _DIMENSION.fullmatch(string):
         return None, "dimension"
@@ -803,6 +867,208 @@ def _cache_ocr(directory: str) -> None:
     line_ocr.ocr_lines = ocr_lines
 
 
+def _logo_references(paths) -> list:
+    """LogoReferences from image files, and from every image in the folders given."""
+    from .logo_obfuscation import load_logo_references
+
+    images = []
+    for path in paths:
+        if isdir(path):
+            images += sorted(join(path, name) for name in listdir(path)
+                             if splitext(name)[1].lower() in _ai_image_extensions())
+        else:
+            images.append(path)
+    return load_logo_references(images)
+
+
+def _obfuscate_file(filepath: str, output: str, targets: dict, placeholders: dict, placeholder_format: str,
+                    ocr: bool, references=(), signatures: bool = False) -> dict:
+    """Obfuscate one file: its text, then the logos and signatures found in the original.
+
+    Text first: OCR then reads the pages `suggest` read, which an OCR cache
+    has kept. Logos and signatures are found in the original, where no black
+    box or placeholder hides or fakes one, and removed from the copy.
+
+    Returns:
+        dict: what was done -- "output", "mapping" (original -> replacement),
+            "logos" and "signatures" (page, box)
+    """
+    from .obfuscation import PLACEHOLDER_FORMAT
+    from .obfuscation import obfuscate_document
+
+    stem, extension = splitext(basename(output))
+    is_pdf = extension.lower() == ".pdf"
+    makedirs(dirname(abspath(output)), exist_ok=True)
+    steps = []
+    if references and (is_pdf or extension.lower() in _ai_image_extensions()):
+        from .logo_obfuscation import obfuscate_logos
+
+        steps.append(("logos", lambda source, target: obfuscate_logos(source, references, target, find_in=filepath,
+                                                                       ocr=ocr)[1]))
+    if signatures and is_pdf:
+        from .signature_obfuscation import obfuscate_signatures
+
+        steps.append(("signatures", lambda source, target: obfuscate_signatures(source, target, find_in=filepath,
+                                                                                 ocr=ocr)[1]))
+    temporary = [join(dirname(abspath(output)), f".{stem}_step{number}{extension}") for number in range(len(steps))]
+    paths = temporary + [output]
+    entry = {"output": output}
+    try:
+        _, entry["mapping"] = obfuscate_document(filepath, targets, paths[0], placeholders=placeholders, ocr=ocr,
+                                                 placeholder_format=placeholder_format or PLACEHOLDER_FORMAT)
+        for number, (name, step) in enumerate(steps):
+            found = step(paths[number], paths[number + 1])
+            if name == "logos":
+                entry["logos"] = [{"page": logo.page + 1, "box": [round(value, 1) for value in tuple(logo.box)],
+                                   "score": logo.score, "reference": logo.reference} for logo in found]
+            else:
+                entry["signatures"] = [{"page": page + 1, "box": [round(value, 1) for value in tuple(box)]}
+                                       for page, box in found]
+    finally:
+        for path in temporary:
+            if exists(path):
+                remove(path)
+    return entry
+
+
+# Folder codes: no I or O, which read as 1 and 0.
+FOLDER_CODE_CHARS = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+FOLDER_CODE_LENGTH = 5
+
+# The placeholders of a folder: its code, then a running number of nine digits.
+FOLDER_PLACEHOLDER_FORMAT = "PH-{code}-{{:09d}}"
+
+
+def folder_code(length: int = FOLDER_CODE_LENGTH) -> str:
+    """A random code for a folder, e.g. "E3B1Q": 34**5, some 45 million, so that two projects hardly share one."""
+    from secrets import choice
+
+    return "".join(choice(FOLDER_CODE_CHARS) for _ in range(length))
+
+
+def obfuscate_folder(
+    folder: str,
+    output_dir: str,
+    targets,
+    key_path: Optional[str] = None,
+    code: Optional[str] = None,
+    ocr: bool = True,
+    logos=(),
+    signatures: bool = True,
+    extensions: tuple = (".pdf",),
+    progress: Optional[Callable[[str], None]] = None,
+    max_files: Optional[int] = None,
+) -> dict:
+    r"""Obfuscate every document under a folder, with placeholders unique to the folder.
+
+        key = obfuscate_folder("CMM 67-35-81", "CMM 67-35-81 obfuscated", "targets.json",
+                               logos=["logos"])
+        # PH-E3B1Q-000000001, PH-E3B1Q-000000002, ... in every file;
+        # "CMM 67-35-81 obfuscated.key.json" maps them back:
+        text = deobfuscate_text(answer_from_somewhere, key)
+
+    The folder gets a code ("E3B1Q", `folder_code`) and every string one
+    placeholder, the same in every file: PH-<code>-<nine-digit number>. Text
+    that mixes several projects' placeholders can then be mapped back without
+    a mix-up. The copies keep the folder's structure and file names.
+
+    The key -- the code, every placeholder's original, and what was done to
+    each file -- is written after every file, next to the output folder (not
+    in it: the output is what gets shared, the key must not be). A run that
+    stops is resumed by running again: files done are skipped, and their
+    placeholders kept.
+
+    Args:
+        folder (str): the top folder; its subfolders are included
+        output_dir (str): where the obfuscated copies go
+        targets: the reviewed suggestions (a JSON path or the dict), or a
+            targets dict for `obfuscate_document`
+        key_path (str, optional): defaults to "<output_dir>.key.json"
+        code (str, optional): the folder code; defaults to the key's, or a
+            new random one
+        ocr (bool, optional): read scans, images and outlined text with OCR.
+            Defaults to True.
+        logos (optional): reference images (files or folders) of logos to
+            remove (`logo_obfuscation`)
+        signatures (bool, optional): black out signature cells
+            (`signature_obfuscation`). Defaults to True.
+        extensions (tuple, optional): the files to obfuscate. Defaults to PDFs.
+        max_files (int, optional): stop after obfuscating this many files;
+            the next run goes on from there
+        progress (callable, optional): called with a line of text per file
+
+    Returns:
+        dict: the key
+    """
+    folder, output_dir = abspath(fspath(folder)), abspath(fspath(output_dir))
+    if normcase(output_dir) == normcase(folder) or normcase(output_dir).startswith(normcase(folder) + sep):
+        raise ValueError("output_dir must be outside the folder: the copies would be obfuscated again")
+    key_path = fspath(key_path) if key_path else output_dir.rstrip("\\/") + ".key.json"
+    if exists(key_path):
+        with open(key_path, encoding="utf-8") as file:
+            key = json_load(file)
+        if code and code != key["code"]:
+            raise ValueError(f"{key_path} is for code {key['code']}, not {code}: use another key file")
+    else:
+        key = {"code": code or folder_code(), "folder": folder, "output": output_dir, "placeholders": {}, "files": {}}
+    key["placeholder_format"] = FOLDER_PLACEHOLDER_FORMAT.format(code=key["code"])
+    if isinstance(targets, dict) and not ({"strings", "patterns"} & set(targets)):
+        rules = targets
+    else:
+        rules = load_targets(targets)
+    references = _logo_references(logos) if logos else ()
+
+    def save():
+        makedirs(dirname(abspath(key_path)), exist_ok=True)
+        with open(key_path, "w", encoding="utf-8", newline="\n") as file:
+            json_dump(key, file, ensure_ascii=False, indent=1)
+
+    files = sorted(join(root, name) for root, _, names in walk(folder) for name in names
+                   if splitext(name)[1].lower() in extensions and not name.startswith("."))
+    done = 0
+    for number, filepath in enumerate(files, 1):
+        relative = relpath(filepath, folder).replace(sep, "/")
+        output = join(output_dir, relative)
+        if "mapping" in key["files"].get(relative, {}) and exists(output):
+            continue
+        if max_files is not None and done >= max_files:
+            break
+        done += 1
+        if progress:
+            progress(f"{number}/{len(files)} {relative}")
+        try:
+            entry = _obfuscate_file(filepath, output, rules, key["placeholders"], key["placeholder_format"], ocr,
+                                    references, signatures)
+        except Exception as error:  # one file that fails does not stop the others
+            key["files"][relative] = {"error": f"{type(error).__name__}: {error}"}
+            if progress:
+                progress(f"{relative}: FAILED {type(error).__name__}: {error}")
+        else:
+            key["placeholders"].update((original, new) for original, new in entry["mapping"].items()
+                                       if new.startswith("PH-"))
+            key["files"][relative] = entry
+        save()
+    save()
+    return key
+
+
+def deobfuscate_text(text: str, key) -> str:
+    """Put the originals back for a folder's placeholders in a text (an answer, a report, a translation).
+
+    Args:
+        key: the key `obfuscate_folder` wrote (its path or the dict)
+
+    Placeholders of other folders, and blacked-out strings, stay as they are.
+    """
+    if not isinstance(key, dict):
+        with open(fspath(key), encoding="utf-8") as file:
+            key = json_load(file)
+    originals = {placeholder: original for original, placeholder in key["placeholders"].items()}
+    prefix = key["placeholder_format"].split("{")[0]
+    return regex_compile(regex_escape(prefix) + r"\d{9}(?!\d)").sub(
+        lambda match: originals.get(match.group(), match.group()), text)
+
+
 def _ai_command_line(arguments: Optional[list] = None) -> None:
     parser = ArgumentParser(prog="python -m acd.obfuscation_ai", description=__doc__.split("\n\n")[0])
     commands = parser.add_subparsers(dest="command", required=True)
@@ -834,11 +1100,56 @@ def _ai_command_line(arguments: Optional[list] = None) -> None:
     apply.add_argument("--report", help="folder for an HTML report comparing every page with its original")
     apply.add_argument("--resume", action="store_true",
                        help="continue a batch: skip the files --summary lists as done, and keep their placeholders")
+    apply.add_argument("--signatures", action="store_true", help="black out the cells signature labels name")
+    folder = commands.add_parser("folder", help="obfuscate every PDF under a folder, with placeholders unique "
+                                                "to it (PH-<code>-000000001) and a key to map them back")
+    folder.add_argument("folder")
+    folder.add_argument("--out-dir", required=True, help="where the copies go (outside the folder)")
+    folder.add_argument("--targets", required=True, help="the reviewed targets file (from suggest)")
+    folder.add_argument("--key", help='the key file; defaults to "<out-dir>.key.json"')
+    folder.add_argument("--code", help="the folder code; defaults to the key's, or a new random one")
+    folder.add_argument("--no-ocr", action="store_true", help="do not read scans and images with OCR")
+    folder.add_argument("--logos", nargs="+", default=[], help="reference images of a logo (files or folders)")
+    folder.add_argument("--no-signatures", action="store_true", help="keep signature cells")
+    folder.add_argument("--ocr-cache", help="folder to keep OCR results in")
+    folder.add_argument("--report", help="folder for an HTML report comparing every page with its original")
+    folder.add_argument("--max-files", type=int, help="stop after this many files; run again to go on")
+    deobfuscate = commands.add_parser("deobfuscate", help="put the originals back for a folder's placeholders")
+    deobfuscate.add_argument("--key", required=True, help="the key file obfuscate wrote for the folder")
+    deobfuscate.add_argument("files", nargs="*", help="text files (UTF-8); none: standard input to standard output")
     args = parser.parse_args(arguments)
     if getattr(args, "resume", False) and not args.summary:
         parser.error("--resume needs --summary")
-    if args.ocr_cache:
+    if getattr(args, "ocr_cache", None):
         _cache_ocr(args.ocr_cache)
+    progress = lambda line: print(line, file=stderr, flush=True)  # noqa: E731
+
+    if args.command == "folder":
+        key = obfuscate_folder(args.folder, args.out_dir, args.targets, args.key, args.code, not args.no_ocr,
+                               args.logos, not args.no_signatures, progress=progress, max_files=args.max_files)
+        failed = [name for name, entry in key["files"].items() if "error" in entry]
+        print(f"code {key['code']}: {len(key['files'])} files, {len(key['placeholders'])} placeholders, "
+              f"{len(failed)} failed", file=stderr)
+        if args.report:
+            from .obfuscation_report import build_report
+
+            print(f"report: {build_report(args.folder, args.out_dir, args.report, key['files'], progress=progress)}",
+                  file=stderr)
+        return
+    if args.command == "deobfuscate":
+        if not args.files:
+            from sys import stdin
+            from sys import stdout
+
+            stdout.write(deobfuscate_text(stdin.read(), args.key))
+        for path in args.files:
+            stem, extension = splitext(path)
+            with open(path, encoding="utf-8") as file:
+                text = deobfuscate_text(file.read(), args.key)
+            with open(stem + "_deobfuscated" + extension, "w", encoding="utf-8") as file:
+                file.write(text)
+            print(f"{stem}_deobfuscated{extension}", file=stderr)
+        return
 
     if args.command == "suggest":
         options = {}
@@ -858,23 +1169,9 @@ def _ai_command_line(arguments: Optional[list] = None) -> None:
               f"{len(suggestions['rejected'])} rejected, {len(suggestions['failures'])} chunks failed "
               f"-> {args.output}", file=stderr)
     else:
-        from .obfuscation import obfuscate_document
-
         targets = load_targets(args.targets)
         makedirs(args.out_dir, exist_ok=True)
-        references = []
-        if args.logos:
-            from .logo_obfuscation import load_logo_references
-            from .logo_obfuscation import obfuscate_logos
-
-            images = []
-            for path in args.logos:
-                if isdir(path):
-                    images += sorted(join(path, name) for name in listdir(path)
-                                     if splitext(name)[1].lower() in _ai_image_extensions())
-                else:
-                    images.append(path)
-            references = load_logo_references(images)
+        references = _logo_references(args.logos) if args.logos else ()
         placeholders = {}
         summary = {}
         if args.resume and exists(args.summary):  # a batch run before: its placeholders, and its files done
@@ -882,7 +1179,7 @@ def _ai_command_line(arguments: Optional[list] = None) -> None:
                 summary = json_load(file)
             for entry in summary.values():
                 placeholders.update((original, new) for original, new in (entry.get("mapping") or {}).items()
-                                    if "█" not in new)
+                                    if "\u2588" not in new)
 
         def save_summary():
             if args.summary:
@@ -896,28 +1193,19 @@ def _ai_command_line(arguments: Optional[list] = None) -> None:
             if args.resume and "mapping" in summary.get(basename(filepath), {}) and exists(output):
                 print(f"{output}: done before, skipped", file=stderr)
                 continue
-            text_done = join(args.out_dir, f".{stem}_text{extension}") if references else output
-            logos = []
             try:
-                # Text first, logos after: OCR then reads the pages suggest read, which --ocr-cache has kept
-                _, mapping = obfuscate_document(filepath, targets, text_done, placeholders=placeholders, ocr=args.ocr)
-                if references:  # found in the original: black boxes and placeholders hide or fake logos
-                    _, logos = obfuscate_logos(text_done, references, output, find_in=filepath)
+                entry = _obfuscate_file(filepath, output, targets, placeholders, None, args.ocr, references,
+                                        args.signatures)
             except Exception as error:  # one file that fails does not stop the others
                 summary[basename(filepath)] = {"error": f"{type(error).__name__}: {error}"}
                 print(f"{filepath}: FAILED {type(error).__name__}: {error}", file=stderr)
                 continue
-            finally:
-                if text_done != output and exists(text_done):
-                    remove(text_done)
             # one placeholder per string across all files (blacked-out strings need none)
-            placeholders.update((original, new) for original, new in mapping.items() if "\u2588" not in new)
-            summary[basename(filepath)] = {
-                "output": output, "mapping": mapping,
-                "logos": [{"page": logo.page + 1, "box": [round(value, 1) for value in tuple(logo.box)],
-                           "score": logo.score, "reference": logo.reference} for logo in logos],
-            }
-            print(f"{output}: {len(mapping)} strings, {len(logos)} logos obfuscated", file=stderr)
+            placeholders.update((original, new) for original, new in entry["mapping"].items()
+                                if "\u2588" not in new)
+            summary[basename(filepath)] = entry
+            print(f"{output}: {len(entry['mapping'])} strings, {len(entry.get('logos', ()))} logos, "
+                  f"{len(entry.get('signatures', ()))} signature areas obfuscated", file=stderr)
             save_summary()  # after every file: a batch that stops can --resume
         save_summary()
         if args.report:
@@ -927,8 +1215,7 @@ def _ai_command_line(arguments: Optional[list] = None) -> None:
             if len(folders) > 1:
                 print("--report needs all files in one folder: no report written", file=stderr)
             else:
-                report = build_report(folders.pop(), args.out_dir, args.report, summary,
-                                      progress=lambda line: print(line, file=stderr, flush=True))
+                report = build_report(folders.pop(), args.out_dir, args.report, summary, progress=progress)
                 print(f"report: {report}", file=stderr)
 
 

@@ -26,6 +26,7 @@ from os.path import splitext
 from typing import Optional
 
 import cv2
+from numpy import array
 from numpy import ascontiguousarray
 from numpy import float32
 from numpy import frombuffer
@@ -97,13 +98,24 @@ LOGO_FILL = (0, 0, 0)
 LOGO_MIN_VARIANCE = 0.002
 
 # ink: the logo's ink (0 paper .. 1 ink), cropped; letters: the share of its
-# height its tallest connected shape (a letter) takes, 1.0 for a plain wordmark
-LogoReference = namedtuple("LogoReference", "name ink letters")
+# height its tallest connected shape (a letter) takes, 1.0 for a plain wordmark;
+# words: what OCR reads in it ("AIRBUS", "HELICOPTERS"), empty if nothing
+LogoReference = namedtuple("LogoReference", "name ink letters words", defaults=(frozenset(),))
+
+# A match the page's text (or OCR) reads as other words than its reference
+# is text in a similar typeface, not the logo: a word is like a reference
+# word at this similarity (difflib's ratio, which allows for misreadings).
+LOGO_WORD_SIMILARITY = 0.7
+
+# A reference whose letters take less of its height than this is several lines
+# of text (a name over a slogan): its matches must read like it.
+LOGO_LINES_SHARE = 0.7
 LogoMatch = namedtuple("LogoMatch", "page box score reference rotation")
 
 
-def load_logo_references(paths) -> list:
-    """LogoReference for each image file: its ink, cropped to the logo."""
+def load_logo_references(paths, read: bool = True) -> list:
+    """LogoReference for each image file: its ink, cropped to the logo, and
+    -- with `read`, if OCR (`line_ocr`) is installed -- the words in it."""
     from PIL import Image
 
     references = []
@@ -114,8 +126,80 @@ def load_logo_references(paths) -> list:
             white = Image.new("RGBA", image.size, (255, 255, 255, 255))
             gray = Image.alpha_composite(white, image).convert("L")
         ink = _crop_to_ink(_ink(gray))
-        references.append(LogoReference(basename(path), ink, _letter_share(ink)))
+        references.append(LogoReference(basename(path), ink, _letter_share(ink), _read_words(gray) if read else frozenset()))
     return references
+
+
+def _words(text: str) -> set:
+    """The words of a text worth comparing: three letters or digits and more, upper case."""
+    return {word for word in "".join(char if char.isalnum() else " " for char in text.upper()).split() if len(word) >= 3}
+
+
+def _read_words(gray) -> frozenset:
+    """The words OCR reads in a reference image (on a white margin, at least 120 pixels high), or none."""
+    try:
+        from .line_ocr import ocr_lines
+    except ImportError:
+        return frozenset()
+    from numpy import asarray
+    from PIL import ImageOps
+
+    scale = max(1.0, 120 / gray.height)
+    image = ImageOps.expand(gray.resize((round(gray.width * scale), round(gray.height * scale))), border=40, fill=255)
+    try:
+        return frozenset(word for line in ocr_lines(asarray(image)) for word in _words(line.text))
+    except Exception:  # OCR is a help here, not a must
+        return frozenset()
+
+
+def _like(words: set, reference) -> bool:
+    """Is one of the words like one of the reference's (allowing for misreadings)?"""
+    from difflib import SequenceMatcher
+
+    return any(word in known or known in word or SequenceMatcher(None, word, known).ratio() >= LOGO_WORD_SIMILARITY
+               for word in words for known in reference.words)
+
+
+def _reads_otherwise(page, rect, reference, ocr_lines=None) -> bool:
+    """Is the match text that reads otherwise than its reference?
+
+    A word like the reference's ("LIEBHERR") keeps it: then it is the logo,
+    read. Else yes, if text -- the page's words, or OCR lines -- covers at
+    least half of it. For a logo of several lines of text ("AIRBUS" over
+    "HELICOPTERS"), which hatching and two lines of bold type resemble, yes
+    also if any other word is in it, or if OCR read the area (`ocr_lines`
+    given, and a page without text or an image on one) and found nothing
+    like the logo's words. A reference OCR could not read keeps every match.
+    """
+    from pymupdf import Rect
+
+    if not reference.words or not rect.get_area():
+        return False
+    pieces = [(Rect(x0, y0, x1, y1), _words(word)) for x0, y0, x1, y1, word, *_ in page.get_text("words", clip=rect)]
+    for line in ocr_lines or ():
+        corners = line.to_image @ array([[0, line.width, line.width, 0], [0, 0, line.height, line.height], [1, 1, 1, 1]])
+        pieces.append((Rect(corners[0].min(), corners[1].min(), corners[0].max(), corners[1].max()), _words(line.text)))
+    covered = 0.0
+    other = False
+    for box, words in pieces:
+        overlap = (box & rect).get_area()
+        if not overlap or not words:
+            continue
+        if _like(words, reference):
+            return False
+        covered += overlap
+        other = True
+    if covered >= 0.5 * rect.get_area():
+        return True
+    if reference.letters < LOGO_LINES_SHARE:  # a logo of several lines of text
+        if other:
+            return True
+        if ocr_lines is not None:  # OCR read the page, or the image the match is in: it would have read the logo
+            if not page.get_text("words") or any(
+                    (Rect(info["bbox"]) * page.rotation_matrix & rect).get_area() >= 0.8 * rect.get_area()
+                    for info in page.get_image_info()):
+                return True
+    return False
 
 
 def _letter_share(ink) -> float:
@@ -297,8 +381,14 @@ def _gray_pixmap(pixmap):
     return frombuffer(pixmap.samples, dtype=uint8).reshape(pixmap.height, pixmap.stride)[:, :pixmap.width]
 
 
-def find_pdf_logos(page, references: list, rotations=LOGO_ROTATIONS, score: float = LOGO_SCORE) -> list:
-    """LogoMatch for every logo on a PDF page; boxes are Rects in page coordinates (as displayed)."""
+def find_pdf_logos(page, references: list, rotations=LOGO_ROTATIONS, score: float = LOGO_SCORE,
+                   ocr_lines=None) -> list:
+    """LogoMatch for every logo on a PDF page; boxes are Rects in page coordinates (as displayed).
+
+    A match that the text layer -- or `ocr_lines`, `line_ocr.OcrLine`s in
+    page coordinates -- reads as other words than its reference is skipped:
+    two lines of bold text can look like a two-line logo.
+    """
     from pymupdf import Matrix
     from pymupdf import Rect
     from pymupdf import csGRAY
@@ -332,6 +422,8 @@ def find_pdf_logos(page, references: list, rotations=LOGO_ROTATIONS, score: floa
         found, (a, b, c, d) = verified
         rect = Rect(x0 / sharp_zoom + a / z, y0 / sharp_zoom + b / z, x0 / sharp_zoom + c / z, y0 / sharp_zoom + d / z)
         if min(rect.width, rect.height) * by_name[name].letters < LOGO_MIN_POINTS:  # a line of small text
+            continue
+        if _reads_otherwise(page, rect, by_name[name], ocr_lines):
             continue
         matches.append(LogoMatch(page.number, rect, round(float(found), 3), name, rotation))
     kept = _best_first([(m.score, tuple(m.box), m) for m in matches], contained=True)
@@ -371,7 +463,8 @@ def _grown(box, rotation: int) -> tuple:
 
 
 def obfuscate_logos(filepath: str, references: list, output_path: str, fill=LOGO_FILL,
-                    rotations=LOGO_ROTATIONS, score: float = LOGO_SCORE, find_in: Optional[str] = None) -> tuple:
+                    rotations=LOGO_ROTATIONS, score: float = LOGO_SCORE, find_in: Optional[str] = None,
+                    ocr: bool = False) -> tuple:
     """Write a copy of a PDF or image file with every logo like the references covered.
 
     Args:
@@ -379,6 +472,8 @@ def obfuscate_logos(filepath: str, references: list, output_path: str, fill=LOGO
             filepath is a copy of it that was changed in place -- e.g. by
             `obfuscate_document`, whose black boxes and placeholders could
             hide a logo or pass for one. Same pages, same sizes.
+        ocr (bool, optional): read what a PDF shows only as pixels with OCR,
+            to tell text that looks like a logo from the logo. Defaults to False.
 
     Returns:
         tuple: output_path, and the LogoMatch list (boxes before the margin).
@@ -386,7 +481,8 @@ def obfuscate_logos(filepath: str, references: list, output_path: str, fill=LOGO
     filepath, output_path = fspath(filepath), fspath(output_path)
     find_in = fspath(find_in) if find_in is not None else filepath
     if splitext(filepath)[1].lower() == ".pdf":
-        return output_path, _obfuscate_pdf_logos(filepath, output_path, references, fill, rotations, score, find_in)
+        return output_path, _obfuscate_pdf_logos(filepath, output_path, references, fill, rotations, score, find_in,
+                                                 ocr)
     from PIL import Image
     from PIL import ImageDraw
 
@@ -404,7 +500,7 @@ def obfuscate_logos(filepath: str, references: list, output_path: str, fill=LOGO
     return output_path, matches
 
 
-def _obfuscate_pdf_logos(filepath, output_path, references, fill, rotations, score, find_in) -> list:
+def _obfuscate_pdf_logos(filepath, output_path, references, fill, rotations, score, find_in, ocr=False) -> list:
     from pymupdf import PDF_REDACT_IMAGE_PIXELS
     from pymupdf import PDF_REDACT_LINE_ART_REMOVE_IF_COVERED
     from pymupdf import PDF_REDACT_TEXT_REMOVE
@@ -416,7 +512,13 @@ def _obfuscate_pdf_logos(filepath, output_path, references, fill, rotations, sco
         if original.page_count != doc.page_count:
             raise ValueError(f"{find_in} has {original.page_count} pages, {filepath} {doc.page_count}")
         for page in doc:
-            matches = find_pdf_logos(original[page.number], references, rotations, score)
+            lines = None
+            if ocr:
+                from .obfuscation import _pdf_ocr_lines
+
+                source = original[page.number]
+                lines = _pdf_ocr_lines(original, page.number, bool(source.get_text().strip()), False)
+            matches = find_pdf_logos(original[page.number], references, rotations, score, lines)
             for match in matches:
                 rect = Rect(_grown(tuple(match.box), match.rotation)) * page.derotation_matrix
                 page.add_redact_annot(rect, fill=fill)

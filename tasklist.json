@@ -9,7 +9,7 @@
   },
   "tasks": [
     {
-      "id": "N1",
+      "id": "acd-N1",
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
@@ -20,7 +20,7 @@
       "done": "2026-08-27T16:12:21"
     },
     {
-      "id": "N2",
+      "id": "acd-N2",
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
@@ -31,7 +31,7 @@
       "done": "2026-08-27T16:12:21"
     },
     {
-      "id": "N3",
+      "id": "acd-N3",
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
@@ -42,7 +42,7 @@
       "done": "2026-08-27T16:12:21"
     },
     {
-      "id": "N4",
+      "id": "acd-N4",
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
@@ -53,7 +53,7 @@
       "done": "2026-08-27T16:12:21"
     },
     {
-      "id": "N5",
+      "id": "acd-N5",
       "section": "validation",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
@@ -64,7 +64,7 @@
       "done": "2026-08-27T16:46:46"
     },
     {
-      "id": "N6",
+      "id": "acd-N6",
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
@@ -75,7 +75,7 @@
       "done": "2026-08-27T16:46:46"
     },
     {
-      "id": "N7",
+      "id": "acd-N7",
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
@@ -86,7 +86,7 @@
       "done": "2026-08-27T16:46:46"
     },
     {
-      "id": "N8",
+      "id": "acd-N8",
       "section": "validation",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
@@ -97,7 +97,7 @@
       "done": "2026-08-27T16:46:46"
     },
     {
-      "id": "N9",
+      "id": "acd-N9",
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
@@ -108,7 +108,7 @@
       "done": "2026-08-28T11:24:35"
     },
     {
-      "id": "N10",
+      "id": "acd-N10",
       "section": "validation",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
@@ -119,7 +119,7 @@
       "done": "2026-08-28T11:24:35"
     },
     {
-      "id": "N11",
+      "id": "acd-N11",
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
@@ -130,7 +130,7 @@
       "done": "2026-08-28T11:24:35"
     },
     {
-      "id": "N12",
+      "id": "acd-N12",
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
@@ -141,7 +141,7 @@
       "done": "2026-08-28T11:24:35"
     },
     {
-      "id": "N13",
+      "id": "acd-N13",
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
@@ -152,7 +152,7 @@
       "done": "2026-08-28T11:24:35"
     },
     {
-      "id": "N14",
+      "id": "acd-N14",
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
@@ -163,7 +163,7 @@
       "done": "2026-08-28T11:24:35"
     },
     {
-      "id": "N15",
+      "id": "acd-N15",
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
@@ -174,7 +174,7 @@
       "done": "2026-08-28T11:24:35"
     },
     {
-      "id": "N16",
+      "id": "acd-N16",
       "section": "rework",
       "status": "done",
       "group": "4.1 P0 — Correctness bugs that make current output wrong",
@@ -185,7 +185,7 @@
       "done": "2026-08-28T11:24:35"
     },
     {
-      "id": "N17",
+      "id": "acd-N17",
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -196,7 +196,7 @@
       "done": "2026-08-28T14:20:00"
     },
     {
-      "id": "N18",
+      "id": "acd-N18",
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -207,7 +207,7 @@
       "done": "2026-08-28T14:20:00"
     },
     {
-      "id": "N19",
+      "id": "acd-N19",
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -218,7 +218,7 @@
       "done": "2026-08-28T14:20:00"
     },
     {
-      "id": "N20",
+      "id": "acd-N20",
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -229,7 +229,7 @@
       "done": "2026-08-28T14:20:00"
     },
     {
-      "id": "N21",
+      "id": "acd-N21",
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -240,7 +240,7 @@
       "done": "2026-08-28T14:20:00"
     },
     {
-      "id": "N22",
+      "id": "acd-N22",
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -251,7 +251,7 @@
       "done": "2026-08-28T14:20:00"
     },
     {
-      "id": "N23",
+      "id": "acd-N23",
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -262,7 +262,7 @@
       "done": "2026-08-28T14:20:00"
     },
     {
-      "id": "N24",
+      "id": "acd-N24",
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -273,7 +273,7 @@
       "done": "2026-08-28T14:20:00"
     },
     {
-      "id": "N25",
+      "id": "acd-N25",
       "section": "rework",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -284,7 +284,7 @@
       "done": "2026-08-28T14:20:00"
     },
     {
-      "id": "N26",
+      "id": "acd-N26",
       "section": "rework",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -295,7 +295,7 @@
       "done": "2026-08-28T14:20:00"
     },
     {
-      "id": "N27",
+      "id": "acd-N27",
       "section": "rework",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -306,7 +306,7 @@
       "done": "2026-08-28T14:20:00"
     },
     {
-      "id": "N28",
+      "id": "acd-N28",
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -317,7 +317,7 @@
       "done": "2026-08-28T14:20:00"
     },
     {
-      "id": "N29",
+      "id": "acd-N29",
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -328,7 +328,7 @@
       "done": "2026-08-28T16:02:47"
     },
     {
-      "id": "N30",
+      "id": "acd-N30",
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -339,7 +339,7 @@
       "done": "2026-08-28T16:02:47"
     },
     {
-      "id": "N31",
+      "id": "acd-N31",
       "section": "rework",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -350,7 +350,7 @@
       "done": "2026-08-28T16:02:47"
     },
     {
-      "id": "N32",
+      "id": "acd-N32",
       "section": "rework",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -361,7 +361,7 @@
       "done": "2026-08-28T16:02:47"
     },
     {
-      "id": "N33",
+      "id": "acd-N33",
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -372,7 +372,7 @@
       "done": "2026-08-28T16:02:47"
     },
     {
-      "id": "N34",
+      "id": "acd-N34",
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -383,7 +383,7 @@
       "done": "2026-08-28T16:02:47"
     },
     {
-      "id": "N35",
+      "id": "acd-N35",
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -394,7 +394,7 @@
       "done": "2026-08-28T16:02:47"
     },
     {
-      "id": "N36",
+      "id": "acd-N36",
       "section": "rework",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -405,7 +405,7 @@
       "done": "2026-08-28T16:11:50"
     },
     {
-      "id": "N37",
+      "id": "acd-N37",
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -416,7 +416,7 @@
       "done": "2026-08-28T16:18:43"
     },
     {
-      "id": "N38",
+      "id": "acd-N38",
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -427,7 +427,7 @@
       "done": "2026-08-31T17:08:55"
     },
     {
-      "id": "N39",
+      "id": "acd-N39",
       "section": "main",
       "status": "done",
       "group": "4.2 P1 — Rule categories we do not check but s1kd-brexcheck does",
@@ -438,7 +438,7 @@
       "done": "2026-08-31T10:23:40"
     },
     {
-      "id": "N40",
+      "id": "acd-N40",
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
@@ -449,7 +449,7 @@
       "done": "2026-08-31T10:23:40"
     },
     {
-      "id": "N41",
+      "id": "acd-N41",
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
@@ -460,7 +460,7 @@
       "done": "2026-08-31T10:23:40"
     },
     {
-      "id": "N42",
+      "id": "acd-N42",
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
@@ -471,7 +471,7 @@
       "done": "2026-08-31T11:10:41"
     },
     {
-      "id": "N43",
+      "id": "acd-N43",
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
@@ -482,7 +482,7 @@
       "done": "2026-08-31T11:10:41"
     },
     {
-      "id": "N44",
+      "id": "acd-N44",
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
@@ -493,7 +493,7 @@
       "done": "2026-08-31T11:10:41"
     },
     {
-      "id": "N45",
+      "id": "acd-N45",
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
@@ -504,7 +504,7 @@
       "done": "2026-08-31T11:10:41"
     },
     {
-      "id": "N46",
+      "id": "acd-N46",
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
@@ -515,7 +515,7 @@
       "done": "2026-08-31T11:10:41"
     },
     {
-      "id": "N47",
+      "id": "acd-N47",
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
@@ -526,7 +526,7 @@
       "done": "2026-08-31T11:10:41"
     },
     {
-      "id": "N48",
+      "id": "acd-N48",
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
@@ -537,7 +537,7 @@
       "done": "2026-08-31T11:10:41"
     },
     {
-      "id": "N49",
+      "id": "acd-N49",
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
@@ -548,7 +548,7 @@
       "done": "2026-08-31T11:10:41"
     },
     {
-      "id": "N50",
+      "id": "acd-N50",
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
@@ -559,7 +559,7 @@
       "done": "2026-08-31T11:10:41"
     },
     {
-      "id": "N51",
+      "id": "acd-N51",
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
@@ -570,7 +570,7 @@
       "done": "2026-08-31T11:10:41"
     },
     {
-      "id": "N52",
+      "id": "acd-N52",
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
@@ -581,7 +581,7 @@
       "done": "2026-08-31T11:10:41"
     },
     {
-      "id": "N53",
+      "id": "acd-N53",
       "section": "main",
       "status": "done",
       "group": "4.3 P2 — Rule categories neither tool checks",
@@ -592,7 +592,7 @@
       "done": "2026-08-31T11:10:41"
     },
     {
-      "id": "N54",
+      "id": "acd-N54",
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
@@ -603,7 +603,7 @@
       "done": "2026-08-31T11:41:28"
     },
     {
-      "id": "N55",
+      "id": "acd-N55",
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
@@ -614,7 +614,7 @@
       "done": "2026-08-31T11:41:28"
     },
     {
-      "id": "N56",
+      "id": "acd-N56",
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
@@ -625,7 +625,7 @@
       "done": "2026-08-31T11:41:28"
     },
     {
-      "id": "N57",
+      "id": "acd-N57",
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
@@ -636,7 +636,7 @@
       "done": "2026-08-31T11:41:28"
     },
     {
-      "id": "N58",
+      "id": "acd-N58",
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
@@ -647,7 +647,7 @@
       "done": "2026-08-31T11:41:28"
     },
     {
-      "id": "N59",
+      "id": "acd-N59",
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
@@ -658,7 +658,7 @@
       "done": "2026-08-31T12:14:07"
     },
     {
-      "id": "N60",
+      "id": "acd-N60",
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
@@ -669,7 +669,7 @@
       "done": "2026-08-31T12:14:07"
     },
     {
-      "id": "N61",
+      "id": "acd-N61",
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
@@ -680,7 +680,7 @@
       "done": "2026-08-31T12:36:41"
     },
     {
-      "id": "N62",
+      "id": "acd-N62",
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
@@ -691,7 +691,7 @@
       "done": "2026-08-31T12:36:41"
     },
     {
-      "id": "N63",
+      "id": "acd-N63",
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
@@ -702,7 +702,7 @@
       "done": "2026-08-31T12:36:41"
     },
     {
-      "id": "N64",
+      "id": "acd-N64",
       "section": "rework",
       "status": "done",
       "group": "4.4 P3 — Improvements to checks we already perform",
@@ -713,7 +713,7 @@
       "done": "2026-08-31T12:36:41"
     },
     {
-      "id": "N65",
+      "id": "acd-N65",
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
@@ -724,7 +724,7 @@
       "done": "2026-08-31T15:14:40"
     },
     {
-      "id": "N66",
+      "id": "acd-N66",
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
@@ -735,7 +735,7 @@
       "done": "2026-08-31T15:14:40"
     },
     {
-      "id": "N67",
+      "id": "acd-N67",
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
@@ -746,7 +746,7 @@
       "done": "2026-08-31T15:14:40"
     },
     {
-      "id": "N68",
+      "id": "acd-N68",
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
@@ -757,7 +757,7 @@
       "done": "2026-08-31T15:14:40"
     },
     {
-      "id": "N69",
+      "id": "acd-N69",
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
@@ -768,7 +768,7 @@
       "done": "2026-08-31T15:14:40"
     },
     {
-      "id": "N70",
+      "id": "acd-N70",
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
@@ -779,7 +779,7 @@
       "done": "2026-08-31T15:14:40"
     },
     {
-      "id": "N71",
+      "id": "acd-N71",
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
@@ -790,7 +790,7 @@
       "done": "2026-08-31T15:14:40"
     },
     {
-      "id": "N72",
+      "id": "acd-N72",
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
@@ -801,7 +801,7 @@
       "done": "2026-08-31T15:14:40"
     },
     {
-      "id": "N73",
+      "id": "acd-N73",
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
@@ -812,7 +812,7 @@
       "done": "2026-08-31T15:14:40"
     },
     {
-      "id": "N74",
+      "id": "acd-N74",
       "section": "validation",
       "status": "done",
       "group": "4.5 P4 — Test suite",
@@ -823,7 +823,7 @@
       "done": "2026-08-31T15:14:40"
     },
     {
-      "id": "N75",
+      "id": "acd-N75",
       "section": "rework",
       "status": "done",
       "group": "4.6 P0/P1 — Rework found by auditing §4.1–§4.5 against the evidence base",
@@ -834,7 +834,7 @@
       "done": "2026-08-31T17:08:55"
     },
     {
-      "id": "N76",
+      "id": "acd-N76",
       "section": "rework",
       "status": "done",
       "group": "4.6 P0/P1 — Rework found by auditing §4.1–§4.5 against the evidence base",
@@ -845,7 +845,7 @@
       "done": "2026-08-31T17:08:55"
     },
     {
-      "id": "N77",
+      "id": "acd-N77",
       "section": "rework",
       "status": "done",
       "group": "4.6 P0/P1 — Rework found by auditing §4.1–§4.5 against the evidence base",
@@ -856,7 +856,7 @@
       "done": "2026-08-31T17:08:55"
     },
     {
-      "id": "N78",
+      "id": "acd-N78",
       "section": "rework",
       "status": "done",
       "group": "4.6 P0/P1 — Rework found by auditing §4.1–§4.5 against the evidence base",
@@ -867,7 +867,7 @@
       "done": "2026-08-31T17:08:55"
     },
     {
-      "id": "N79",
+      "id": "acd-N79",
       "section": "rework",
       "status": "done",
       "group": "4.6 P0/P1 — Rework found by auditing §4.1–§4.5 against the evidence base",
@@ -878,7 +878,7 @@
       "done": "2026-08-31T17:08:55"
     },
     {
-      "id": "N80",
+      "id": "acd-N80",
       "section": "rework",
       "status": "done",
       "group": "4.6 P0/P1 — Rework found by auditing §4.1–§4.5 against the evidence base",
@@ -889,7 +889,7 @@
       "done": "2026-08-31T17:08:55"
     },
     {
-      "id": "N81",
+      "id": "acd-N81",
       "section": "main",
       "status": "done",
       "group": "obfuscation",
@@ -900,7 +900,7 @@
       "done": "2026-10-26T19:27:26"
     },
     {
-      "id": "N82",
+      "id": "acd-N82",
       "section": "validation",
       "status": "done",
       "group": "obfuscation",
@@ -911,7 +911,7 @@
       "done": "2026-10-27T13:56:14"
     },
     {
-      "id": "N83",
+      "id": "acd-N83",
       "section": "rework",
       "status": "todo",
       "group": "obfuscation",
@@ -922,7 +922,7 @@
       "done": null
     },
     {
-      "id": "N84",
+      "id": "acd-N84",
       "section": "main",
       "status": "done",
       "group": "obfuscation",
@@ -933,7 +933,7 @@
       "done": "2026-10-27T16:46:23"
     },
     {
-      "id": "N85",
+      "id": "acd-N85",
       "section": "rework",
       "status": "todo",
       "group": "obfuscation",
@@ -944,16 +944,49 @@
       "done": null
     },
     {
-      "id": "H1",
-      "section": "human",
+      "id": "acd-N86",
+      "section": "main",
+      "status": "done",
+      "group": "obfuscation",
+      "model": "opus",
+      "effort": "high",
+      "short": "Obfuscation: project numbers, dates, signatures, folder codes and deobfuscation",
+      "details": "User asked (28.10.2026): the AI missed project/Projekt numbers (EC 135, root number 1644); obfuscate handwriting and signatures and dates; improve the placeholder; add a function that obfuscates all PDFs under a top folder with one short code per folder (PH-E3B1Q-000000001) so that a project has no duplicate placeholders and deobfuscation works. Done 28.10.2026: obfuscation_ai got a 'project' category (EC 135, H145, root numbers; digit-only ones become bounded patterns) and a prompt naming project/programme/aircraft-type values; built-in date patterns (AI_PATTERN_CATEGORIES, blacked out); spellings only from whole words (no 'lida' from 'Validation'). New acd/signature_obfuscation.py blacks out the cells signature labels name (column headers and form cells, ruling lines from pixels and vector lines, images/pen strokes removed whole). obfuscate_folder() + CLI 'folder' (random 5-character code, PH-<code>-000000001 placeholders, key next to the output, resume, --max-files) and deobfuscate_text() + CLI 'deobfuscate'. Placeholders shrink to fit (3 pt floor; images 8 px). Logo search: a match that reads as other words than its reference (OCR of the references) is dropped; multi-line logos must read like themselves where OCR read the area (fixed 34 false Airbus matches on hatching and bold text). Test folder D:\\CMM\\obfuscation rerun with code RX2YA: 16 PDFs, 0 failed, 379 strings, 52 dates, 72 logos (1 false), 28 signature areas, 204 placeholders; EC 135, 1644, Liebherr, Airbus, D9893 not left in the text; report in 'obfuscation report'. pytest: 121 passed, 1 skipped (obfuscation, image, line_ocr, logo, signature, report, obfuscation_ai; py3.12). Left: see acd-N87, acd-N88.",
+      "done": "2026-10-28T12:32:47"
+    },
+    {
+      "id": "acd-N87",
+      "section": "rework",
       "status": "todo",
       "group": "obfuscation",
-      "short": "Decide whether to commit the untracked obfuscation modules from 23-24.10.2026",
-      "details": "acd/obfuscation.py, acd/image_obfuscation.py, acd/line_ocr.py and tests/test_obfuscation.py, test_image_obfuscation.py, test_line_ocr.py, test_imports.py were written by an earlier session (23-24.10.2026) and are still untracked. The regenerated acd/__init__.py / __init__.pyi and the other modified files in git status are uncommitted as well. acd/obfuscation_ai.py (N81) is committed but needs acd.obfuscation for 'apply' and load_targets -> obfuscate_document. Review them, then tell Claude to commit them (git add those paths), or commit them yourself.",
+      "model": "opus",
+      "effort": "high",
+      "short": "Handwriting on scans outside labelled cells, and labels OCR misses, stay visible",
+      "details": "Continues acd-N86. signature_obfuscation finds signatures only through printed labels. On the scanned Eurocopter form M1644-01 OCR did not read 'SUPPLIERS SIGNATURES & DATE', so those signatures stay; handwritten notes in unlabelled cells ('approved 5C change board') stay too; the 'Accepted by Customer' stamp in L-1644-LSA-0002 is not covered (its cell does not close). Tried: all ink OCR could not read in any table cell -- blacked out a third of a drawing's views, dropped. Ideas: fuzzy label matching on OCR text, a handwriting classifier on unread ink limited to form pages (A4/A3 without drawing views). Test data: D:\\CMM\\obfuscation.",
       "done": null
     },
     {
-      "id": "H2",
+      "id": "acd-N88",
+      "section": "rework",
+      "status": "todo",
+      "group": "obfuscation",
+      "model": "sonnet",
+      "effort": "high",
+      "short": "Text after a redacted string moves left on its line (MuPDF redaction)",
+      "details": "Continues acd-N86. In a PDF written with one text-show operation per line ('code D9893A end'), obfuscate_document's redaction of 'D9893A' moves 'end' about 7 pt to the left, under the placeholder's place. Seen in tests/test_obfuscation.py test_long_placeholder_shrinks_to_fit_before_the_next_word. Find whether apply_redactions or the placeholder insertion causes it, and keep the remaining text where it was.",
+      "done": null
+    },
+    {
+      "id": "acd-H1",
+      "section": "human",
+      "status": "done",
+      "group": "obfuscation",
+      "short": "Decide whether to commit the untracked obfuscation modules from 23-24.10.2026",
+      "details": "acd/obfuscation.py, acd/image_obfuscation.py, acd/line_ocr.py and tests/test_obfuscation.py, test_image_obfuscation.py, test_line_ocr.py, test_imports.py were written by an earlier session (23-24.10.2026) and are still untracked. The regenerated acd/__init__.py / __init__.pyi and the other modified files in git status are uncommitted as well. acd/obfuscation_ai.py (N81) is committed but needs acd.obfuscation for 'apply' and load_targets -> obfuscate_document. Review them, then tell Claude to commit them (git add those paths), or commit them yourself. Done 28.10.2026: the user answered 'Yes, commit them' when asked in the session. acd/obfuscation.py, image_obfuscation.py, line_ocr.py and tests/test_obfuscation.py, test_image_obfuscation.py, test_line_ocr.py committed with N86. tests/test_imports.py stays uncommitted: it imports every acd module, whose fixes are another session's uncommitted changes.",
+      "done": "2026-10-28T09:42:27"
+    },
+    {
+      "id": "acd-H2",
       "section": "human",
       "status": "todo",
       "group": "obfuscation",
