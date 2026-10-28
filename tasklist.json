@@ -1012,9 +1012,20 @@
       "group": "obfuscation",
       "model": "opus",
       "effort": "high",
-      "short": "Handwriting next to non-signature labels, labels crossed by a signature, frameless stamps",
-      "details": "Continues acd-N87 and acd-N89. Still visible after N89 (test folder D:\\CMM\\obfuscation, run 'obfuscation output N89'): handwriting next to labels that name no signature ('Design: ....', 'Commerce:', 'Customer Service:' in the remarks of M1644-01 p12/13), handwritten notes in unlabelled cells ('approved 5C change board' on M1644-01 p1), the 'Project' signature on M1644-01 p13 written across its 'Signature' label (OCR does not read the label), stamps without a frame of their own on scans. A signature stroke running straight for 25 pt or more counts as a ruling line and can cut its cell. Ideas: role labels with a colon followed by dotted lines; fuzzy label matching on low-score OCR lines; a handwriting classifier on unread ink limited to form pages.",
+      "short": "Handwriting in unlabelled cells, signatures across their only label, frameless stamps",
+      "details": "Continues acd-N87, acd-N89 and acd-N91. Still visible after N91 (test folder D:\\CMM\\obfuscation, run 'obfuscation output N89'): handwritten notes in unlabelled cells ('approved 5C change board' on M1644-01 p1, 'MOD-32866 ...' handwritten at the top of p1), the 'Project' signature on M1644-01 p13 written across its only 'Signature' label (OCR does not read the label), stroke tails a little outside the boxes (Commerce field p12, Quality cell p12/13), stamps without a frame of their own on scans. A signature stroke running straight for 25 pt or more counts as a ruling line and can cut its cell. Ideas: fuzzy label matching on low-score or dropped OCR boxes; a handwriting classifier on unread ink limited to form pages.",
       "done": null
+    },
+    {
+      "id": "acd-N91",
+      "section": "rework",
+      "status": "done",
+      "group": "obfuscation",
+      "model": "opus",
+      "effort": "high",
+      "short": "Signatures: initials/date columns, labels over a table, dotted fill-in fields",
+      "details": "User feedback 28.10.2026 on the N89 run: signatures still missed on M1644-01 (handwriting on the dotted lines after 'Design:', 'Commerce:', 'Customer Service:' in the remarks of pages 12/13; the 'Kurzz.' initials column and misread handwritten dates of the table on page 14; the 'Project' signature on page 13). Done 28.10.2026: acd/signature_obfuscation.py: labels Kurzzeichen/Kurzz./Initials/Paraphe; on scans a bare \"Datum\"/\"Date\" counts, but only as a label over a table (not as a field or a revision-table header: that blacked out a drawing nameplate and a revision text); a label at the foot of an empty cell over a narrower column heads that column (M1644-01 p14: Datum and Kurzz. columns, 14 cells); dotted fill-in fields on scans (\"Design: . . .\", label with a colon, at most one OCR word after it and no digits, >=5 dots in a row up to the next cell border, blacked if a mark bigger than a dot is over them: remarks of M1644-01 p12/13); on scans areas grow over pen strokes (ink runs >=14 pt apart from ruling lines) lying >=30% in them. Tests: 132 passed, 1 skipped on py3.10 and py3.12 (2 new). Rerun of D:\\CMM\\obfuscation into obfuscation output N89 / report N89: 16 files, 0 failed (3 failed with out-of-memory first: commit charge was 77.6 of 79.7 GB, other processes; the retry passed), 370 strings, 84 signature areas, 1 stamp; per-page check of all 16 files: no new areas on the drawings. Left: see acd-N90.",
+      "done": "2026-10-28T17:00:59"
     }
   ]
 }

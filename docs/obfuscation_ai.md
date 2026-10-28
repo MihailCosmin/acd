@@ -183,7 +183,9 @@ place of a 10-character part number at about two thirds of the size.
 `acd.signature_obfuscation` cannot read a signature, so it does not try to. It finds the place
 a printed label names, and blacks that out:
 - **Labels** are lines of at most 5 words containing "Signature(s)", "Unterschrift(en)",
-  "Signed (by)" or "Visum". "Approval", "approved by" and "Genehmigung" count only with a ":",
+  "Signed (by)", "Visum", "Kurzzeichen" / "Kurzz." (initials), "Initials" or "Paraphe". On a scan,
+  a line that says only "Datum" or "Date" is a label too: handwritten dates under it are often
+  misread by OCR ("25.70.53") and then missed by the date patterns. "Approval", "approved by" and "Genehmigung" count only with a ":",
   "&", "date", "Datum", "by" or "durch" in the line ("PURCHASER APPROVAL & DATE"). A bare
   "Approval" is a signature's type, not a label. "Signature type" and "Electronic signature" are
   values too.
@@ -203,10 +205,20 @@ a printed label names, and blacks that out:
   height. If the label does not fill its cell, the cell is what it names: all of it except the
   label. A cell with no ink in it is left alone. Where the next cell is looked for, a line that
   is not the border (a stamp's frame lying on it) is stepped over.
+- **Labels over a table:** a label at the foot of a cell with nothing else written in it, above a
+  narrower column ("Abteilung:  Datum:  Kurzz.:" over the table of M1644-01 page 14), heads the
+  column under it.
+- **Fields on scans:** a few words and a colon ("Design:", "Customer Service:") followed by a
+  dotted line of at least 5 dots is a field to fill in by hand. If anything bigger than a dot is
+  written over the dots, the field is blacked out, from the colon to the last dot (up to the next
+  cell border) and a line and a half above the dots. OCR must have read at most one word after the
+  colon, with no digits in it, so a typed value ("LLI: S4-3000490") is not taken for a field.
 - **What is removed:** everything in those areas, under a black box. That is images, vector pen
   strokes and text. An image or pen stroke that lies at least 30% in a signature area is removed
-  whole, because a signature runs over its cell's lines. Pages without text are read with OCR to
-  find the labels.
+  whole, because a signature runs over its cell's lines. On a scan, the area grows over every pen
+  stroke (a run of ink at least 14 points long or high, apart from the ruling lines) that lies at
+  least 30% in it; a label the signature is written across goes with it. Pages without text are
+  read with OCR to find the labels.
 
 On a whole page, the OCR detector can take a printed label, the signature written across it and
 the text beside it for one box, which then reads as nothing. `line_ocr` detects such a box again
@@ -231,8 +243,13 @@ Tested on 28.10.2026, after the fixes above:
 - **The approval table of MO-1644-00 (page 2):** the 3 signatures right of "Unterschrift /
   SIGNATURE" are found; before, the "Name" cell below was blacked out instead.
 
-Still not found: handwriting next to labels that name no signature ("Design: ....", "Commerce:"
-in the remarks of M1644-01), and handwritten notes in unlabelled cells. A signature stroke
+Tested on 28.10.2026, second round: the remarks of M1644-01 pages 12 and 13 ("Design:",
+"Commerce:", "Customer Service:" on dotted lines) and the date and initials columns of page 14 are
+blacked out; the empty approval table of MO-1644-00 is left alone.
+
+Still not found: handwritten notes in unlabelled cells ("approved 5C change board" on M1644-01
+page 1), and a signature written across its only label so that OCR cannot read it (the "Project"
+signature on M1644-01 page 13). A signature stroke
 running straight for 25 points or more counts as a ruling line and can cut its cell in two; the
 part beyond it stays. I also tried taking all ink that OCR could not read in any table cell,
 which would find unlabelled handwriting. It blacked out a third of a drawing's views, so it is

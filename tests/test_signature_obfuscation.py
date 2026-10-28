@@ -145,3 +145,65 @@ def test_faint_lines_of_a_scanned_form_close_its_cells(tmp_path):
     areas = find_signature_areas(page)
     assert any(area.intersects(pymupdf.Rect(100, 40, 140, 70)) for area in areas)  # the signature
     assert all(area.y1 <= 101 and area.x1 <= 201 for area in areas)  # not the cells below and beside
+
+
+def ocr_line(text, rect):
+    """An OCR line as `_pdf_ocr_lines` gives it, in page coordinates, its characters evenly apart."""
+    import numpy as np
+
+    from acd.line_ocr import OcrLine
+
+    width = rect[2] - rect[0]
+    positions = [(index * width / len(text), (index + 1) * width / len(text)) for index in range(len(text))]
+    to_page = np.array([[1, 0, rect[0]], [0, 1, rect[1]], [0, 0, 1]], dtype=np.float64)
+    return OcrLine(text, 0.99, positions, width, rect[3] - rect[1], False, to_page)
+
+
+def scan(tmp_path, draw_on):
+    """A page that is one image, drawn on at 2 pixels per point."""
+    image = Image.new("L", (595 * 2, 842 * 2), 255)
+    draw_on(ImageDraw.Draw(image))
+    image.save(tmp_path / "scan.png")
+    doc = pymupdf.open()
+    page = doc.new_page()
+    page.insert_image(page.rect, filename=str(tmp_path / "scan.png"))
+    return page
+
+
+def test_handwriting_on_the_dotted_line_of_a_field_is_found(tmp_path):
+    # "Design: . . . . . . . ." with a signature on the dots, and an empty field under it
+    def draw_on(draw):
+        for y in (200, 260):
+            for x in range(130, 330, 8):
+                draw.rectangle([(x * 2, y * 2 - 2), (x * 2 + 2, y * 2)], fill=0)
+        draw.line([(150 * 2, 198 * 2), (180 * 2, 175 * 2), (210 * 2, 202 * 2), (260 * 2, 180 * 2)], fill=0, width=4)
+
+    page = scan(tmp_path, draw_on)
+    lines = [ocr_line("Design:", (60, 190, 120, 201)), ocr_line("Commerce:", (60, 250, 125, 261))]
+    areas = find_signature_areas(page, lines)
+    assert len(areas) == 1
+    assert pymupdf.Rect(150, 178, 260, 200) in areas[0] and areas[0].x0 >= 119  # the label stays
+
+
+def test_labels_over_a_table_head_the_columns_under_them(tmp_path):
+    # "Datum:  Kurzz.:" at the foot of a wide cell over the table, initials in the column under "Kurzz."
+    doc = pymupdf.open()
+    page = doc.new_page()
+    shape = page.new_shape()
+    shape.draw_rect(pymupdf.Rect(60, 100, 460, 160))
+    for y in (200, 240, 280):
+        shape.draw_line((60, y), (460, y))
+    for x in (60, 300, 380, 460):
+        shape.draw_line((x, 160), (x, 280))
+    shape.draw_line((60, 160), (460, 160))
+    shape.finish(color=(0, 0, 0), width=0.8)
+    shape.commit()
+    page.insert_text((310, 155), "Datum:", fontsize=9)
+    page.insert_text((390, 155), "Kurzz.:", fontsize=9)
+    for row, y in enumerate((160, 200)):
+        page.insert_text((70, y + 25), "Konstruktion", fontsize=9)
+        page.insert_image(pymupdf.Rect(384, y + 4, 456, y + 36), filename=scribble(tmp_path / f"k{row}.png", (0, 0, 0)))
+    areas = find_signature_areas(page)
+    assert any(area.intersects(pymupdf.Rect(390, 170, 450, 190)) for area in areas)
+    assert any(area.intersects(pymupdf.Rect(390, 210, 450, 230)) for area in areas)
+    assert not any(area.intersects(pymupdf.Rect(65, 165, 295, 275)) for area in areas)  # the roles stay

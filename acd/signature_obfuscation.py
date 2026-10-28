@@ -29,9 +29,14 @@ from regex import compile as regex_compile
 # Printed labels that name a signature: also "Signatures & Date", "Signed by"
 # -- not "Signature type", "Electronic signature" (values).
 SIGNATURE_LABELS = regex_compile(
-    r"(?<![\w-])(?<!electronic\s)(?:signatures?|unterschrift(?:en)?|signed(?:\s+by)?|visum)(?!\s*[-_]?\s*type)(?![\w-])",
+    r"(?<![\w-])(?<!electronic\s)(?:signatures?|unterschrift(?:en)?|signed(?:\s+by)?|visum|kurzz(?:eichen)?"
+    r"|initials|paraphe?)(?!\s*[-_]?\s*type)(?![\w-])",
     IGNORECASE,
 )
+
+# On a scan, a header that says only "Date" names cells of handwritten dates,
+# which OCR misreads ("25.70.53") and the date patterns then miss.
+SIGNATURE_DATE_LABELS = regex_compile(r"\W*(?:datum|date)\W*(?:/\W*(?:datum|date)\W*)?", IGNORECASE)
 
 # Words that name a signature only as part of a label ("APPROVAL & DATE",
 # "Genehmigt durch:"), not alone: "Approval" is also a signature's type.
@@ -40,6 +45,14 @@ SIGNATURE_QUALIFIERS = regex_compile(r"[:&]|\b(?:date|datum|by|durch)\b", IGNORE
 
 # A label is a short line: a sentence that mentions approval is no label.
 SIGNATURE_LABEL_MAX_WORDS = 5
+
+# On a scan, a field to fill in by hand: a few words and a colon, then a
+# dotted line of at least this many dots ("Design: . . . . . . .").
+SIGNATURE_FIELD_LABEL = regex_compile(r"\s*[^\W\d_][^\W\d_ ./-]*(?:[ ./-]+[^\W\d_]+){0,3}\s*:")
+SIGNATURE_FIELD_DOTS = 5
+# Dots of one line are at most this many characters apart: handwriting over
+# the line hides some.
+SIGNATURE_FIELD_GAP = 6
 
 # Share of an OCR line's height above and below the text: the detector's margin.
 _OCR_LABEL_INSET = 0.15
@@ -62,6 +75,10 @@ SIGNATURE_FILL = (0, 0, 0)
 
 # An image or curved path lying this much in signature areas is hidden whole.
 SIGNATURE_PIECE_SHARE = 0.3
+
+# On a scan, a run of ink at least this big (points, across or down) is a pen
+# stroke, not a printed letter.
+SIGNATURE_STROKE = 14
 
 # Share of a cell's pixels that must be ink for it to hold something to hide.
 SIGNATURE_MIN_INK = 0.004
@@ -106,7 +123,8 @@ def _free_space(ink, zoom: float, page=None, faint=None):
                                  (kernel(1, run), kernel(_FAINT_THICK, run), kernel(1, reach))):
         lines = cv2.morphologyEx(ink, cv2.MORPH_OPEN, along)
         if faint is not None:
-            lines |= cv2.morphologyEx(faint, cv2.MORPH_OPEN, along) & (1 - cv2.morphologyEx(faint, cv2.MORPH_OPEN, thick))
+            thin = 1 - cv2.morphologyEx(faint, cv2.MORPH_OPEN, thick)
+            lines |= cv2.morphologyEx(faint, cv2.MORPH_OPEN, along) & thin
         rules |= cv2.dilate(lines, extend)  # on along the line: a scan's line can stop short of the one it meets
     if page is not None:
         matrix = page.rotation_matrix * zoom
@@ -195,7 +213,7 @@ def _label_lines(page, ocr_lines=None) -> list:
             if label_span(text):
                 labels.append((text, Rect(line["bbox"])))
     for line in ocr_lines or ():
-        span = label_span(line.text)
+        span = label_span(line.text) or (SIGNATURE_DATE_LABELS.fullmatch(line.text) and (0, len(line.text)))
         if span:
             # The label's words alone, without the detector's margin: OCR's line can
             # take in a signature written beside or just under them
@@ -204,6 +222,76 @@ def _label_lines(page, ocr_lines=None) -> list:
             inset = _OCR_LABEL_INSET * rect.height
             labels.append((line.text, Rect(rect.x0, rect.y0 + inset, rect.x1, rect.y1 - inset)))
     return labels
+
+
+def _field_labels(ocr_lines) -> list:
+    """(Rect, characters) of the labels of a form's fields among OCR lines: a
+    few words and a colon ("Design:", "Customer Service:"), maybe with what
+    OCR made of the handwriting after it."""
+    from pymupdf import Rect
+
+    labels = []
+    for line in ocr_lines or ():
+        found = SIGNATURE_FIELD_LABEL.match(line.text)
+        rest = line.text[found.end():].strip(" .:") if found else ""
+        # after the colon nothing, or a word OCR made of handwriting -- not a typed value ("LLI: S4-3000490")
+        if found and len(rest.split()) <= 1 and not any(char.isdigit() for char in rest) and \
+                len(line.text.split()) <= SIGNATURE_LABEL_MAX_WORDS:
+            corners = line.quad(0, found.end(), pad=0)
+            rect = Rect(corners[:, 0].min(), corners[:, 1].min(), corners[:, 0].max(), corners[:, 1].max())
+            labels.append((rect, len(found.group().strip())))
+    return labels
+
+
+def _dotted_fields(ink, zoom: float, labels: list) -> list:
+    """Rects of the fields after labels that run on in a dotted line and were
+    written on: from the label to the last dot, up to a line and a half above
+    the dots.
+
+    The dots are small marks in a row, evenly apart, starting just after the
+    label; what was written is any mark bigger than a dot over them. The text
+    size comes from the label's characters: OCR's line can be as high as the
+    signature written beside it.
+    """
+    from pymupdf import Rect
+
+    height, width = ink.shape
+    run = max(8, int(SIGNATURE_MIN_RULE * zoom))
+    vertical = cv2.morphologyEx(ink, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (1, run)))
+    count, _, stats, _ = cv2.connectedComponentsWithStats(ink, connectivity=8)
+    boxes = stats[1:count]  # x, y, w, h, area
+    centres = boxes[:, 1] + boxes[:, 3] / 2
+    areas = []
+    for label, characters in labels:
+        x0, y0, x1, y1 = (int(value * zoom) for value in tuple(label))
+        pitch = (x1 - x0) / max(characters, 1)
+        size = max(min(y1 - y0, pitch / 0.55), 4)  # the text's height
+        dot = max(3, int(0.4 * size))
+        small = (boxes[:, 2] <= dot) & (boxes[:, 3] <= dot) & (boxes[:, 0] >= x1 - pitch)
+        candidates = sorted(boxes[small & (centres >= y0) & (centres <= y1 + size)].tolist())
+        best = []
+        for first in candidates:  # the longest row of dots starting near the label
+            if first[0] > x1 + 3 * pitch:
+                break
+            row = [first]
+            for box in candidates:
+                last = row[-1]
+                if box[0] > last[0] and box[0] - last[0] <= SIGNATURE_FIELD_GAP * pitch and \
+                        abs((box[1] + box[3] / 2) - (last[1] + last[3] / 2)) <= 0.3 * size:
+                    if vertical[last[1]:last[1] + last[3] + 1, last[0]:box[0]].any():
+                        break  # a cell's border: the dots beyond are another field's
+                    row.append(box)
+            best = row if len(row) > len(best) else best
+        if len(best) < SIGNATURE_FIELD_DOTS:
+            continue
+        foot = sum(box[1] + box[3] / 2 for box in best) / len(best)
+        field = (x1, max(int(foot - 1.8 * size), 0), min(int(best[-1][0] + best[-1][2] + dot), width),
+                 min(int(foot + 0.6 * size), height))
+        inside = (boxes[:, 0] < field[2]) & (boxes[:, 0] + boxes[:, 2] > field[0]) & \
+                 (boxes[:, 1] < field[3]) & (boxes[:, 1] + boxes[:, 3] > field[1])
+        if (inside & ((boxes[:, 2] > 2 * dot) | (boxes[:, 3] > 2 * dot))).any():
+            areas.append(Rect(*(value / zoom for value in field)))
+    return areas
 
 
 def find_signature_areas(page, ocr_lines=None) -> list:
@@ -217,41 +305,62 @@ def find_signature_areas(page, ocr_lines=None) -> list:
     from pymupdf import Rect
 
     labels = _label_lines(page, ocr_lines)
-    if not labels:
+    fields = _field_labels(ocr_lines)
+    if not labels and not fields:
         return []
     zoom = SIGNATURE_DPI / 72
     ink = _ink(page, zoom)
+    areas = _dotted_fields(ink, zoom, fields)
     free = _free_space(ink, zoom, page, _ink(page, zoom, SIGNATURE_FAINT_LEVEL))
 
     def written(rect) -> bool:  # is there anything in it to hide?
         x0, y0, x1, y1 = (int(value * zoom) for value in (rect.x0 + 2, rect.y0 + 2, rect.x1 - 2, rect.y1 - 2))
         return x1 > x0 and y1 > y0 and ink[y0:y1, x0:x1].mean() > SIGNATURE_MIN_INK
     # A label in two languages is two lines, one under the other, in one cell: "Unterschrift" over "SIGNATURE"
-    found = []  # (cell, label)
-    for _, label in sorted(labels, key=lambda item: item[1].y0):
+    found = []  # (cell, label, whether it says only "Date")
+    for text, label in sorted(labels, key=lambda item: item[1].y0):
         cell = _cell(free, ((label.x0 + label.x1) / 2 * zoom, (label.y0 + label.y1) / 2 * zoom))
         if cell is None:
             continue
-        for index, (other_cell, other) in enumerate(found):
-            if other_cell == cell and label.y0 - other.y1 <= 0.5 * max(label.height, other.height):
-                found[index] = (cell, other | label)
+        date = bool(SIGNATURE_DATE_LABELS.fullmatch(text))
+        for index, (other_cell, other, other_date) in enumerate(found):
+            gap = label.y0 - other.y1  # one under the other, not side by side ("Datum:  Kurzz.:")
+            if other_cell == cell and not date and not other_date \
+                    and -0.3 * other.height <= gap <= 0.6 * max(label.height, other.height) \
+                    and min(label.x1, other.x1) > max(label.x0, other.x0):
+                found[index] = (cell, other | label, False)
                 break
         else:
-            found.append((cell, Rect(label)))
-    areas = []
-    for cell, label in found:
+            found.append((cell, Rect(label), date))
+    for cell, label, date in found:
         x0, y0, x1, y1 = (value / zoom for value in cell)
-        if y1 - y0 <= SIGNATURE_HEADER_HEIGHT * label.height:  # a header: the cells of its column, or row
-            side = _header_side(free, cell)
-            current = cell
+        over_table = y1 - label.y1 < label.height and not written(Rect(x0, y0, x1, label.y0))
+        if date and not over_table:
+            continue  # a "Date" field of its own, or a revision table's: no signature there
+        def walk(header, side):  # the written cells of a header's column or row
+            current = header
             for _ in range(SIGNATURE_MAX_ROWS):
                 next_cell = _neighbour(free, current, side)
-                if next_cell is None or not _lines_up(cell, current, next_cell, side):
+                if next_cell is None or not _lines_up(header, current, next_cell, side):
                     break
                 cell_rect = Rect(*(value / zoom for value in next_cell))
                 if written(cell_rect):
                     areas.append(cell_rect)
                 current = next_cell
+
+        if y1 - y0 <= SIGNATURE_HEADER_HEIGHT * label.height and not date:  # a header: its column, or row
+            walk(cell, _header_side(free, cell))
+        elif over_table:
+            # at the bottom of an empty cell over a table ("Datum:  Kurzz.:" above its columns):
+            # the header of the column under it
+            under = (label.x0 * zoom, cell[1], label.x1 * zoom, cell[3])
+            first = _neighbour(free, under, "below")
+            if first is not None and first[0] <= (label.x0 + label.x1) / 2 * zoom <= first[2] \
+                    and first[2] - first[0] < 0.7 * (cell[2] - cell[0]):  # a column, not the next row
+                first_rect = Rect(*(value / zoom for value in first))
+                if written(first_rect):
+                    areas.append(first_rect)
+                walk(first, "below")
         else:  # the label names its own cell: all of it but the label
             box = Rect(x0, y0, x1, y1)
             keep = Rect(label) & box
@@ -271,7 +380,29 @@ def find_signature_areas(page, ocr_lines=None) -> list:
         covered = sum((piece & area).get_area() for area in areas)
         if piece.get_area() and covered >= SIGNATURE_PIECE_SHARE * piece.get_area():
             whole.append(Rect(piece.x0 - 2, piece.y0 - 2, piece.x1 + 2, piece.y1 + 2) & page.rect)  # and its stroke width
-    return areas + [piece for piece in whole if not any(piece in area for area in areas)]
+    areas += [piece for piece in whole if not any(piece in area for area in areas)]
+    return _with_strokes(ink, free, zoom, areas) if ocr_lines else areas
+
+
+def _with_strokes(ink, free, zoom: float, areas: list) -> list:
+    """The areas of a scan, each grown over the pen strokes lying mostly in
+    it: a signature runs on beyond its cell, and on a scan it is pixels, not
+    an image or a path that could go whole. A stroke is a run of ink apart
+    from the ruling lines, bigger than a printed letter."""
+    from pymupdf import Rect
+
+    count, _, stats, _ = cv2.connectedComponentsWithStats(ink & free, connectivity=8)
+    big = int(SIGNATURE_STROKE * zoom)
+    strokes = [Rect(*(value / zoom for value in (x, y, x + w, y + h))) for x, y, w, h, _ in stats[1:count]
+               if w >= big or h >= big]
+    grown = []
+    for area in areas:
+        for stroke in strokes:
+            if (stroke & area).get_area() >= SIGNATURE_PIECE_SHARE * stroke.get_area() and \
+                    stroke.get_area() <= 4 * area.get_area():
+                area = area | stroke
+        grown.append(area)
+    return grown
 
 
 def obfuscate_signatures(filepath: str, output_path: str, find_in: Optional[str] = None, ocr: bool = True,

@@ -78,11 +78,13 @@ def _runs_on(rules, box: tuple, skip: int, reach: int) -> bool:
     x0, y0, x1, y1 = box
     for y in (y0, y1 - 1):  # top and bottom border: on to the left or right?
         band = rules[max(y - skip, 0):min(y + skip + 1, height)]
-        if band[:, max(x0 - skip - reach, 0):max(x0 - skip, 0)].any() or                 band[:, min(x1 + skip, width):min(x1 + skip + reach, width)].any():
+        if band[:, max(x0 - skip - reach, 0):max(x0 - skip, 0)].any() or \
+                band[:, min(x1 + skip, width):min(x1 + skip + reach, width)].any():
             return True
     for x in (x0, x1 - 1):  # left and right border: on up or down?
         band = rules[:, max(x - skip, 0):min(x + skip + 1, width)]
-        if band[max(y0 - skip - reach, 0):max(y0 - skip, 0)].any() or                 band[min(y1 + skip, height):min(y1 + skip + reach, height)].any():
+        if band[max(y0 - skip - reach, 0):max(y0 - skip, 0)].any() or \
+                band[min(y1 + skip, height):min(y1 + skip + reach, height)].any():
             return True
     return False
 
