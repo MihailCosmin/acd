@@ -1026,6 +1026,49 @@
       "short": "Signatures: initials/date columns, labels over a table, dotted fill-in fields",
       "details": "User feedback 28.10.2026 on the N89 run: signatures still missed on M1644-01 (handwriting on the dotted lines after 'Design:', 'Commerce:', 'Customer Service:' in the remarks of pages 12/13; the 'Kurzz.' initials column and misread handwritten dates of the table on page 14; the 'Project' signature on page 13). Done 28.10.2026: acd/signature_obfuscation.py: labels Kurzzeichen/Kurzz./Initials/Paraphe; on scans a bare \"Datum\"/\"Date\" counts, but only as a label over a table (not as a field or a revision-table header: that blacked out a drawing nameplate and a revision text); a label at the foot of an empty cell over a narrower column heads that column (M1644-01 p14: Datum and Kurzz. columns, 14 cells); dotted fill-in fields on scans (\"Design: . . .\", label with a colon, at most one OCR word after it and no digits, >=5 dots in a row up to the next cell border, blacked if a mark bigger than a dot is over them: remarks of M1644-01 p12/13); on scans areas grow over pen strokes (ink runs >=14 pt apart from ruling lines) lying >=30% in them. Tests: 132 passed, 1 skipped on py3.10 and py3.12 (2 new). Rerun of D:\\CMM\\obfuscation into obfuscation output N89 / report N89: 16 files, 0 failed (3 failed with out-of-memory first: commit charge was 77.6 of 79.7 GB, other processes; the retry passed), 370 strings, 84 signature areas, 1 stamp; per-page check of all 16 files: no new areas on the drawings. Left: see acd-N90.",
       "done": "2026-10-28T17:00:59"
+    },
+    {
+      "id": "acd-H3",
+      "section": "human",
+      "status": "todo",
+      "group": "licence",
+      "short": "Make the GitHub repository MihailCosmin/acd private (licence now proprietary)",
+      "details": "Why: ALTHOM decided on 29.10.2026 (ALTHOM-CMM-AUTHORING H5, decision D19 there) that acd carries a proprietary licence instead of GPLv3. https://github.com/MihailCosmin/acd is public (checked 29.10.2026 via the GitHub API: private=false), so the code stays readable by anyone, and everything already published there remains GPLv3 for whoever obtained it (a licence change only applies to later versions). What to do: GitHub > MihailCosmin/acd > Settings > General > Danger Zone > Change repository visibility > Make private. Optionally move it to an ALTHOM organisation account. Also confirm in the answer that the 97 commits made under munteanumihailcosmin@gmail.com are ALTHOM's work (or are assigned to ALTHOM), since the proprietary licence names ALTHOM GmbH as the copyright holder; the one commit by VPaliou (althom.eu) is employee work.",
+      "done": null
+    },
+    {
+      "id": "acd-H4",
+      "section": "human",
+      "status": "todo",
+      "group": "licence",
+      "short": "Choose how to replace PyMuPDF's AGPL: Artifex licence or another PDF library",
+      "details": "Why: acd's licence becomes proprietary (acd-N92), but PyMuPDF (pymupdf, imported as fitz in 9 modules: pdf, data_extraction, estimation, obfuscation, obfuscation_ai, obfuscation_report, logo/signature/stamp_obfuscation) is dual-licensed AGPL-3.0 or Artifex commercial. As long as acd and the apps on it stay inside ALTHOM, nothing is needed. Once acd or an app using it (ALTHOM-CMM-AUTHORING) is given to clients or partners, or offered to them over a network (AGPL), the AGPL covers the whole program unless ALTHOM holds a commercial licence. Options: (A, recommended if anything is distributed within the next year) buy the Artifex commercial PyMuPDF licence (quote from artifex.com/licensing; no code change); (B) replace PyMuPDF with permissive libraries: pypdfium2 (Apache-2.0/BSD) for rendering and text with positions, pikepdf (MPL-2.0, already a dependency) for page edits and redaction, pypdf (BSD); several days of work and re-testing the obfuscation corpus; (C) keep PyMuPDF and keep acd and its apps strictly in-house (then nothing else to do now). Answer A, B or C. acd-N93 waits for this answer.",
+      "done": null
+    },
+    {
+      "id": "acd-N92",
+      "section": "rework",
+      "status": "todo",
+      "group": "licence",
+      "model": "sonnet",
+      "effort": "medium",
+      "short": "Change acd's licence to proprietary, replace GPL Levenshtein, drop bundled ccache",
+      "details": "Decision 29.10.2026 (ALTHOM-CMM-AUTHORING H5 answer 'change to proprietary license', D19 there): acd carries a proprietary ALTHOM licence instead of GPLv3. Do: (1) pyproject.toml: license = { text = 'Proprietary' } (or license-files), classifier 'License :: Other/Proprietary License' instead of the GPLv3 one; (2) add LICENSE in the root: 'Copyright (c) <years> ALTHOM GmbH. All rights reserved.' with a short internal-use clause (use, copy and modify only by ALTHOM GmbH and parties it authorises in writing; no redistribution); (3) README.md: a Licence section saying the same and that versions published before the change were GPLv3; (4) the Levenshtein package is GPL-2.0-or-later and used only in acd/txt.py: switch it to rapidfuzz (MIT, already a dependency: rapidfuzz.distance.Levenshtein / rapidfuzz.fuzz), keep the results the same, drop Levenshtein from requirements.txt, add a test; (5) acd/3rd/ccache-4.11.3-windows-x86_64 (GPLv3 binary, 7 files, referenced in __init__.py, ocr.py, pdf.py, build_lazy_init.py) is shipped as package data: find why, and remove it from the package (or from git) if nothing at run time needs it; if it must stay, keep its LICENSE next to it (mere aggregation is allowed). LGPL dependencies (PySide6, svglib, yattag, PyEnchant) are fine as separate libraries; note in the README that a frozen app must keep them replaceable. PyMuPDF (AGPL) is handled by acd-N93. On 29.10.2026 pyproject.toml and README.md had uncommitted edits by another session: wait until they are committed, never touch them. Verify: pip install -e . in a fresh venv shows the new licence; pytest passes.",
+      "done": null
+    },
+    {
+      "id": "acd-N93",
+      "section": "rework",
+      "status": "todo",
+      "group": "licence",
+      "model": "opus",
+      "effort": "high",
+      "short": "Act on acd-H4: PyMuPDF commercial licence noted, or replace PyMuPDF with permissive libs",
+      "details": "Waits for acd-H4 (read its answer). A: record the Artifex licence (number, scope, expiry) in README's Licence section; nothing else. B: replace fitz in the 9 modules listed in acd-H4 with pypdfium2 (render, text with boxes) and pikepdf/pypdf (page edits, redaction boxes, saving), behind one small acd/pdf_backend.py so the modules do not import a PDF library directly; re-run the obfuscation tests and compare the outputs on D:\\CMM\\obfuscation with the PyMuPDF results before removing pymupdf from requirements.txt; split per module if it grows. C: add to README that acd and every app on it must stay in-house while PyMuPDF is used; close the task.",
+      "depends_on": [
+        "acd-H4"
+      ],
+      "done": null
     }
   ]
 }
