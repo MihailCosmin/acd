@@ -1069,6 +1069,20 @@
         "acd-H4"
       ],
       "done": null
+    },
+    {
+      "id": "acd-N94",
+      "section": "main",
+      "status": "todo",
+      "group": "",
+      "model": "sonnet",
+      "effort": "medium",
+      "short": "Bundle the ATA 1000BR 4.2 BREX modules (GCA 00A, CMP 01A, SMD 02A) as built-in layer BREX",
+      "details": "Asked by ALTHOM-CMM-AUTHORING-P1.13 (29.10.2026). ATA Spec 1000BR 4.2 revision 2021.2 ships three BREX data modules, layered over the S1000D 4.2 default BREX (issue F): DMC-ATABREX-F-00-00-0000-00A-022A-D_014-00 (General Civil Aviation, 159 rules, brexDmRef to DMC-S1000D-F-04-10-0301-00A-022A-D), DMC-ATABREX-F-00-00-0000-01A-022A-D_007-00 (CMP, 463 rules, brexDmRef to the GCA 00A) and DMC-ATABREX-F-00-00-0000-02A-022A-D_001-00 (Scheduled Maintenance Data). Source: D:\\CMM\\CMM_AI_Authoring\\01 Documents for AI\\04 CMP ATA 1000BR\\314-Spec1000BR_42_20212_FINAL (the GCA and SMD modules are also in the zips there). Add them to acd's built-in BREX set (acd/brex, the table in acd/default_brex.py or a second table for layer BREX that are found by brexDmRef, not chosen by schema), with a test that a CMP data module whose brexDmRef names ATABREX 01A resolves CMP -> GCA -> S1000D-F without a search path. WAIT FOR acd-H3: the ATA licence of Spec 1000BR allows the BREX modules only for validating data delivered to a trading partner and forbids redistribution, and the GitHub repository is public (unauthenticated API answered 200 on 29.10.2026); do not commit the files before the repository is private. Until then the layering already works with a search path: verified 29.10.2026 with acd fb225e5 (BrexChecker().add_brex_search_path(<the source folder>) on a test descript data module referencing ATABREX 01A: _brex_list = CMP 01A, GCA 00A, built-in S1000D-F; violations reported from the CMP and GCA layers). ALTHOM-CMM-AUTHORING-P3.8 uses the search path until this task is done.",
+      "depends_on": [
+        "acd-H3"
+      ],
+      "done": null
     }
   ]
 }
