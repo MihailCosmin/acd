@@ -1083,6 +1083,17 @@
         "acd-H3"
       ],
       "done": null
+    },
+    {
+      "id": "acd-N95",
+      "section": "main",
+      "status": "done",
+      "group": "S1000D and iSpec 2200",
+      "model": "opus",
+      "effort": "high",
+      "short": "Read S1000D IPD data modules and iSpec 2200 IPLs (SGML/XML) into a neutral parts list",
+      "details": "From ALTHOM-CMM-AUTHORING-N39 (decision D17 there: generic readers belong in acd). acd/ipl_reader.py: a tolerant SGML/XML tree (omitted end tags, EMPTY elements, entities, SGML PIs, marked sections) and two readers: S1000D IPD (info code 941, issues 1.7 to 6: catalogSeqNumber/csn, itemSeqNumber/isn, partRef/pnr, mfc, quantityPerNextHigherAssy/qna, indenture/ind, descrForPart/dfp, attachStoreShipPart/asp, notIllustrated, catalogSeqNumberRef/csnref, functionalItemRef, usableOnCode, applicRefId) and ATA iSpec 2200 CMM IPL (dplist/figure/prtlist/itemdata with itemnbr, indent, illusind, attach, delitem, pnr, iplnom/nom/kwd/adt, mfr, remark elements, effcode, upa; vendlist/vendata). Standard library only, no Qt. Done 31.10.2026: acd/ipl_reader.py (parse_markup, read_ipl, read_s1000d_ipd, read_ispec2200_ipl) and tests/test_ipl_reader.py (17 tests: the tree, S1000D 4.2 and 2.3 made-up modules, iSpec 2200 XML and upper-case SGML without end tags, and the real samples of the CMM authoring sources: S1000D 1.7 SGML, 2.3 SGML, 4.0, 4.2 and 6 IPD data modules, the Liebherr iSpec 2200 Bookplan template in SGML and XML; they skip when the source folder is absent).",
+      "done": "2026-10-31T15:50:00"
     }
   ]
 }
